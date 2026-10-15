@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UE5 Blockout Studio — .NET 10 & Photino.NET</title>
+  <link rel="stylesheet" href="css/main.css" />
+
+  <!-- Local Offline Three.js Bundle (No CDNs) -->
+  <script src="lib/three/three.min.js"></script>
+  <script src="lib/three/OrbitControls.js"></script>
+  <script src="lib/three/TransformControls.js"></script>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <div id="topbar">
+    <div class="brand">
+      <span class="brand-badge">UE5</span>
+      <span class="brand-dotnet">.NET 10</span>
+      <span>Blockout Studio</span>
+      <span style="font-size:10px; color:var(--text-muted); font-weight:400;">1 Unit = 1 cm</span>
+    </div>
+
+    <!-- History (Undo / Redo) -->
+    <div class="toolbar-group">
+      <button id="btn-undo" class="tool-btn" onclick="undo()" title="Undo (Ctrl+Z)" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4.5 6.5 H10 A3 3 0 0 1 13 9.5 A3 3 0 0 1 10 12.5 H6.5" stroke="#ff5e57"/>
+          <path d="M7 4 L4.5 6.5 L7 9" stroke="#ff5e57"/>
+        </svg>
+        <span>Undo</span>
+      </button>
+      <button id="btn-redo" class="tool-btn" onclick="redo()" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M11.5 6.5 H6 A3 3 0 0 0 3 9.5 A3 3 0 0 0 6 12.5 H9.5" stroke="#2ecc71"/>
+          <path d="M9 4 L11.5 6.5 L9 9" stroke="#2ecc71"/>
+        </svg>
+        <span>Redo</span>
+      </button>
+    </div>
+
+    <!-- Topbar Tools with Dedicated Icons -->
+    <div class="toolbar-group">
+      <span class="toolbar-label">Tools</span>
+      
+      <!-- Select / Move -->
+      <button id="tool-select" class="tool-btn active" onclick="setTool('select')" title="Shortcut: V or W">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M8 2 L8 14 M2 8 L14 8 M8 2 L6 4 M8 2 L10 4 M8 14 L6 12 M8 14 L10 12 M2 8 L4 6 M2 8 L4 10 M14 8 L12 6 M14 8 L12 10" stroke="#ff5e57"/>
+        </svg>
+        <span>Move (W)</span>
+      </button>
+
+      <!-- Rotate -->
+      <button id="tool-rotate" class="tool-btn" onclick="setTool('rotate')" title="Shortcut: E">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M13.5 8 A5.5 5.5 0 1 1 11.5 3.5 L12 2 M11.5 3.5 L9 4" stroke="#2ecc71"/>
+        </svg>
+        <span>Rotate (E)</span>
+      </button>
+
+      <!-- Rect Face -->
+      <button id="tool-draw-rect" class="tool-btn" onclick="setTool('draw-rect')" title="Shortcut: R — Click 3D face to place footprint with instant gizmo">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="2.5" y="3.5" width="11" height="9" rx="1" stroke="#f58220"/>
+          <line x1="2.5" y1="8" x2="13.5" y2="8" stroke="#8b98ad" stroke-dasharray="1 1"/>
+        </svg>
+        <span>Rect (R)</span>
+      </button>
+
+      <!-- Circle -->
+      <button id="tool-draw-circle" class="tool-btn" onclick="setTool('draw-circle')" title="Shortcut: C — Circular footprint">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="8" cy="8" r="5.5" stroke="#f58220"/>
+          <circle cx="8" cy="8" r="1.5" fill="#f58220"/>
+        </svg>
+        <span>Circle (C)</span>
+      </button>
+
+      <!-- Push / Pull -->
+      <button id="tool-pushpull" class="tool-btn" onclick="setTool('pushpull')" title="Shortcut: P — Extrude face along normal">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M4 12 L8 4 L12 12 Z" fill="#333d4d" stroke="#f58220"/>
+          <path d="M8 7 L8 14 M6 9 L8 7 L10 9" stroke="#fff"/>
+        </svg>
+        <span>Push/Pull (P)</span>
+      </button>
+
+      <!-- Hole Cutter -->
+      <button id="tool-hole" class="tool-btn" onclick="setTool('hole')" title="Shortcut: H — Punch doors, windows, and circular cutouts">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="2" y="2" width="12" height="12" rx="1" stroke="#8b98ad"/>
+          <rect x="5.5" y="5.5" width="5" height="7" fill="#121417" stroke="#e04848"/>
+        </svg>
+        <span>Hole (H)</span>
+      </button>
+
+      <!-- Sphere -->
+      <button id="tool-sphere" class="tool-btn" onclick="spawnSpherePrompt()" title="Shortcut: S — Place Sphere">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+          <circle cx="8" cy="8" r="6" stroke="#f58220"/>
+          <ellipse cx="8" cy="8" rx="6" ry="2.2" stroke="#8b98ad" stroke-dasharray="2 1.5"/>
+        </svg>
+        <span>Sphere (S)</span>
+      </button>
+
+      <!-- Light -->
+      <button id="tool-light" class="tool-btn" onclick="spawnLight('point', 'Static')" title="Shortcut: L — Spawn Static Light">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M8 2 A4 4 0 0 0 4 6 C4 8 6 9 6 10 L10 10 C10 9 12 8 12 6 A4 4 0 0 0 8 2 Z" fill="#fffae6" stroke="#ffe066"/>
+          <path d="M6 12 L10 12 M7 14 L9 14" stroke="#ffe066"/>
+        </svg>
+        <span>Light (L)</span>
+      </button>
+    </div>
+
+    <!-- Snap & Overlays -->
+    <div class="toolbar-group">
+      <span class="toolbar-label">Snap</span>
+      <select id="snap-size" onchange="updateSnapSize()">
+        <option value="1">1 cm</option>
+        <option value="5">5 cm</option>
+        <option value="10">10 cm</option>
+        <option value="25">25 cm</option>
+        <option value="50" selected>50 cm (Modular)</option>
+        <option value="100">100 cm (1m)</option>
+      </select>
+      <button id="toggle-mannequin" class="active" onclick="toggleMannequin()">180cm Dummy</button>
+      <button class="ao-btn" onclick="requestBakeAo()" title="Offload raytraced contact shadows to C# (.NET 10 SIMD)">Bake AO (C#)</button>
+    </div>
+
+    <!-- UE5 Clipboard & I/O -->
+    <div class="toolbar-group">
+      <button class="export-btn" onclick="copyToUe5()" title="Copy Actor T3D text — Press Ctrl+V in Unreal Engine 5 Viewport!">Copy for UE5 (Ctrl+C)</button>
+      <button onclick="saveProject()" title="Save project to .ueblock file">Save</button>
+      <button onclick="loadProject()" title="Open .ueblock file">Load</button>
+      <button onclick="exportToUE5Obj()" title="Export .OBJ file for Unreal Engine 5">Export .OBJ</button>
+    </div>
+  </div>
+
+  <!-- Workspace -->
+  <div id="workspace">
+    <div id="viewport">
+      <div id="live-measure">W: 100 cm | L: 100 cm | H: 200 cm</div>
+      <!-- In-Scene 3D Floating Measurement Badge -->
+      <div id="gizmo-measure-badge">X: +1.50m</div>
+      <div id="toast-msg">Notification</div>
+      <div id="hud-overlay">
+        <strong>SketchUp &times; UE5 Controls:</strong><br/>
+        • <b>Camera:</b> Right-Click Drag = Orbit | Middle-Click Drag = Pan | Wheel = Zoom<br/>
+        • <b>History:</b> Undo = <b>Ctrl + Z</b> | Redo = <b>Ctrl + Y</b> (or <b>Ctrl + Shift + Z</b>)<br/>
+        • <b>Rect (R):</b> Click 3D face to place rectangular block with instant gizmo reference<br/>
+        • <b>Push / Pull (P):</b> Click any surface face to extrude along its normal<br/>
+        • <b>Hole Cutter (H):</b> Select wall &rarr; choose door/window &rarr; C# CSG punches opening<br/>
+        • <b>Copy for UE5:</b> Select objects &rarr; Press <b>Ctrl + C</b> &rarr; In UE5 Viewport press <b>Ctrl + V</b>!
+      </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <div id="sidebar">
+      <!-- Forms Section -->
+      <div>
+        <div class="section-title">Forms</div>
+        <div class="preset-grid">
+          <button class="preset-btn" onclick="spawnPreset('wall')" title="Wall">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+              <path d="M4 3 L10 1 L14 3 L8 5 Z" fill="#4a5568" stroke="#f58220"/>
+              <path d="M4 3 L8 5 L8 14 L4 12 Z" fill="#2d3748" stroke="#8b98ad"/>
+              <path d="M8 5 L14 3 L14 12 L8 14 Z" fill="#1a202c" stroke="#8b98ad"/>
+            </svg>
+            <span>Wall</span>
+          </button>
+          <button class="preset-btn" onclick="spawnPreset('floor')" title="Floor">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+              <path d="M8 3 L15 6.5 L8 10 L1 6.5 Z" fill="#4a5568" stroke="#f58220"/>
+              <path d="M1 6.5 L8 10 L8 12.5 L1 9 Z" fill="#2d3748" stroke="#8b98ad"/>
+              <path d="M8 10 L15 6.5 L15 9 L8 12.5 Z" fill="#1a202c" stroke="#8b98ad"/>
+            </svg>
+            <span>Floor</span>
+          </button>
+          <button class="preset-btn" onclick="spawnPreset('pillar')" title="Pillar">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+              <path d="M6 3 L10 1.5 L12 3 L8 4.5 Z" fill="#4a5568" stroke="#f58220"/>
+              <path d="M6 3 L8 4.5 L8 14.5 L6 13 Z" fill="#2d3748" stroke="#8b98ad"/>
+              <path d="M8 4.5 L12 3 L12 13 L8 14.5 Z" fill="#1a202c" stroke="#8b98ad"/>
+            </svg>
+            <span>Pillar</span>
+          </button>
+          <button class="preset-btn" onclick="spawnPreset('crate')" title="Cover Box">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+              <path d="M8 2 L14 5.5 L8 9 L2 5.5 Z" fill="#4a5568" stroke="#f58220"/>
+              <path d="M2 5.5 L8 9 L8 14.5 L2 11 Z" fill="#2d3748" stroke="#8b98ad"/>
+              <path d="M8 9 L14 5.5 L14 11 L8 14.5 Z" fill="#1a202c" stroke="#8b98ad"/>
+            </svg>
+            <span>Cover Box</span>
+          </button>
+          <button class="preset-btn" onclick="spawnPreset('platform')" title="Platform">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+              <path d="M8 3.5 L15 7 L8 10.5 L1 7 Z" fill="#4a5568" stroke="#f58220"/>
+              <path d="M1 7 L8 10.5 L8 13.5 L1 10 Z" fill="#2d3748" stroke="#8b98ad"/>
+              <path d="M8 10.5 L15 7 L15 10 L8 13.5 Z" fill="#1a202c" stroke="#8b98ad"/>
+            </svg>
+            <span>Platform</span>
+          </button>
+          <button class="preset-btn" onclick="spawnPreset('ramp')" title="Ramp">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+              <path d="M2 13.5 L14 13.5 L14 4.5 Z" fill="#2d3748" stroke="#8b98ad"/>
+              <path d="M2 13.5 L14 4.5 L10 2.5 L2 11.5 Z" fill="#4a5568" stroke="#f58220"/>
+              <path d="M10 2.5 L14 4.5 L14 13.5 L10 11.5 Z" fill="#1a202c" stroke="#8b98ad"/>
+            </svg>
+            <span>Ramp</span>
+          </button>
+          <button class="preset-btn" onclick="spawnPreset('cylinder')" title="Cylinder">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+              <ellipse cx="8" cy="4.5" rx="5.5" ry="2.2" fill="#4a5568" stroke="#f58220"/>
+              <path d="M2.5 4.5 V11.5 C2.5 13 5 14.2 8 14.2 C11 14.2 13.5 13 13.5 11.5 V4.5" fill="#2d3748" stroke="#8b98ad"/>
+            </svg>
+            <span>Cylinder</span>
+          </button>
+          <button class="preset-btn" onclick="spawnPreset('sphere')" title="Sphere">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+              <circle cx="8" cy="8" r="6" fill="#2d3748" stroke="#f58220"/>
+              <ellipse cx="8" cy="8" rx="6" ry="2.2" stroke="#8b98ad" stroke-dasharray="2 1.5"/>
+              <ellipse cx="8" cy="8" rx="2.2" ry="6" stroke="#8b98ad"/>
+            </svg>
+            <span>Sphere</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Static & Stationary Lights Section -->
+      <div>
+        <div class="section-title">Lights (UE5 Actors)</div>
+        <div class="preset-grid">
+          <button class="preset-btn" onclick="spawnLight('point', 'Static')" title="Static Point Light (Baked Lightmap)">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <circle cx="8" cy="7" r="4" fill="#ffd166" stroke="#f58220"/>
+              <path d="M6 13 L10 13 M8 11 L8 13" stroke="#8b98ad"/>
+            </svg>
+            <span>Point (Static)</span>
+          </button>
+          <button class="preset-btn" onclick="spawnLight('point', 'Stationary')" title="Stationary Point Light (Direct Dynamic + Baked Shadows)">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <circle cx="8" cy="7" r="4" fill="#ffe066" stroke="#2ecc71"/>
+              <path d="M6 13 L10 13 M8 11 L8 13" stroke="#2ecc71"/>
+            </svg>
+            <span>Point (Stationary)</span>
+          </button>
+          <button class="preset-btn" onclick="spawnLight('spot', 'Static')" title="Static Spot Light">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M8 2 L13 13 L3 13 Z" fill="#333d4d" stroke="#f58220"/>
+              <circle cx="8" cy="5" r="1.5" fill="#ffd166"/>
+            </svg>
+            <span>Spot (Static)</span>
+          </button>
+          <button class="preset-btn" onclick="spawnLight('spot', 'Stationary')" title="Stationary Spot Light">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M8 2 L13 13 L3 13 Z" fill="#333d4d" stroke="#2ecc71"/>
+              <circle cx="8" cy="5" r="1.5" fill="#ffe066"/>
+            </svg>
+            <span>Spot (Stationary)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Hole Cutter Options Panel -->
+      <div id="hole-options" style="background:#15181e; border:1px solid #333c4c; border-radius:4px; padding:8px; display:none;">
+        <div class="section-title" style="color:var(--ue-orange)">Hole Cutter (C# CSG Engine)</div>
+        <div class="prop-grid">
+          <span>Hole Type</span>
+          <select id="hole-shape" onchange="updateHoleUi()">
+            <option value="door">Door Opening (120&times;220)</option>
+            <option value="window">Window (120&times;100)</option>
+            <option value="circle">Circular Porthole (D:100)</option>
+            <option value="custom">Custom Dimensions</option>
+          </select>
+          <span>Width (cm)</span>
+          <input type="number" id="hole-w" value="120" step="10" />
+          <span>Height (cm)</span>
+          <input type="number" id="hole-h" value="220" step="10" />
+          <span>Depth (cm)</span>
+          <input type="number" id="hole-depth" value="50" step="5" title="Penetration depth" />
+        </div>
+        <button style="width:100%; margin-top:8px; background:var(--ue-orange); color:#111; font-weight:700;" onclick="punchHoleOnSelected()">
+          Punch Hole on Selected Mesh
+        </button>
+      </div>
+
+      <!-- Selected Transform & Dimensions -->
+      <div>
+        <div class="section-title">Selected Object Dimensions (cm)</div>
+        <div class="prop-grid">
+          <span>Name</span>
+          <input type="text" id="prop-name" onchange="applyInspectorChanges()" />
+
+          <span>Size (cm)</span>
+          <div class="prop-row-3">
+            <div class="input-wrap"><span class="axis-x">X</span><input type="number" id="dim-x" step="10" min="1" onchange="applyInspectorChanges()"/></div>
+            <div class="input-wrap"><span class="axis-y">Y</span><input type="number" id="dim-y" step="10" min="1" onchange="applyInspectorChanges()"/></div>
+            <div class="input-wrap"><span class="axis-z">Z</span><input type="number" id="dim-z" step="10" min="1" onchange="applyInspectorChanges()"/></div>
+          </div>
+
+          <span>Pos (cm)</span>
+          <div class="prop-row-3">
+            <div class="input-wrap"><span class="axis-x">X</span><input type="number" id="pos-x" step="10" onchange="applyPositionChanges()"/></div>
+            <div class="input-wrap"><span class="axis-y">Y</span><input type="number" id="pos-y" step="10" onchange="applyPositionChanges()"/></div>
+            <div class="input-wrap"><span class="axis-z">Z</span><input type="number" id="pos-z" step="10" onchange="applyPositionChanges()"/></div>
+          </div>
+
+          <span>Rot Z (&deg;)</span>
+          <input type="number" id="rot-z" step="15" value="0" onchange="applyPositionChanges()" />
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <button style="flex:1;" onclick="duplicateSelected()">Duplicate (Ctrl+D)</button>
+          <button class="danger-btn" onclick="deleteSelected()">Delete (Del)</button>
+        </div>
+      </div>
+
+      <!-- Scene Outliner -->
+      <div>
+        <div class="section-title">
+          <span>Scene Outliner</span>
+          <span id="block-count" style="font-size:10px; opacity:0.75;">0 items</span>
+        </div>
+        <div id="outliner"></div>
+      </div>
+
+      <!-- UE5 Export Options -->
+      <div>
+        <div class="section-title">UE5 .OBJ Export Options</div>
+        <div class="prop-grid">
+          <span>Scope</span>
+          <select id="export-scope">
+            <option value="all">Entire Scene</option>
+            <option value="selected">Selected Object Only</option>
+          </select>
+          <span>Pivot</span>
+          <select id="export-pivot">
+            <option value="world">World Origin (Level)</option>
+            <option value="ZeroBase">Base at 0,0,0 (Modular Asset)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Bootstrap Module -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
