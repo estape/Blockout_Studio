@@ -147,7 +147,28 @@ public static class Ue5ClipboardService
             sb.AppendLine("End Map");
 
             var t3dText = sb.ToString();
-            ClipboardService.SetText(t3dText);
+            bool copied = false;
+            Exception? lastEx = null;
+            for (int attempt = 0; attempt < 5; attempt++)
+            {
+                try
+                {
+                    ClipboardService.SetText(t3dText);
+                    copied = true;
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    lastEx = ex;
+                    Thread.Sleep(40);
+                }
+            }
+
+            if (!copied && lastEx != null)
+            {
+                return (true, $"Generated UE5 T3D ({actorCount} actors). Clipboard was busy: {lastEx.Message}", actorCount);
+            }
+
             return (true, $"Successfully copied {actorCount} actor(s) to clipboard! Paste directly into UE5 Viewport (Ctrl+V).", actorCount);
         }
         catch (Exception ex)

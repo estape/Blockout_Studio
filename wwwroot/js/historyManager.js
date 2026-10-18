@@ -44,7 +44,10 @@ export function serializeScene() {
         rotZ: b.rotation.z,
         customMesh: !!u.customMesh,
         csgData: u.csgData ? JSON.parse(JSON.stringify(u.csgData)) : null,
-        aoColors: (b.geometry && b.geometry.attributes.color) ? Array.from(b.geometry.attributes.color.array) : null
+        aoColors: (b.geometry && b.geometry.attributes.color) ? Array.from(b.geometry.attributes.color.array) : null,
+        components: Array.isArray(u.components)
+          ? u.components.map((c) => typeof c.serialize === 'function' ? c.serialize() : { ...c })
+          : []
       };
     })
   };

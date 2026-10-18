@@ -219,3 +219,65 @@ export function exportToUE5Obj() {
   URL.revokeObjectURL(url);
 }
 
+export function exportToUE5Usd() {
+  const scope = document.getElementById('export-scope')?.value || 'all';
+  const targetList = (scope === 'selected' && selectedBlock) ? [selectedBlock] : blocks;
+
+  if (targetList.length === 0) {
+    alert('No geometry in scene to export as USD stage!');
+    return;
+  }
+
+  showToast('Generating Universal Scene Description (.usda) for UE5...');
+
+  const payload = targetList.map((mesh) => {
+    mesh.updateMatrixWorld(true);
+    const geom = mesh.geometry;
+    if (!geom || !geom.attributes.position) return null;
+
+    const posAttr = geom.attributes.position;
+    const normAttr = geom.attributes.normal;
+    const uvAttr = geom.attributes.uv;
+    const worldMat = mesh.matrixWorld;
+
+    const v = new THREE.Vector3();
+    const n = new THREE.Vector3();
+    const normalMat = new THREE.Matrix3().getNormalMatrix(worldMat);
+
+    const worldPos = [];
+    const worldNorms = [];
+    const uvs = [];
+
+    for (let i = 0; i < posAttr.count; i++) {
+      v.fromBufferAttribute(posAttr, i).applyMatrix4(worldMat);
+      worldPos.push(v.x, v.y, v.z);
+
+      if (normAttr) {
+        n.fromBufferAttribute(normAttr, i).applyMatrix3(normalMat).normalize();
+        worldNorms.push(n.x, n.y, n.z);
+      }
+      if (uvAttr) {
+        uvs.push(uvAttr.getX(i), uvAttr.getY(i));
+      }
+    }
+
+    return {
+      name: mesh.userData.name,
+      positions: worldPos,
+      normals: worldNorms.length ? worldNorms : null,
+      uvs: uvs.length ? uvs : null,
+      indices: geom.index ? Array.from(geom.index.array) : null
+    };
+  }).filter(Boolean);
+
+  sendToBackend('export_usd', { blocks: payload });
+}
+
+export function queryToolchains() {
+  sendToBackend('get_toolchains');
+}
+
+export function queryNativeStatus() {
+  sendToBackend('get_native_status');
+}
+
