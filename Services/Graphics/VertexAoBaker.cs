@@ -1,6 +1,6 @@
-using System.Numerics;
+﻿using System.Numerics;
 
-namespace UE5BlockoutStudio.Services.Graphics;
+namespace BlockoutStudio.Services.Graphics;
 
 public struct SceneTriangle
 {

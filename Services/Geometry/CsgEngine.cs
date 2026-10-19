@@ -1,7 +1,7 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Text.Json;
 
-namespace UE5BlockoutStudio.Services.Geometry;
+namespace BlockoutStudio.Services.Geometry;
 
 public class CsgVertex
 {
@@ -259,8 +259,13 @@ public class CsgNode
     }
 }
 
-public static class CsgEngine
+public class CsgEngine : ICsgEngine
 {
+    (float[] positions, float[] normals, float[] uvs, int[] indices) ICsgEngine.Subtract(
+        float[] subPos, float[]? subNorm, float[]? subUV, int[]? subIdx,
+        float[] cutPos, float[]? cutNorm, float[]? cutUV, int[]? cutIdx) =>
+        Subtract(subPos, subNorm, subUV, subIdx, cutPos, cutNorm, cutUV, cutIdx);
+
     public static List<CsgPolygon> PolygonsFromMesh(float[] positions, float[]? normals, float[]? uvs, int[]? indices)
     {
         var polygons = new List<CsgPolygon>();

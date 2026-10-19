@@ -3,25 +3,202 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>UE5 Blockout Studio — .NET 10 & Photino.NET</title>
+  <title>Blockout Studio — .NET 10 &amp; Photino.NET</title>
   <link rel="stylesheet" href="css/main.css" />
 
   <!-- Local Offline Three.js Bundle (No CDNs) -->
   <script src="lib/three/three.min.js"></script>
   <script src="lib/three/OrbitControls.js"></script>
   <script src="lib/three/TransformControls.js"></script>
+
+  <script>
+    window.onerror = function(msg, url, line, col, err) {
+      console.error('[Engine Frontend Error]', msg, url, line, col, err);
+      var toast = document.getElementById('toast-msg');
+      if (toast) {
+        toast.textContent = 'Error: ' + msg;
+        toast.style.background = 'rgba(224, 72, 72, 0.95)';
+        toast.style.display = 'block';
+      }
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+      console.error('[Unhandled Promise Rejection]', e.reason);
+    });
+  </script>
 </head>
 <body>
 
-  <!-- Top Bar -->
-  <div id="topbar">
-    <div class="brand">
-      <span class="brand-badge">UE5</span>
-      <span class="brand-dotnet">.NET 10</span>
-      <span>Blockout Studio</span>
-      <span style="font-size:10px; color:var(--text-muted); font-weight:400;">1 Unit = 1 cm</span>
-    </div>
+  <!-- Top Menu Bar -->
+  <div id="menubar">
+    <div class="menubar-left">
+      <div class="brand">
+        <span class="brand-dotnet">.NET 10</span>
+        <span style="font-weight:700; color:#fff;">Blockout Studio</span>
+        <span class="unit-badge">1 Unit = 1 cm</span>
+      </div>
 
+      <nav class="menubar-nav" aria-label="Main Menu">
+        <button type="button" class="menubar-trigger" id="btn-menu-file" popovertarget="menu-file" style="anchor-name: --anchor-menu-file;">File</button>
+        <div id="menu-file" popover="auto" class="menubar-popover" data-trigger="btn-menu-file" style="position-anchor: --anchor-menu-file;">
+          <button type="button" class="menu-action-item" onclick="createProjectDialog()">
+            <span>New Project...</span>
+            <span class="menu-shortcut">Ctrl+N</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="openProjectDialog()">
+            <span>Open Project...</span>
+            <span class="menu-shortcut">Ctrl+Shift+O</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="openWelcomeModal()">
+            <span>Welcome Screen...</span>
+          </button>
+          <div class="menu-sep"></div>
+          <button type="button" class="menu-action-item" onclick="saveProject()">
+            <span>Save Project</span>
+            <span class="menu-shortcut">Ctrl+S</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="loadProject()">
+            <span>Load Scene...</span>
+            <span class="menu-shortcut">Ctrl+O</span>
+          </button>
+          <div class="menu-sep"></div>
+          <button type="button" class="menu-action-item" onclick="importAssetDialog()">
+            <span>Import Asset...</span>
+            <span class="menu-shortcut">Ctrl+I</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="saveSelectedAsObj()">
+            <span>Save Selected as .OBJ Asset</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="saveLevelAsUsdStage()">
+            <span>Save Level as .USD Stage</span>
+          </button>
+          <div class="menu-sep"></div>
+          <button type="button" class="menu-action-item" onclick="exportToObj()">
+            <span>Export Mesh (.OBJ)...</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="exportToUsd()">
+            <span>Export Stage (.USD)...</span>
+          </button>
+        </div>
+
+        <button type="button" class="menubar-trigger" id="btn-menu-edit" popovertarget="menu-edit" style="anchor-name: --anchor-menu-edit;">Edit</button>
+        <div id="menu-edit" popover="auto" class="menubar-popover" data-trigger="btn-menu-edit" style="position-anchor: --anchor-menu-edit;">
+          <button type="button" class="menu-action-item" onclick="undo()">
+            <span>Undo</span>
+            <span class="menu-shortcut">Ctrl+Z</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="redo()">
+            <span>Redo</span>
+            <span class="menu-shortcut">Ctrl+Y</span>
+          </button>
+          <div class="menu-sep"></div>
+          <button type="button" class="menu-action-item" onclick="duplicateSelected()">
+            <span>Duplicate Selected</span>
+            <span class="menu-shortcut">Ctrl+D</span>
+          </button>
+          <button type="button" class="menu-action-item danger" onclick="deleteSelected()">
+            <span>Delete Selected</span>
+            <span class="menu-shortcut">Del</span>
+          </button>
+        </div>
+
+        <button type="button" class="menubar-trigger" id="btn-menu-assets" popovertarget="menu-assets" style="anchor-name: --anchor-menu-assets;">Assets</button>
+        <div id="menu-assets" popover="auto" class="menubar-popover" data-trigger="btn-menu-assets" style="position-anchor: --anchor-menu-assets;">
+          <button type="button" class="menu-action-item" onclick="toggleContentDrawer()">
+            <span>Toggle Content Drawer</span>
+            <span class="menu-shortcut">Ctrl+Space</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="importAssetDialog()">
+            <span>Import Asset to /Game...</span>
+          </button>
+          <div class="menu-sep"></div>
+          <button type="button" class="menu-action-item" onclick="saveSelectedAsObj()">
+            <span>Save Selected Mesh to /Game/Meshes</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="saveLevelAsUsdStage()">
+            <span>Save Level Stage to /Game/Scenes</span>
+          </button>
+        </div>
+
+        <button type="button" class="menubar-trigger" id="btn-menu-tools" popovertarget="menu-tools" style="anchor-name: --anchor-menu-tools;">Tools</button>
+        <div id="menu-tools" popover="auto" class="menubar-popover" data-trigger="btn-menu-tools" style="position-anchor: --anchor-menu-tools;">
+          <button type="button" class="menu-action-item" onclick="setTool('select')">
+            <span>Move Tool</span>
+            <span class="menu-shortcut">W</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="setTool('rotate')">
+            <span>Rotate Tool</span>
+            <span class="menu-shortcut">E</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="setTool('draw-rect')">
+            <span>Rect Footprint Tool</span>
+            <span class="menu-shortcut">R</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="setTool('draw-circle')">
+            <span>Circle Footprint Tool</span>
+            <span class="menu-shortcut">C</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="setTool('pushpull')">
+            <span>Push / Pull Extrude</span>
+            <span class="menu-shortcut">P</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="setTool('hole')">
+            <span>Hole Cutter (C# CSG)</span>
+            <span class="menu-shortcut">H</span>
+          </button>
+          <div class="menu-sep"></div>
+          <button type="button" class="menu-action-item" onclick="requestBakeAo()">
+            <span>Bake Ambient Occlusion (C#)</span>
+          </button>
+        </div>
+
+        <button type="button" class="menubar-trigger" id="btn-menu-build" popovertarget="menu-build" style="anchor-name: --anchor-menu-build;">Build</button>
+        <div id="menu-build" popover="auto" class="menubar-popover" data-trigger="btn-menu-build" style="position-anchor: --anchor-menu-build;">
+          <button type="button" class="menu-action-item" onclick="openBuildModal()">
+            <span>Build, Compilers &amp; SDK Settings...</span>
+            <span class="menu-shortcut">Ctrl+B</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="openBuildModal(); switchBuildTab('compiler');">
+            <span>Compile Native C++20 Plugin</span>
+            <span class="menu-shortcut">F7</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="openBuildModal(); switchBuildTab('package');">
+            <span>Package Project (Win64 / Linux / Android)</span>
+          </button>
+        </div>
+
+        <button type="button" class="menubar-trigger" id="btn-menu-view" popovertarget="menu-view" style="anchor-name: --anchor-menu-view;">View</button>
+        <div id="menu-view" popover="auto" class="menubar-popover" data-trigger="btn-menu-view" style="position-anchor: --anchor-menu-view;">
+          <button type="button" class="menu-action-item" onclick="toggleMannequin()">
+            <span>Toggle 180cm Dummy</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="toggleGpuHud()">
+            <span>Toggle GPU &amp; Vulkan Status HUD</span>
+            <span class="menu-shortcut">F3</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="toggleContentDrawer()">
+            <span>Toggle Content Drawer</span>
+            <span class="menu-shortcut">Ctrl+Space</span>
+          </button>
+          <div class="menu-sep"></div>
+          <button type="button" class="menu-action-item" onclick="setScalabilityTier(0)">
+            <span>Scalability: Tier 0 (Mobile Low)</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="setScalabilityTier(1)">
+            <span>Scalability: Tier 1 (Mobile High)</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="setScalabilityTier(2)">
+            <span>Scalability: Tier 2 (Desktop PC)</span>
+          </button>
+          <button type="button" class="menu-action-item" onclick="setScalabilityTier(3)">
+            <span>Scalability: Tier 3 (Cinematic)</span>
+          </button>
+        </div>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Action Toolbar -->
+  <div id="topbar">
     <!-- History (Undo / Redo) -->
     <div class="toolbar-group">
       <button id="btn-undo" class="tool-btn" onclick="undo()" title="Undo (Ctrl+Z)" disabled>
@@ -40,78 +217,26 @@
       </button>
     </div>
 
-    <!-- Topbar Tools with Dedicated Icons -->
-    <div class="toolbar-group">
-      <span class="toolbar-label">Tools</span>
-      
-      <!-- Select / Move -->
-      <button id="tool-select" class="tool-btn active" onclick="setTool('select')" title="Shortcut: V or W">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
-          <path d="M8 2 L8 14 M2 8 L14 8 M8 2 L6 4 M8 2 L10 4 M8 14 L6 12 M8 14 L10 12 M2 8 L4 6 M2 8 L4 10 M14 8 L12 6 M14 8 L12 10" stroke="#ff5e57"/>
+    <!-- Play-In-Editor (PIE) Controls (Module 4) -->
+    <div class="toolbar-group pie-group">
+      <button id="btn-pie-play" class="tool-btn pie-btn" onclick="startPie()" title="Play in Editor (Alt + P)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <polygon points="4,2 14,8 4,14" fill="#2ecc71" stroke="#2ecc71"/>
         </svg>
-        <span>Move (W)</span>
+        <span>Play</span>
       </button>
-
-      <!-- Rotate -->
-      <button id="tool-rotate" class="tool-btn" onclick="setTool('rotate')" title="Shortcut: E">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
-          <path d="M13.5 8 A5.5 5.5 0 1 1 11.5 3.5 L12 2 M11.5 3.5 L9 4" stroke="#2ecc71"/>
+      <button id="btn-pie-pause" class="tool-btn pie-btn" onclick="pausePie()" title="Pause Simulation" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="3.5" height="10" fill="#f58220" stroke="#f58220"/>
+          <rect x="9.5" y="3" width="3.5" height="10" fill="#f58220" stroke="#f58220"/>
         </svg>
-        <span>Rotate (E)</span>
+        <span>Pause</span>
       </button>
-
-      <!-- Rect Face -->
-      <button id="tool-draw-rect" class="tool-btn" onclick="setTool('draw-rect')" title="Shortcut: R — Click 3D face to place footprint with instant gizmo">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
-          <rect x="2.5" y="3.5" width="11" height="9" rx="1" stroke="#f58220"/>
-          <line x1="2.5" y1="8" x2="13.5" y2="8" stroke="#8b98ad" stroke-dasharray="1 1"/>
+      <button id="btn-pie-stop" class="tool-btn pie-btn" onclick="stopPie()" title="Stop Simulation (Esc)" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="10" height="10" fill="#e04848" stroke="#e04848"/>
         </svg>
-        <span>Rect (R)</span>
-      </button>
-
-      <!-- Circle -->
-      <button id="tool-draw-circle" class="tool-btn" onclick="setTool('draw-circle')" title="Shortcut: C — Circular footprint">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
-          <circle cx="8" cy="8" r="5.5" stroke="#f58220"/>
-          <circle cx="8" cy="8" r="1.5" fill="#f58220"/>
-        </svg>
-        <span>Circle (C)</span>
-      </button>
-
-      <!-- Push / Pull -->
-      <button id="tool-pushpull" class="tool-btn" onclick="setTool('pushpull')" title="Shortcut: P — Extrude face along normal">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
-          <path d="M4 12 L8 4 L12 12 Z" fill="#333d4d" stroke="#f58220"/>
-          <path d="M8 7 L8 14 M6 9 L8 7 L10 9" stroke="#fff"/>
-        </svg>
-        <span>Push/Pull (P)</span>
-      </button>
-
-      <!-- Hole Cutter -->
-      <button id="tool-hole" class="tool-btn" onclick="setTool('hole')" title="Shortcut: H — Punch doors, windows, and circular cutouts">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
-          <rect x="2" y="2" width="12" height="12" rx="1" stroke="#8b98ad"/>
-          <rect x="5.5" y="5.5" width="5" height="7" fill="#121417" stroke="#e04848"/>
-        </svg>
-        <span>Hole (H)</span>
-      </button>
-
-      <!-- Sphere -->
-      <button id="tool-sphere" class="tool-btn" onclick="spawnSpherePrompt()" title="Shortcut: S — Place Sphere">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
-          <circle cx="8" cy="8" r="6" stroke="#f58220"/>
-          <ellipse cx="8" cy="8" rx="6" ry="2.2" stroke="#8b98ad" stroke-dasharray="2 1.5"/>
-        </svg>
-        <span>Sphere (S)</span>
-      </button>
-
-      <!-- Light -->
-      <button id="tool-light" class="tool-btn" onclick="spawnLight('point', 'Static')" title="Shortcut: L — Spawn Static Light">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
-          <path d="M8 2 A4 4 0 0 0 4 6 C4 8 6 9 6 10 L10 10 C10 9 12 8 12 6 A4 4 0 0 0 8 2 Z" fill="#fffae6" stroke="#ffe066"/>
-          <path d="M6 12 L10 12 M7 14 L9 14" stroke="#ffe066"/>
-        </svg>
-        <span>Light (L)</span>
+        <span>Stop</span>
       </button>
     </div>
 
@@ -130,32 +255,222 @@
       <button class="ao-btn" onclick="requestBakeAo()" title="Offload raytraced contact shadows to C# (.NET 10 SIMD)">Bake AO (C#)</button>
     </div>
 
-    <!-- UE5 Clipboard & I/O -->
+    <!-- Asset & Build Pipeline -->
     <div class="toolbar-group">
-      <button class="export-btn" onclick="copyToUe5()" title="Copy Actor T3D text — Press Ctrl+V in Unreal Engine 5 Viewport!">Copy for UE5 (Ctrl+C)</button>
-      <button onclick="saveProject()" title="Save project to .ueblock file">Save</button>
-      <button onclick="loadProject()" title="Open .ueblock file">Load</button>
-      <button onclick="exportToUE5Obj()" title="Export .OBJ file for Unreal Engine 5">Export .OBJ</button>
+      <button onclick="exportToObj()" title="Export .OBJ geometry file">Export .OBJ</button>
+      <button class="export-btn" style="background:#512bd4; color:#fff;" onclick="exportToUsd()" title="Export .USDA Stage">Export .USD</button>
+      <button onclick="saveSelectedAsObj()" title="Save selected mesh into /Assets/Meshes/ as native .obj asset with baked AO" style="background:#0284c7; color:#fff;">Save .OBJ Asset</button>
+      <button onclick="saveLevelAsUsdStage()" title="Save current level as non-destructive .usda stage in /Assets/Levels/" style="background:#ea580c; color:#fff;">Save USD Stage</button>
+      <button id="btn-build-sdks" onclick="openBuildModal()" title="Native SDKs, C++ Compilers &amp; Multi-Platform Packaging (Ctrl+B / F7)" style="background:#1e2430; font-size:11px; border-color:#3a4556; display:flex; align-items:center; gap:6px;">
+        <span>⚙️ Build &amp; SDKs</span>
+        <span id="topbar-sdk-badge" class="status-dot dot-ready" title="Probing SDKs..."></span>
+      </button>
+    </div>
+
+    <!-- Scalability & GPU Runtimes (Module 3) -->
+    <div class="toolbar-group">
+      <span class="toolbar-label">Scalability</span>
+      <select id="scalability-tier-select" onchange="setScalabilityTier(this.value)" title="Switch Engine Scalability Tier (Mobile-to-Console)">
+        <option value="0">Tier 0: Mobile Low</option>
+        <option value="1">Tier 1: Mobile High</option>
+        <option value="2" selected>Tier 2: Desktop PC</option>
+        <option value="3">Tier 3: Cinematic / Console</option>
+      </select>
+      <button id="toggle-gpu-hud-btn" onclick="toggleGpuHud()" title="Toggle Real-Time GPU & Vulkan Performance HUD (F3)" style="display:flex; align-items:center; gap:4px;">
+        <span>⚡ HUD</span>
+        <span style="font-size:9px; background:#242a34; padding:1px 4px; border-radius:2px; color:var(--text-muted);">F3</span>
+      </button>
     </div>
   </div>
 
   <!-- Workspace -->
   <div id="workspace">
+    <!-- Left Sidebar: Tools & Modeling Block -->
+    <div id="left-sidebar">
+      <div>
+        <div class="section-title">Tools</div>
+        <div class="preset-grid">
+          <!-- Select / Move -->
+          <button id="tool-select" class="preset-btn tool-btn active" onclick="setTool('select')" title="Select &amp; Move objects">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M8 2 L8 14 M2 8 L14 8 M8 2 L6 4 M8 2 L10 4 M8 14 L6 12 M8 14 L10 12 M2 8 L4 6 M2 8 L4 10 M14 8 L12 6 M14 8 L12 10" stroke="#ff5e57"/>
+            </svg>
+            <span>Move</span>
+          </button>
+
+          <!-- Rotate -->
+          <button id="tool-rotate" class="preset-btn tool-btn" onclick="setTool('rotate')" title="Rotate selected objects">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M13.5 8 A5.5 5.5 0 1 1 11.5 3.5 L12 2 M11.5 3.5 L9 4" stroke="#2ecc71"/>
+            </svg>
+            <span>Rotate</span>
+          </button>
+
+          <!-- Rect Face -->
+          <button id="tool-draw-rect" class="preset-btn tool-btn" onclick="setTool('draw-rect')" title="Click 3D face to place rectangle footprint">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="2.5" y="3.5" width="11" height="9" rx="1" stroke="#f58220"/>
+              <line x1="2.5" y1="8" x2="13.5" y2="8" stroke="#8b98ad" stroke-dasharray="1 1"/>
+            </svg>
+            <span>Rect</span>
+          </button>
+
+          <!-- Circle -->
+          <button id="tool-draw-circle" class="preset-btn tool-btn" onclick="setTool('draw-circle')" title="Click 3D face to place circular footprint">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <circle cx="8" cy="8" r="5.5" stroke="#f58220"/>
+              <circle cx="8" cy="8" r="1.5" fill="#f58220"/>
+            </svg>
+            <span>Circle</span>
+          </button>
+
+          <!-- Push / Pull -->
+          <button id="tool-pushpull" class="preset-btn tool-btn" onclick="setTool('pushpull')" title="Extrude face along normal">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M4 12 L8 4 L12 12 Z" fill="#333d4d" stroke="#f58220"/>
+              <path d="M8 7 L8 14 M6 9 L8 7 L10 9" stroke="#fff"/>
+            </svg>
+            <span>Push/Pull</span>
+          </button>
+
+          <!-- Hole Cutter -->
+          <button id="tool-hole" class="preset-btn tool-btn" onclick="setTool('hole')" title="Punch doors, windows, and circular cutouts (C# CSG)">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="2" y="2" width="12" height="12" rx="1" stroke="#8b98ad"/>
+              <rect x="5.5" y="5.5" width="5" height="7" fill="#121417" stroke="#e04848"/>
+            </svg>
+            <span>Hole</span>
+          </button>
+
+          <!-- Sphere -->
+          <button id="tool-sphere" class="preset-btn tool-btn" onclick="spawnSpherePrompt()" title="Spawn Sphere primitive">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
+              <circle cx="8" cy="8" r="6" stroke="#f58220"/>
+              <ellipse cx="8" cy="8" rx="6" ry="2.2" stroke="#8b98ad" stroke-dasharray="2 1.5"/>
+            </svg>
+            <span>Sphere</span>
+          </button>
+
+          <!-- Light -->
+          <button id="tool-light" class="preset-btn tool-btn" onclick="spawnLight('point', 'Static')" title="Spawn Static Point Light">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M8 2 A4 4 0 0 0 4 6 C4 8 6 9 6 10 L10 10 C10 9 12 8 12 6 A4 4 0 0 0 8 2 Z" fill="#fffae6" stroke="#ffe066"/>
+              <path d="M6 12 L10 12 M7 14 L9 14" stroke="#ffe066"/>
+            </svg>
+            <span>Light</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Hole Cutter Options Panel (Moved to Left Sidebar under Tools) -->
+      <div id="hole-options" style="background:#15181e; border:1px solid #333c4c; border-radius:4px; padding:8px; display:none;">
+        <div class="section-title" style="color:var(--ue-orange)">Hole Cutter (C# CSG)</div>
+        <div class="prop-grid">
+          <span>Hole Type</span>
+          <select id="hole-shape" onchange="updateHoleUi()">
+            <option value="door">Door (120&times;220)</option>
+            <option value="window">Window (120&times;100)</option>
+            <option value="circle">Porthole (D:100)</option>
+            <option value="custom">Custom</option>
+          </select>
+          <span>Width (cm)</span>
+          <input type="number" id="hole-w" value="120" step="10" />
+          <span>Height (cm)</span>
+          <input type="number" id="hole-h" value="220" step="10" />
+          <span>Depth (cm)</span>
+          <input type="number" id="hole-depth" value="50" step="5" title="Penetration depth" />
+        </div>
+        <button style="width:100%; margin-top:8px; background:var(--ue-orange); color:#111; font-weight:700;" onclick="punchHoleOnSelected()">
+          Punch Hole on Mesh
+        </button>
+      </div>
+    </div>
+
+    <!-- Draggable Left Column Resizer -->
+    <div id="resizer-left" class="column-resizer" title="Drag to resize tools panel"></div>
+
     <div id="viewport">
+      <!-- Real-Time GPU & Vulkan Status HUD (F3) -->
+      <div id="gpu-hud" style="display:none;"></div>
+
+      <!-- Play-In-Editor (PIE) Reticle & Live Status HUD (Module 4) -->
+      <div id="pie-hud" style="display:none;">
+        <div class="pie-reticle"></div>
+        <div class="pie-status-pill">
+          <span class="pie-badge">PIE ACTIVE</span>
+          <span id="pie-speed">0 cm/s</span>
+          <span id="pie-ground" style="color:#2ecc71;">Grounded</span>
+          <span class="pie-hint">Press <b>ESC</b> to Exit</span>
+        </div>
+      </div>
+
       <div id="live-measure">W: 100 cm | L: 100 cm | H: 200 cm</div>
       <!-- In-Scene 3D Floating Measurement Badge -->
       <div id="gizmo-measure-badge">X: +1.50m</div>
       <div id="toast-msg">Notification</div>
       <div id="hud-overlay">
-        <strong>SketchUp &times; UE5 Controls:</strong><br/>
+        <strong>Blockout Studio Controls:</strong><br/>
         • <b>Camera:</b> Right-Click Drag = Orbit | Middle-Click Drag = Pan | Wheel = Zoom<br/>
         • <b>History:</b> Undo = <b>Ctrl + Z</b> | Redo = <b>Ctrl + Y</b> (or <b>Ctrl + Shift + Z</b>)<br/>
-        • <b>Rect (R):</b> Click 3D face to place rectangular block with instant gizmo reference<br/>
-        • <b>Push / Pull (P):</b> Click any surface face to extrude along its normal<br/>
-        • <b>Hole Cutter (H):</b> Select wall &rarr; choose door/window &rarr; C# CSG punches opening<br/>
-        • <b>Copy for UE5:</b> Select objects &rarr; Press <b>Ctrl + C</b> &rarr; In UE5 Viewport press <b>Ctrl + V</b>!
+        • <b>Rect:</b> Click 3D face to place rectangular block<br/>
+        • <b>Push / Pull:</b> Click any surface face to extrude along its normal<br/>
+        • <b>Hole Cutter:</b> Select wall &rarr; choose door/window &rarr; C# CSG punches opening<br/>
+        • <b>Play Mode:</b> Click <b>Play</b> &rarr; <b>WASD</b> + Mouse Look &rarr; <b>ESC</b> to exit
+      </div>
+      <!-- Quick-Access Content Drawer Pill -->
+      <div id="drawer-pill" onclick="toggleContentDrawer()">
+        <span>📁 Content Drawer</span>
+        <span class="hotkey">Ctrl+Space</span>
       </div>
     </div>
+
+    <!-- Sliding / Dockable Content Drawer -->
+    <div id="content-drawer">
+      <!-- Drawer Header -->
+      <div class="cb-header">
+        <div class="cb-header-left">
+          <span style="font-weight:700; color:var(--ue-orange); font-size:12px;">📁 Content Drawer</span>
+          <input id="cb-search" class="cb-search-input" type="text" placeholder="Search... (e.g. SM_ or t:Mesh, t:USD)" />
+          <div id="cb-filter-pills"></div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button style="background:var(--ue-orange); color:#111; font-weight:700; font-size:11px;" onclick="importAssetDialog()">➕ Import</button>
+          <button id="btn-pin-drawer" style="font-size:11px; background:#232a35;" onclick="togglePinDrawer()">📍 Dock</button>
+          <button style="font-size:11px; background:transparent; border:none; color:#cbd5e1; cursor:pointer;" onclick="toggleContentDrawer()">✕</button>
+        </div>
+      </div>
+
+      <!-- Breadcrumbs Bar -->
+      <div class="cb-breadcrumbs-bar" id="cb-breadcrumbs">
+        <span>Content</span>
+      </div>
+
+      <!-- Drawer Body -->
+      <div class="cb-body">
+        <!-- Left Sidebar: Collections & Folder Tree -->
+        <div class="cb-sidebar">
+          <div class="cb-sidebar-section">Collections</div>
+          <div class="collection-item" onclick="selectCollection('all')"><span>📦</span><span>All Assets</span></div>
+          <div class="collection-item" onclick="selectCollection('meshes')"><span>🧊</span><span>Static Meshes</span></div>
+          <div class="collection-item" onclick="selectCollection('usd')"><span>🌐</span><span>USD Stages</span></div>
+          <div class="collection-item" onclick="selectCollection('materials')"><span>🎨</span><span>Materials</span></div>
+          <div class="collection-item" onclick="selectCollection('shaders')"><span>⚡</span><span>Shaders</span></div>
+          <div class="collection-item" onclick="selectCollection('textures')"><span>🖼️</span><span>Textures</span></div>
+          <div class="collection-item" onclick="selectCollection('scenes')"><span>🎬</span><span>Scenes</span></div>
+
+          <div class="cb-sidebar-section" style="margin-top:8px;">Content Folders</div>
+          <div id="cb-folder-tree"></div>
+        </div>
+
+        <!-- Right Main Asset Grid -->
+        <div class="cb-grid-wrap">
+          <div id="cb-asset-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Draggable Right Column Resizer -->
+    <div id="resizer-right" class="column-resizer" title="Drag to resize inspector panel"></div>
 
     <!-- Right Sidebar -->
     <div id="sidebar">
@@ -231,7 +546,7 @@
 
       <!-- Static & Stationary Lights Section -->
       <div>
-        <div class="section-title">Lights (UE5 Actors)</div>
+        <div class="section-title">Lights &amp; Illumination</div>
         <div class="preset-grid">
           <button class="preset-btn" onclick="spawnLight('point', 'Static')" title="Static Point Light (Baked Lightmap)">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
@@ -264,29 +579,6 @@
         </div>
       </div>
 
-      <!-- Hole Cutter Options Panel -->
-      <div id="hole-options" style="background:#15181e; border:1px solid #333c4c; border-radius:4px; padding:8px; display:none;">
-        <div class="section-title" style="color:var(--ue-orange)">Hole Cutter (C# CSG Engine)</div>
-        <div class="prop-grid">
-          <span>Hole Type</span>
-          <select id="hole-shape" onchange="updateHoleUi()">
-            <option value="door">Door Opening (120&times;220)</option>
-            <option value="window">Window (120&times;100)</option>
-            <option value="circle">Circular Porthole (D:100)</option>
-            <option value="custom">Custom Dimensions</option>
-          </select>
-          <span>Width (cm)</span>
-          <input type="number" id="hole-w" value="120" step="10" />
-          <span>Height (cm)</span>
-          <input type="number" id="hole-h" value="220" step="10" />
-          <span>Depth (cm)</span>
-          <input type="number" id="hole-depth" value="50" step="5" title="Penetration depth" />
-        </div>
-        <button style="width:100%; margin-top:8px; background:var(--ue-orange); color:#111; font-weight:700;" onclick="punchHoleOnSelected()">
-          Punch Hole on Selected Mesh
-        </button>
-      </div>
-
       <!-- Selected Transform & Dimensions -->
       <div>
         <div class="section-title">Selected Object Dimensions (cm)</div>
@@ -315,6 +607,22 @@
           <button style="flex:1;" onclick="duplicateSelected()">Duplicate (Ctrl+D)</button>
           <button class="danger-btn" onclick="deleteSelected()">Delete (Del)</button>
         </div>
+
+        <!-- ECS Component Stack (Module 4) -->
+        <div style="margin-top:14px; border-top:1px solid #28303d; padding-top:10px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <div class="section-title" style="margin:0;">Components</div>
+            <select id="add-component-select" onchange="onAddComponentSelected(this.value); this.value='';" style="font-size:10.5px; padding:2px 6px; background:#1e2430; border:1px solid #3a4556; color:var(--ue-orange); border-radius:3px; cursor:pointer;">
+              <option value="" disabled selected>➕ Add Component...</option>
+              <option value="Collider">Collider</option>
+              <option value="Rigidbody">Rigidbody</option>
+              <option value="CharacterController">Character Controller</option>
+              <option value="Script">Script</option>
+              <option value="AudioSource">Audio Source</option>
+            </select>
+          </div>
+          <div id="component-stack"></div>
+        </div>
       </div>
 
       <!-- Scene Outliner -->
@@ -326,9 +634,9 @@
         <div id="outliner"></div>
       </div>
 
-      <!-- UE5 Export Options -->
+      <!-- Export Options -->
       <div>
-        <div class="section-title">UE5 .OBJ Export Options</div>
+        <div class="section-title">OBJ / USD Export Options</div>
         <div class="prop-grid">
           <span>Scope</span>
           <select id="export-scope">
@@ -345,7 +653,257 @@
     </div>
   </div>
 
-  <!-- App Bootstrap Module -->
+  <!-- Build, Compilers & SDK Settings Modal (Module 5) -->
+  <div id="build-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:220; align-items:center; justify-content:center;">
+    <div class="build-modal-dialog">
+      <!-- Modal Header -->
+      <div class="build-modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:18px;">⚙️</span>
+          <strong style="font-size:15px; color:#f58220;">Build, Compilers &amp; SDK Settings</strong>
+        </div>
+        <button onclick="closeBuildModal()" class="build-close-btn">&times;</button>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="build-tab-nav">
+        <button class="build-tab-btn active" data-tab="sdks" onclick="switchBuildTab('sdks')">Native SDKs &amp; Health</button>
+        <button class="build-tab-btn" data-tab="compiler" onclick="switchBuildTab('compiler')">Native C++20 Compiler</button>
+        <button class="build-tab-btn" data-tab="package" onclick="switchBuildTab('package')">Platform Packaging &amp; ADB</button>
+      </div>
+
+      <!-- Tab Panes -->
+      <div class="build-modal-body">
+        <!-- PANE 1: SDK Health & Custom Paths -->
+        <div id="tab-pane-sdks" class="build-tab-pane" style="display:block;">
+          <div class="sdk-cards-grid">
+            <div id="sdk-card-vulkan" class="sdk-card">Loading Vulkan SDK...</div>
+            <div id="sdk-card-msvc" class="sdk-card">Loading Windows SDK &amp; MSVC...</div>
+            <div id="sdk-card-android" class="sdk-card">Loading Android SDK...</div>
+            <div id="sdk-card-linux" class="sdk-card">Loading Linux GCC...</div>
+          </div>
+
+          <div class="custom-paths-section">
+            <h4 style="color:#cbd5e1; font-size:12px; margin:14px 0 8px 0;">Custom SDK Paths Override (ProjectSettings/SDKPaths.json)</h4>
+            <div class="path-input-grid">
+              <div class="path-field">
+                <label>Vulkan SDK Path:</label>
+                <input id="input-custom-vulkan" type="text" placeholder="C:\VulkanSDK\1.4.363.0" />
+              </div>
+              <div class="path-field">
+                <label>Visual Studio / MSVC Path:</label>
+                <input id="input-custom-msvc" type="text" placeholder="C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools" />
+              </div>
+              <div class="path-field">
+                <label>Android SDK Path:</label>
+                <input id="input-custom-android" type="text" placeholder="C:\Users\...\AppData\Local\Android\Sdk" />
+              </div>
+              <div class="path-field">
+                <label>Android NDK Path:</label>
+                <input id="input-custom-ndk" type="text" placeholder="Optional NDK root..." />
+              </div>
+            </div>
+            <div style="margin-top:10px; display:flex; justify-content:flex-end; gap:8px;">
+              <button onclick="saveCustomSdkPaths()" class="btn-primary" style="background:#f58220; color:#111; font-weight:700;">💾 Save Custom Paths</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANE 2: Native C++20 Compiler -->
+        <div id="tab-pane-compiler" class="build-tab-pane" style="display:none;">
+          <div class="compiler-controls-bar">
+            <div class="control-field">
+              <label>Target Platform:</label>
+              <select id="compiler-target-platform">
+                <option value="Win64" selected>Windows 64-bit (MSVC cl.exe)</option>
+                <option value="Linux64">Linux 64-bit (g++ / WSL2)</option>
+              </select>
+            </div>
+            <div class="control-field">
+              <label>Optimization:</label>
+              <select id="compiler-opt-level">
+                <option value="/O2" selected>/O2 (Speed Optimized)</option>
+                <option value="/Od">/Od (Debug / No Optimization)</option>
+                <option value="/Ox">/Ox (Full Optimization)</option>
+              </select>
+            </div>
+            <div class="control-field" style="display:flex; align-items:center; gap:6px; margin-top:16px;">
+              <input type="checkbox" id="compiler-avx2" checked />
+              <label for="compiler-avx2" style="margin:0; cursor:pointer;">AVX2 / SIMD</label>
+            </div>
+            <div style="margin-top:14px;">
+              <button id="btn-compile-plugin" onclick="compileNativePlugin()" class="btn-primary" style="background:#0284c7; color:#fff; font-weight:700;">🔨 Compile Native Plugin</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div style="font-size:11px; color:#8b98ad; margin-bottom:4px;">Compiler Output &amp; Diagnostics Console:</div>
+            <div id="compiler-console" class="build-terminal">Console ready. Click 'Compile Native Plugin' to compile C++20 modules in Assets/NativePlugins/</div>
+          </div>
+        </div>
+
+        <!-- PANE 3: Platform Packaging & ADB -->
+        <div id="tab-pane-package" class="build-tab-pane" style="display:none;">
+          <div class="package-controls-grid">
+            <div class="control-field">
+              <label>Target Platform:</label>
+              <select id="package-target-platform">
+                <option value="Windows" selected>Windows 64-bit (.exe standalone)</option>
+                <option value="Linux">Linux 64-bit (AppImage / .sh)</option>
+                <option value="Android">Android Package (.apk)</option>
+              </select>
+            </div>
+            <div class="control-field">
+              <label>Scalability Tier:</label>
+              <select id="package-target-tier">
+                <option value="MobileLow">Tier 0: Mobile Low</option>
+                <option value="MobileHigh">Tier 1: Mobile High</option>
+                <option value="DesktopPC" selected>Tier 2: Desktop PC</option>
+                <option value="Cinematic">Tier 3: Cinematic / Console</option>
+              </select>
+            </div>
+            <div class="control-field" style="display:flex; align-items:center; gap:8px; margin-top:18px;">
+              <input type="checkbox" id="package-cook-shaders" checked />
+              <label for="package-cook-shaders" style="margin:0; cursor:pointer;">Cook Shaders (SPIR-V)</label>
+            </div>
+            <div class="control-field" style="display:flex; align-items:center; gap:8px; margin-top:18px;">
+              <input type="checkbox" id="package-bake-meshes" checked />
+              <label for="package-bake-meshes" style="margin:0; cursor:pointer;">Bake Geometry Caches (.beng)</label>
+            </div>
+          </div>
+
+          <div style="margin:14px 0; display:flex; gap:10px;">
+            <button id="btn-package-game" onclick="packageGame()" class="btn-primary" style="background:#22c55e; color:#111; font-weight:700;">📦 Package Game</button>
+            <button id="btn-deploy-android" onclick="deployToSelectedDevice()" class="btn-primary" style="background:#a855f7; color:#fff; font-weight:700;" disabled>🚀 Deploy to Android (ADB)</button>
+          </div>
+
+          <!-- Connected Devices Section -->
+          <div class="adb-devices-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <strong style="font-size:12px; color:#cbd5e1;">Connected Android Devices (ADB):</strong>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <select id="adb-device-select" style="font-size:11px;"></select>
+                <button onclick="refreshAdbDevices()" style="font-size:11px; background:#28313e;">🔄 Refresh</button>
+              </div>
+            </div>
+            <div id="adb-devices-list"></div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div style="font-size:11px; color:#8b98ad; margin-bottom:4px;">Staging &amp; Packaging Log:</div>
+            <div id="package-console" class="build-terminal">Ready to package project into Saved/StagedBuilds/</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="build-modal-footer">
+        <span style="font-size:11px; color:#8b98ad;">Shortcut: <b>Ctrl + B</b> or <b>F7</b></span>
+        <button onclick="closeBuildModal()" style="background:#272d38;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Asset Context Menu -->
+  <div id="asset-context-menu">
+    <div class="cm-item" onclick="cmPlaceInScene()"><span>➕</span><span>Place in Viewport</span></div>
+    <div class="cm-item" onclick="cmOpenReferenceViewer()"><span>🔍</span><span>Reference Viewer...</span></div>
+    <div class="cm-item" onclick="cmCopyVirtualPath()"><span>📋</span><span>Copy Virtual Path</span></div>
+    <div class="cm-separator"></div>
+    <div class="cm-item" onclick="cmReimport()"><span>🔄</span><span>Reimport</span></div>
+    <div class="cm-item" onclick="cmShowInExplorer()"><span>📂</span><span>Show in Explorer</span></div>
+    <div class="cm-separator"></div>
+    <div class="cm-item danger" onclick="cmDelete()"><span>🗑️</span><span>Delete</span></div>
+  </div>
+
+  <!-- Asset Reference Viewer Modal -->
+  <div id="ref-viewer-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:210; align-items:center; justify-content:center;">
+    <div style="background:#181d24; border:1px solid #333d4d; border-radius:8px; width:760px; max-width:92%; padding:20px; box-shadow:0 12px 36px rgba(0,0,0,0.85);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #28313e; padding-bottom:8px;">
+        <strong id="ref-viewer-title" style="font-size:14px; color:#f58220;">Reference Viewer</strong>
+        <button onclick="closeReferenceViewer()" style="background:transparent; border:none; font-size:16px; cursor:pointer; color:#fff;">&times;</button>
+      </div>
+      <div id="ref-viewer-body" style="max-height:480px; overflow-y:auto;"></div>
+      <div style="text-align:right; margin-top:14px;">
+        <button onclick="closeReferenceViewer()" style="background:#272d38;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Welcome Screen Modal -->
+  <div id="welcome-modal" class="modal-backdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:250; align-items:center; justify-content:center;">
+    <div class="welcome-card">
+      <div class="welcome-header">
+        <div class="welcome-logo-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:26px; height:26px; color:var(--ue-orange, #f58220);">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M9 21V9"/>
+          </svg>
+        </div>
+        <div style="flex:1;">
+          <h2 style="margin:0; font-size:17px; font-weight:700; color:#fff;">Welcome to Blockout Studio</h2>
+          <p style="margin:4px 0 0; font-size:11px; color:var(--text-muted);">Fast 3D architectural blockout, CSG boolean modeling &amp; game prototyping</p>
+        </div>
+        <button type="button" class="welcome-close-btn" onclick="closeWelcomeModal()" title="Close">&times;</button>
+      </div>
+
+      <div class="welcome-actions">
+        <button type="button" class="welcome-action-card" onclick="welcomeNewProject()">
+          <div class="welcome-card-icon" style="background:rgba(245, 130, 32, 0.15); color:var(--ue-orange, #f58220);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px; height:20px;">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </div>
+          <div class="welcome-card-text">
+            <strong>Create New Project...</strong>
+            <span>Scaffold project directories, asset folders, and manifests</span>
+          </div>
+        </button>
+
+        <button type="button" class="welcome-action-card" onclick="welcomeOpenProject()">
+          <div class="welcome-card-icon" style="background:rgba(0, 120, 212, 0.15); color:#38bdf8;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px; height:20px;">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div class="welcome-card-text">
+            <strong>Open Existing Project...</strong>
+            <span>Select an existing project folder from your computer</span>
+          </div>
+        </button>
+
+        <button type="button" class="welcome-action-card" onclick="welcomeQuickStart()">
+          <div class="welcome-card-icon" style="background:rgba(46, 204, 113, 0.15); color:#2ecc71;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px; height:20px;">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+          </div>
+          <div class="welcome-card-text">
+            <strong>Quick Start with Default Level</strong>
+            <span>Jump straight into the 3D viewport with starter architecture</span>
+          </div>
+        </button>
+      </div>
+
+      <div class="welcome-footer">
+        <label style="display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text-muted); cursor:pointer;">
+          <input type="checkbox" id="welcome-show-startup" checked style="cursor:pointer;" onchange="toggleWelcomeStartup(this.checked)">
+          <span>Show this Welcome Screen on startup</span>
+        </label>
+        <button type="button" class="preset-btn" style="padding:6px 14px; font-weight:600;" onclick="closeWelcomeModal()">Get Started &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Subsystems & Engine Modules (in topological dependency order) -->
+  <script type="module" src="js/ipcBridge.js"></script>
+  <script type="module" src="js/engine.js"></script>
+  <script type="module" src="js/transformGizmo.js"></script>
+  <script type="module" src="js/sceneManager.js"></script>
+  <script type="module" src="js/assetManager.js"></script>
+  <script type="module" src="js/usdObjLoader.js"></script>
+  <script type="module" src="js/pieManager.js"></script>
+  <script type="module" src="js/buildManager.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

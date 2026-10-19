@@ -128,3 +128,23 @@ export function restoreLightFromData(data) {
   blocks.push(group);
   return group;
 }
+
+export function updateLightShadowLimits(maxShadowLights = 4) {
+  let shadowCount = 0;
+  for (const block of blocks) {
+    if (block.userData && (block.userData.shapeType === 'point_light' || block.userData.shapeType === 'spot_light')) {
+      for (const child of block.children) {
+        if (child.isLight && (child.isPointLight || child.isSpotLight)) {
+          const allowShadow = shadowCount < maxShadowLights;
+          child.castShadow = allowShadow;
+          if (allowShadow) {
+            child.shadow.mapSize.width = 1024;
+            child.shadow.mapSize.height = 1024;
+            shadowCount++;
+          }
+        }
+      }
+    }
+  }
+}
+

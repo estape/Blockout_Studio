@@ -1,17 +1,17 @@
 using System.Text;
 
-namespace UE5BlockoutStudio.Services.Graphics;
+namespace BlockoutStudio.Services.Graphics;
 
 public static class TextureBaker
 {
     /// <summary>
-    /// Generates a crisp, vectorized UE5 modular grid texture as an SVG Data URL.
+    /// Generates a crisp, vectorized modular grid texture as an SVG Data URL.
     /// Features:
     /// - 100 cm major grid line (orange accent)
     /// - 50 cm sub-grid subdivisions (subtle grey)
     /// - Diagonal prototype hatching for CAD / SketchUp feel
     /// </summary>
-    public static string GetUe5GridDataUrl()
+    public static string GetGridDataUrl()
     {
         var sb = new StringBuilder();
         sb.Append("<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'>");
