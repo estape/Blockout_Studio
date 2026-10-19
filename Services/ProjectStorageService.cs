@@ -1,14 +1,14 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using UE5BlockoutStudio.Services.Assets;
+using BlockoutStudio.Services.Assets;
 
-namespace UE5BlockoutStudio.Services;
+namespace BlockoutStudio.Services;
 
 public class ProjectStorageService : IProjectStorageService
 {
     public static readonly string DefaultProjectsDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        "UE5BlockoutStudio"
+        "BlockoutStudio"
     );
 
     string IProjectStorageService.DefaultProjectsDir => DefaultProjectsDir;
@@ -99,14 +99,14 @@ public class ProjectStorageService : IProjectStorageService
         return null;
     }
 
-    public static string? SaveProjectDialog(string jsonContent, string defaultFileName = "Level_Blockout.ueblock")
+    public static string? SaveProjectDialog(string jsonContent, string defaultFileName = "Level_Blockout.bproject")
     {
         return SaveTextDialog(
             jsonContent,
             defaultFileName,
-            "UE5 Blockout Project (*.ueblock)\0*.ueblock\0Blockout Scene (*.bscene)\0*.bscene\0All Files (*.*)\0*.*\0",
-            "ueblock",
-            "Save UE5 Blockout Project"
+            "Blockout Studio Project (*.bproject)\0*.bproject\0Blockout Scene (*.bscene)\0*.bscene\0All Files (*.*)\0*.*\0",
+            "bproject",
+            "Save Blockout Project"
         );
     }
 
@@ -166,7 +166,7 @@ public class ProjectStorageService : IProjectStorageService
                 {
                     var rootDir = Path.GetDirectoryName(chosenPath) ?? DefaultProjectsDir;
                     var name = Path.GetFileName(rootDir);
-                    if (string.IsNullOrWhiteSpace(name) || name == "UE5BlockoutStudio")
+                    if (string.IsNullOrWhiteSpace(name) || name == "BlockoutStudio")
                         name = defaultProjectName;
                     var (createdDir, _) = CreateNewProject(rootDir, name);
                     return createdDir;
@@ -350,7 +350,7 @@ public class ProjectStorageService : IProjectStorageService
         var pluginPath = Path.Combine(pluginsDir, "GamePlugin.cpp");
         if (!File.Exists(pluginPath))
         {
-            File.WriteAllText(pluginPath, UE5BlockoutStudio.Services.BuildPipeline.NativeCompilerService.DefaultPluginSourceCode());
+            File.WriteAllText(pluginPath, BlockoutStudio.Services.BuildPipeline.NativeCompilerService.DefaultPluginSourceCode());
         }
     }
 

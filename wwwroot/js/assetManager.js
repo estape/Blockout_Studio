@@ -1,5 +1,5 @@
 // ============================================================================
-// CONTENT BROWSER & HYBRID ASSET MANAGER (Unity .meta + UE5 Asset Registry)
+// CONTENT BROWSER & HYBRID ASSET MANAGER (.meta Sidecars + Fast Registry Cache)
 // ============================================================================
 
 import { sendToBackend, registerHandler, showToast } from './ipcBridge.js';
@@ -17,7 +17,7 @@ let currentRegistry = { assets: [] };
 let selectedAssetGuid = null;
 let contextTargetItem = null;
 
-// Color mapping matching Unreal Engine 5 conventions
+// Color mapping for asset types
 export const ASSET_TYPE_COLORS = {
   StaticMesh: '#00e5ff',   // Cyan
   UsdStage: '#f58220',     // Orange
@@ -582,7 +582,7 @@ export function cmOpenReferenceViewer() {
 }
 
 // ============================================================================
-// UE5-STYLE REFERENCE VIEWER MODAL
+// REFERENCE VIEWER MODAL
 // ============================================================================
 
 export function openReferenceViewer(guid) {

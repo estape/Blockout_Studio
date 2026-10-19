@@ -1,11 +1,11 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using UE5BlockoutStudio.Services.Assets;
-using UE5BlockoutStudio.Services.Hosting;
+using BlockoutStudio.Services.Assets;
+using BlockoutStudio.Services.Hosting;
 
-namespace UE5BlockoutStudio.Services.BuildPipeline;
+namespace BlockoutStudio.Services.BuildPipeline;
 
 public class SdkDetectorService : ISdkDetectorService
 {

@@ -1,4 +1,4 @@
-namespace UE5BlockoutStudio.Services.Toolchains;
+﻿namespace BlockoutStudio.Services.Toolchains;
 
 public record ToolchainInfo(
     string Name,

@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace UE5BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Services.Assets;
 
 public class ObjPipeline : IAssetPipeline
 {
@@ -13,8 +13,8 @@ public class ObjPipeline : IAssetPipeline
         var sb = new StringBuilder();
         var inv = CultureInfo.InvariantCulture;
 
-        sb.AppendLine("# Exported from UE5 Blockout Studio (.NET 10 Game Engine Core)");
-        sb.AppendLine("# Coordinate System: UE5 Z-Up Left-Handed Centimeters (1 Unit = 1 cm)");
+        sb.AppendLine("# Exported from Blockout Studio (.NET 10 Game Engine Core)");
+        sb.AppendLine("# Coordinate System: Z-Up Centimeters (1 Unit = 1 cm)");
         sb.AppendLine();
 
         int vOffset = 1;
@@ -34,7 +34,7 @@ public class ObjPipeline : IAssetPipeline
             // Vertices
             for (int i = 0; i < pos.Length; i += 3)
             {
-                // Three.js X (Right), Y (Up), Z (Backwards) -> UE5: X (Forward), Y (Right), Z (Up)
+                // Three.js X (Right), Y (Up), Z (Backwards) -> Engine: X (Forward), Y (Right), Z (Up)
                 float uX = -pos[i + 2];
                 float uY = pos[i];
                 float uZ = pos[i + 1];
@@ -144,7 +144,7 @@ public class ObjPipeline : IAssetPipeline
                     float.TryParse(tokens[2], NumberStyles.Float, inv, out var y) &&
                     float.TryParse(tokens[3], NumberStyles.Float, inv, out var z))
                 {
-                    // Convert UE5 coordinate back to Three.js
+                    // Convert Z-Up coordinate back to Three.js
                     positions.Add(y);
                     positions.Add(z);
                     positions.Add(-x);

@@ -1,4 +1,4 @@
-namespace UE5BlockoutStudio.Services.BuildPipeline;
+﻿namespace BlockoutStudio.Services.BuildPipeline;
 
 public record CompilationOptions(
     string TargetPlatform = "Win64",

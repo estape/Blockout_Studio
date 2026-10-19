@@ -3,16 +3,16 @@ using System.Text;
 using System.Text.Json;
 using TextCopy;
 
-namespace UE5BlockoutStudio.Services;
+namespace BlockoutStudio.Services;
 
-public static class Ue5ClipboardService
+public static class ClipboardExportService
 {
     /// <summary>
-    /// Generates UE5 Actor T3D clipboard plain text from the incoming JSON array of block/light objects
+    /// Generates Actor T3D clipboard plain text from the incoming JSON array of block/light objects
     /// and copies it to the system clipboard.
     /// Supports StaticMeshActors (Cube, Cylinder, Sphere, Plane) and LightActors (PointLight, SpotLight with Static or Stationary mobility).
     /// </summary>
-    public static (bool Success, string Message, int ActorCount) CopyToUe5(JsonElement items)
+    public static (bool Success, string Message, int ActorCount) CopyToClipboard(JsonElement items)
     {
         try
         {
@@ -40,17 +40,17 @@ public static class Ue5ClipboardService
                 double rotZ = item.TryGetProperty("rotZ", out var pRz) ? pRz.GetDouble() : 0.0; // Yaw in degrees
 
                 // ====================================================================
-                // UE5 Coordinate Mapping:
+                // Coordinate Mapping (Three.js Y-Up to Engine Z-Up):
                 // Three.js: X (Right), Y (Up), Z (Towards Viewer / Backwards)
-                // UE5:      X (Forward), Y (Right), Z (Up)
+                // World:    X (Forward), Y (Right), Z (Up)
                 // Mapping:
-                //   UE5 X = -Three.js Z (posY)
-                //   UE5 Y =  Three.js X (posX)
-                //   UE5 Z =  Three.js Y (posZ)
+                //   World X = -Three.js Z (posY)
+                //   World Y =  Three.js X (posX)
+                //   World Z =  Three.js Y (posZ)
                 // ====================================================================
-                double ue5X = -posY;
-                double ue5Y = posX;
-                double ue5Z = posZ;
+                double worldX = -posY;
+                double worldY = posX;
+                double worldZ = posZ;
 
                 // Check for Light Actors (PointLight, SpotLight)
                 if (shape.Equals("point_light", StringComparison.OrdinalIgnoreCase) ||
@@ -73,7 +73,7 @@ public static class Ue5ClipboardService
                         sb.AppendLine($"            OuterConeAngle=44.000000");
                         sb.AppendLine($"            LightColor=(B={b},G={g},R={r},A=255)");
                         sb.AppendLine($"            Mobility={mobility}");
-                        sb.AppendLine($"            RelativeLocation=(X={ue5X.ToString("F3", inv)},Y={ue5Y.ToString("F3", inv)},Z={ue5Z.ToString("F3", inv)})");
+                        sb.AppendLine($"            RelativeLocation=(X={worldX.ToString("F3", inv)},Y={worldY.ToString("F3", inv)},Z={worldZ.ToString("F3", inv)})");
                         sb.AppendLine($"            RelativeRotation=(Pitch=0.000000,Yaw={rotZ.ToString("F3", inv)},Roll=0.000000)");
                         sb.AppendLine($"         End Object");
                         sb.AppendLine($"      End Actor");
@@ -86,7 +86,7 @@ public static class Ue5ClipboardService
                         sb.AppendLine($"            AttenuationRadius={radius.ToString("F1", inv)}");
                         sb.AppendLine($"            LightColor=(B={b},G={g},R={r},A=255)");
                         sb.AppendLine($"            Mobility={mobility}");
-                        sb.AppendLine($"            RelativeLocation=(X={ue5X.ToString("F3", inv)},Y={ue5Y.ToString("F3", inv)},Z={ue5Z.ToString("F3", inv)})");
+                        sb.AppendLine($"            RelativeLocation=(X={worldX.ToString("F3", inv)},Y={worldY.ToString("F3", inv)},Z={worldZ.ToString("F3", inv)})");
                         sb.AppendLine($"         End Object");
                         sb.AppendLine($"      End Actor");
                     }
@@ -105,7 +105,7 @@ public static class Ue5ClipboardService
                     scaleX = sx / 100.0;
                     scaleY = sy / 100.0;
                     scaleZ = sz / 100.0;
-                    ue5Z += sz / 2.0;
+                    worldZ += sz / 2.0;
                 }
                 else if (shape.Equals("sphere", StringComparison.OrdinalIgnoreCase))
                 {
@@ -114,7 +114,7 @@ public static class Ue5ClipboardService
                     scaleX = diam / 100.0;
                     scaleY = diam / 100.0;
                     scaleZ = diam / 100.0;
-                    ue5Z += diam / 2.0;
+                    worldZ += diam / 2.0;
                 }
                 else if (shape.Equals("plane", StringComparison.OrdinalIgnoreCase))
                 {
@@ -130,13 +130,13 @@ public static class Ue5ClipboardService
                     scaleX = sy / 100.0;
                     scaleY = sx / 100.0;
                     scaleZ = sz / 100.0;
-                    ue5Z += sz / 2.0;
+                    worldZ += sz / 2.0;
                 }
 
                 sb.AppendLine($"      Begin Actor Class=/Script/Engine.StaticMeshActor Name={name} Archetype=/Script/Engine.StaticMeshActor'/Script/Engine.Default__StaticMeshActor'");
                 sb.AppendLine($"         Begin Object Class=/Script/Engine.StaticMeshComponent Name=StaticMeshComponent0");
                 sb.AppendLine($"            StaticMesh=StaticMesh'{meshPath}'");
-                sb.AppendLine($"            RelativeLocation=(X={ue5X.ToString("F3", inv)},Y={ue5Y.ToString("F3", inv)},Z={ue5Z.ToString("F3", inv)})");
+                sb.AppendLine($"            RelativeLocation=(X={worldX.ToString("F3", inv)},Y={worldY.ToString("F3", inv)},Z={worldZ.ToString("F3", inv)})");
                 sb.AppendLine($"            RelativeRotation=(Pitch=0.000000,Yaw={rotZ.ToString("F3", inv)},Roll=0.000000)");
                 sb.AppendLine($"            RelativeScale3D=(X={scaleX.ToString("F3", inv)},Y={scaleY.ToString("F3", inv)},Z={scaleZ.ToString("F3", inv)})");
                 sb.AppendLine($"         End Object");
@@ -166,14 +166,14 @@ public static class Ue5ClipboardService
 
             if (!copied && lastEx != null)
             {
-                return (true, $"Generated UE5 T3D ({actorCount} actors). Clipboard was busy: {lastEx.Message}", actorCount);
+                return (true, $"Generated scene text ({actorCount} actors). Clipboard was busy: {lastEx.Message}", actorCount);
             }
 
-            return (true, $"Successfully copied {actorCount} actor(s) to clipboard! Paste directly into UE5 Viewport (Ctrl+V).", actorCount);
+            return (true, $"Successfully copied {actorCount} actor(s) to system clipboard!", actorCount);
         }
         catch (Exception ex)
         {
-            return (false, $"Failed to copy to UE5 clipboard: {ex.Message}", 0);
+            return (false, $"Failed to copy to clipboard: {ex.Message}", 0);
         }
     }
 

@@ -72,10 +72,10 @@
             <span>Save Level as .USD Stage</span>
           </button>
           <div class="menu-sep"></div>
-          <button type="button" class="menu-action-item" onclick="exportToUE5Obj()">
+          <button type="button" class="menu-action-item" onclick="exportToObj()">
             <span>Export Mesh (.OBJ)...</span>
           </button>
-          <button type="button" class="menu-action-item" onclick="exportToUE5Usd()">
+          <button type="button" class="menu-action-item" onclick="exportToUsd()">
             <span>Export Stage (.USD)...</span>
           </button>
         </div>
@@ -257,8 +257,8 @@
 
     <!-- Asset & Build Pipeline -->
     <div class="toolbar-group">
-      <button onclick="exportToUE5Obj()" title="Export .OBJ geometry file">Export .OBJ</button>
-      <button class="export-btn" style="background:#512bd4; color:#fff;" onclick="exportToUE5Usd()" title="Export .USDA Stage">Export .USD</button>
+      <button onclick="exportToObj()" title="Export .OBJ geometry file">Export .OBJ</button>
+      <button class="export-btn" style="background:#512bd4; color:#fff;" onclick="exportToUsd()" title="Export .USDA Stage">Export .USD</button>
       <button onclick="saveSelectedAsObj()" title="Save selected mesh into /Assets/Meshes/ as native .obj asset with baked AO" style="background:#0284c7; color:#fff;">Save .OBJ Asset</button>
       <button onclick="saveLevelAsUsdStage()" title="Save current level as non-destructive .usda stage in /Assets/Levels/" style="background:#ea580c; color:#fff;">Save USD Stage</button>
       <button id="btn-build-sdks" onclick="openBuildModal()" title="Native SDKs, C++ Compilers &amp; Multi-Platform Packaging (Ctrl+B / F7)" style="background:#1e2430; font-size:11px; border-color:#3a4556; display:flex; align-items:center; gap:6px;">

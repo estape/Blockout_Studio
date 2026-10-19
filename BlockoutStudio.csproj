@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RootNamespace>UE5BlockoutStudio</RootNamespace>
+    <RootNamespace>BlockoutStudio</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

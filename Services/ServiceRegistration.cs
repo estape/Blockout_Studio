@@ -1,14 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
-using UE5BlockoutStudio.Services.Assets;
-using UE5BlockoutStudio.Services.Geometry;
-using UE5BlockoutStudio.Services.Graphics;
-using UE5BlockoutStudio.Services.Ipc;
-using UE5BlockoutStudio.Services.Ipc.Handlers;
-using UE5BlockoutStudio.Services.NativeInterop;
-using UE5BlockoutStudio.Services.Toolchains;
-using UE5BlockoutStudio.Services.BuildPipeline;
+using BlockoutStudio.Services.Assets;
+using BlockoutStudio.Services.Geometry;
+using BlockoutStudio.Services.Graphics;
+using BlockoutStudio.Services.Ipc;
+using BlockoutStudio.Services.Ipc.Handlers;
+using BlockoutStudio.Services.NativeInterop;
+using BlockoutStudio.Services.Toolchains;
+using BlockoutStudio.Services.BuildPipeline;
 
-namespace UE5BlockoutStudio.Services;
+namespace BlockoutStudio.Services;
 
 public static class ServiceRegistration
 {
@@ -34,7 +34,7 @@ public static class ServiceRegistration
         services.AddSingleton<LodGeneratorService>(sp => (LodGeneratorService)sp.GetRequiredService<ILodGeneratorService>());
 
         // IPC Handlers
-        services.AddSingleton<IIpcActionHandler, CopyUe5Handler>();
+        services.AddSingleton<IIpcActionHandler, CopyClipboardHandler>();
         services.AddSingleton<IIpcActionHandler, CsgCutHandler>();
         services.AddSingleton<IIpcActionHandler, BakeAoHandler>();
         services.AddSingleton<IIpcActionHandler, GetGridTextureHandler>();

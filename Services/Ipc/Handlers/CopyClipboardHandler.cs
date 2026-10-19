@@ -1,20 +1,20 @@
 using System.Text.Json;
 using Photino.NET;
-using UE5BlockoutStudio.Services;
+using BlockoutStudio.Services;
 
-namespace UE5BlockoutStudio.Services.Ipc.Handlers;
+namespace BlockoutStudio.Services.Ipc.Handlers;
 
-public class CopyUe5Handler : IIpcActionHandler
+public class CopyClipboardHandler : IIpcActionHandler
 {
-    public string Action => "copy_ue5";
+    public string Action => "copy_clipboard";
 
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         var data = root.TryGetProperty("data", out var d) ? d : payload;
-        var (success, msg, count) = Ue5ClipboardService.CopyToUe5(data);
+        var (success, msg, count) = ClipboardExportService.CopyToClipboard(data);
         window.SendWebMessage(JsonSerializer.Serialize(new
         {
-            type = "copy_ue5_response",
+            type = "copy_clipboard_response",
             success,
             message = msg,
             actorCount = count
@@ -22,3 +22,4 @@ public class CopyUe5Handler : IIpcActionHandler
         return Task.CompletedTask;
     }
 }
+

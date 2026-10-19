@@ -1,6 +1,6 @@
-using Photino.NET;
+﻿using Photino.NET;
 
-namespace UE5BlockoutStudio.Services.Ipc;
+namespace BlockoutStudio.Services.Ipc;
 
 public interface IIpcRouter
 {

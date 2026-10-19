@@ -1,6 +1,6 @@
-using System.Numerics;
+﻿using System.Numerics;
 
-namespace UE5BlockoutStudio.Services.Geometry;
+namespace BlockoutStudio.Services.Geometry;
 
 public interface IUsdStageService
 {

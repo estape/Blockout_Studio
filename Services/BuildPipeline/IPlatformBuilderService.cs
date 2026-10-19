@@ -1,4 +1,4 @@
-namespace UE5BlockoutStudio.Services.BuildPipeline;
+﻿namespace BlockoutStudio.Services.BuildPipeline;
 
 public record BuildRequest(
     string TargetPlatform = "Windows",

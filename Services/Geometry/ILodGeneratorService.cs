@@ -1,4 +1,4 @@
-namespace UE5BlockoutStudio.Services.Geometry;
+﻿namespace BlockoutStudio.Services.Geometry;
 
 public class LodLevelData
 {

@@ -1,8 +1,8 @@
 using System.Text.Json;
 using Photino.NET;
-using UE5BlockoutStudio.Services.Graphics;
+using BlockoutStudio.Services.Graphics;
 
-namespace UE5BlockoutStudio.Services.Ipc.Handlers;
+namespace BlockoutStudio.Services.Ipc.Handlers;
 
 public class GetGridTextureHandler : IIpcActionHandler
 {
@@ -10,7 +10,7 @@ public class GetGridTextureHandler : IIpcActionHandler
 
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
-        var url = TextureBaker.GetUe5GridDataUrl();
+        var url = TextureBaker.GetGridDataUrl();
         window.SendWebMessage(JsonSerializer.Serialize(new
         {
             type = "grid_texture_response",

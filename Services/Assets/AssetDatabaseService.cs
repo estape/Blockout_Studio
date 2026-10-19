@@ -1,9 +1,9 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using Photino.NET;
 
-namespace UE5BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Services.Assets;
 
 public class AssetDatabaseService : IAssetDatabaseService, IDisposable
 {

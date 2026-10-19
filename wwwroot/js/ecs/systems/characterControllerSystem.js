@@ -1,5 +1,5 @@
 // ============================================================================
-// ECS CHARACTER CONTROLLER SYSTEM (UE5 Mannequin: 180cm H, 60cm W, 45cm Step)
+// ECS CHARACTER CONTROLLER SYSTEM (180cm Dummy: 180cm H, 60cm W, 45cm Step)
 // ============================================================================
 
 import { getComponent } from '../entity.js';

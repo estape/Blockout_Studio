@@ -1,8 +1,8 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace UE5BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Services.Assets;
 
 public class AssetImportSettings
 {

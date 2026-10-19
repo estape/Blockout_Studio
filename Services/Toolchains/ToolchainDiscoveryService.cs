@@ -1,8 +1,8 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
-using UE5BlockoutStudio.Services.Hosting;
+using BlockoutStudio.Services.Hosting;
 
-namespace UE5BlockoutStudio.Services.Toolchains;
+namespace BlockoutStudio.Services.Toolchains;
 
 public class ToolchainDiscoveryService : IToolchainDiscoveryService
 {

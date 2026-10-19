@@ -1,5 +1,5 @@
 // ============================================================================
-// UNREAL ENGINE 5 BRIDGE (T3D Clipboard, Save/Load, Corrected OBJ Export, AO)
+// SCENE BRIDGE (Clipboard Export, Save/Load, OBJ Export, USD Stage, AO)
 // ============================================================================
 
 import { blocks, selectedBlock, createBlock, refreshOutliner } from './sceneManager.js';
@@ -7,7 +7,7 @@ import { scene } from './engine.js';
 import { sendToBackend, showToast } from './ipcBridge.js';
 import { initHistory } from './historyManager.js';
 
-export function copyToUe5() {
+export function copyToClipboard() {
   if (blocks.length === 0) {
     alert('No blocks in scene to copy!');
     return;
@@ -25,12 +25,12 @@ export function copyToUe5() {
     sizeY: b.userData.sizeY,
     sizeZ: b.userData.sizeZ,
     posX: b.position.x,
-    posY: b.position.z, // Three.js Z -> UE5 Y
-    posZ: b.position.y, // Three.js Y -> UE5 Z
+    posY: b.position.z, // Three.js Z -> Engine Y
+    posZ: b.position.y, // Three.js Y -> Engine Z
     rotZ: THREE.MathUtils.radToDeg(b.rotation.y)
   }));
 
-  sendToBackend('copy_ue5', { data: payload });
+  sendToBackend('copy_clipboard', { data: payload });
 }
 
 export function saveProject() {
@@ -144,7 +144,7 @@ export function applyAoColors(targetName, colors) {
   }
 }
 
-export function exportToUE5Obj() {
+export function exportToObj() {
   const scope = document.getElementById('export-scope')?.value || 'all';
   const pivotMode = document.getElementById('export-pivot')?.value || 'world';
   const targetList = (scope === 'selected' && selectedBlock) ? [selectedBlock] : blocks;
@@ -154,8 +154,8 @@ export function exportToUE5Obj() {
     return;
   }
 
-  let obj = '# Exported from UE5 Blockout Studio (.NET 10 & Photino)\n';
-  obj += '# Coordinate system: UE5 Z-Up Left-Handed Centimeters\n\n';
+  let obj = '# Exported from Blockout Studio (.NET 10 & Photino)\n';
+  obj += '# Coordinate system: Z-Up Centimeters (1 Unit = 1 cm)\n\n';
 
   let vertexOffset = 1;
 
@@ -214,12 +214,12 @@ export function exportToUE5Obj() {
   a.href = url;
   a.download = (scope === 'selected' && selectedBlock)
     ? `${selectedBlock.userData.name}.obj`
-    : 'UE5_Level_Blockout.obj';
+    : 'Level_Blockout.obj';
   a.click();
   URL.revokeObjectURL(url);
 }
 
-export function exportToUE5Usd() {
+export function exportToUsd() {
   const scope = document.getElementById('export-scope')?.value || 'all';
   const targetList = (scope === 'selected' && selectedBlock) ? [selectedBlock] : blocks;
 
@@ -228,7 +228,7 @@ export function exportToUE5Usd() {
     return;
   }
 
-  showToast('Generating Universal Scene Description (.usda) for UE5...');
+  showToast('Generating Universal Scene Description (.usda) stage...');
 
   const payload = targetList.map((mesh) => {
     mesh.updateMatrixWorld(true);

@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
-namespace UE5BlockoutStudio.Services.BuildPipeline;
+namespace BlockoutStudio.Services.BuildPipeline;
 
 public class NativeCompilerService : INativeCompilerService
 {
@@ -333,7 +333,7 @@ if errorlevel 1 exit /b %errorlevel%
     public static string DefaultPluginSourceCode()
     {
         return @"// ==============================================================================
-// UE5BlockoutStudio Native C++20 Plugin
+// Blockout Studio Native C++20 Plugin
 // Compiled with MSVC (Windows) / GCC (Linux) with AVX2 & C++20 Acceleration
 // ==============================================================================
 
@@ -353,7 +353,7 @@ static inline void SwapFloat(float& a, float& b) {
     b = tmp;
 }
 
-// High-speed SIMD vector length computation in UE5 centimeters
+// High-speed SIMD vector length computation in centimeters
 ENGINE_EXPORT float ComputeVectorLength(float x, float y, float z) {
     return std::sqrt(x * x + y * y + z * z);
 }

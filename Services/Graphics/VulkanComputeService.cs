@@ -1,8 +1,8 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
-using UE5BlockoutStudio.Services.NativeInterop;
+using BlockoutStudio.Services.NativeInterop;
 
-namespace UE5BlockoutStudio.Services.Graphics;
+namespace BlockoutStudio.Services.Graphics;
 
 public class VulkanComputeService : IVulkanComputeService
 {

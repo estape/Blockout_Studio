@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace UE5BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Services.Assets;
 
 public class ModelMeshPart
 {
@@ -17,6 +17,6 @@ public class ModelMeshPart
 
 public class ModelData
 {
-    public string SceneName { get; set; } = "UE5_Scene";
+    public string SceneName { get; set; } = "Blockout_Scene";
     public List<ModelMeshPart> Parts { get; set; } = [];
 }

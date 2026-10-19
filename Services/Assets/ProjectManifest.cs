@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace UE5BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Services.Assets;
 
 public class CompilerSettings
 {
@@ -58,7 +58,7 @@ public class InputSettings
 
 public class PhysicsSettings
 {
-    public float GravityZ { get; set; } = -980.0f; // UE5 centimeters / s^2
+    public float GravityZ { get; set; } = -980.0f; // Centimeters / s^2
     public float BounceThreshold { get; set; } = 200.0f;
     public string DefaultPhysicalMaterial { get; set; } = "PM_Default";
 }

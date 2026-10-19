@@ -1,6 +1,6 @@
-using UE5BlockoutStudio.Services.Assets;
+﻿using BlockoutStudio.Services.Assets;
 
-namespace UE5BlockoutStudio.Services;
+namespace BlockoutStudio.Services;
 
 public interface IProjectStorageService
 {

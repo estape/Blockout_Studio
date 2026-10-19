@@ -1,7 +1,7 @@
-using System.Text.Json.Serialization;
-using UE5BlockoutStudio.Services.Graphics;
+﻿using System.Text.Json.Serialization;
+using BlockoutStudio.Services.Graphics;
 
-namespace UE5BlockoutStudio.Services.Graphics;
+namespace BlockoutStudio.Services.Graphics;
 
 public enum ShaderStage
 {

@@ -110,7 +110,7 @@ export class RigidbodyComponent {
 export class CharacterControllerComponent {
   constructor(data = {}) {
     this.type = 'CharacterController';
-    this.height = data.height ?? 180; // 180 cm (UE5 standard Mannequin)
+    this.height = data.height ?? 180; // 180 cm (180cm Dummy reference height)
     this.radius = data.radius ?? 30;  // 30 cm (60 cm total width)
     this.stepHeight = data.stepHeight ?? 45; // 45 cm max step climbing
     this.walkSpeed = data.walkSpeed ?? 450;   // 450 cm/s

@@ -1,13 +1,13 @@
 using System.Numerics;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
-using UE5BlockoutStudio.Services.Assets;
-using UE5BlockoutStudio.Services.BuildPipeline;
-using UE5BlockoutStudio.Services.Geometry;
-using UE5BlockoutStudio.Services.Graphics;
-using UE5BlockoutStudio.Services.Ipc;
+using BlockoutStudio.Services.Assets;
+using BlockoutStudio.Services.BuildPipeline;
+using BlockoutStudio.Services.Geometry;
+using BlockoutStudio.Services.Graphics;
+using BlockoutStudio.Services.Ipc;
 
-namespace UE5BlockoutStudio.Services;
+namespace BlockoutStudio.Services;
 
 public static class AutomatedTests
 {
@@ -20,10 +20,10 @@ public static class AutomatedTests
         int passed = 0;
         int failed = 0;
 
-        // Test 1: UE5 T3D Clipboard Generation
+        // Test 1: Actor T3D Clipboard Generation
         try
         {
-            Console.Write("Test 1: UE5 T3D Clipboard Actor Generation... ");
+            Console.Write("Test 1: Actor T3D Clipboard Generation... ");
             var json = """
             [
               {
@@ -62,7 +62,7 @@ public static class AutomatedTests
             ]
             """;
             using var doc = JsonDocument.Parse(json);
-            var (success, msg, count) = Ue5ClipboardService.CopyToUe5(doc.RootElement);
+            var (success, msg, count) = ClipboardExportService.CopyToClipboard(doc.RootElement);
 
             if (success && count == 3)
             {
@@ -147,7 +147,7 @@ public static class AutomatedTests
         try
         {
             Console.Write("Test 4: Procedural Grid Texture Baker... ");
-            var url = TextureBaker.GetUe5GridDataUrl();
+            var url = TextureBaker.GetGridDataUrl();
             if (url.StartsWith("data:image/svg+xml;base64,"))
             {
                 Console.WriteLine("PASSED");
@@ -165,10 +165,10 @@ public static class AutomatedTests
             failed++;
         }
 
-        // Test 5: UE5 Static/Stationary Light Actor Generation
+        // Test 5: Static/Stationary Light Actor Generation
         try
         {
-            Console.Write("Test 5: UE5 Static/Stationary Light Actor T3D Generation... ");
+            Console.Write("Test 5: Static/Stationary Light Actor T3D Generation... ");
             var json = """
             [
               {
@@ -198,7 +198,7 @@ public static class AutomatedTests
             ]
             """;
             using var doc = JsonDocument.Parse(json);
-            var (success, msg, count) = Ue5ClipboardService.CopyToUe5(doc.RootElement);
+            var (success, msg, count) = ClipboardExportService.CopyToClipboard(doc.RootElement);
 
             if (success && count == 2)
             {
@@ -394,7 +394,7 @@ public static class AutomatedTests
             var reimported = objPipe.ImportFromString(objText);
             if (objText.Contains("o SM_Box") && reimported.Parts.Count == 1 && reimported.Parts[0].Positions.Length == 9)
             {
-                Console.WriteLine("PASSED (Exported OBJ with UE5 Z-Up alignment & roundtrip imported)");
+                Console.WriteLine("PASSED (Exported OBJ with Z-Up alignment & roundtrip imported)");
                 passed++;
             }
             else
@@ -409,10 +409,10 @@ public static class AutomatedTests
             failed++;
         }
 
-        // Test 11: Native USDA Stage Generator for UE5
+        // Test 11: Native USDA Stage Generator
         try
         {
-            Console.Write("Test 11: Native USDA Stage Generator for UE5... ");
+            Console.Write("Test 11: Native USDA Stage Generator... ");
             var usdPipe = new Assets.UsdPipeline();
             var model = new Assets.ModelData
             {
@@ -435,7 +435,7 @@ public static class AutomatedTests
                 usdaText.Contains("def Mesh \"SM_Wall_01\"") &&
                 usdaText.Contains("point3f[] points"))
             {
-                Console.WriteLine("PASSED (Generated valid USDA with UE5 1cm scale & Mesh prims)");
+                Console.WriteLine("PASSED (Generated valid USDA with 1cm scale & Mesh prims)");
                 passed++;
             }
             else
@@ -520,10 +520,10 @@ public static class AutomatedTests
             failed++;
         }
 
-        // Test 14: Unity .meta Sidecar & UE5 Asset Registry Indexing
+        // Test 14: .meta Sidecar & Asset Registry Indexing
         try
         {
-            Console.Write("Test 14: Unity .meta Sidecar & UE5 Asset Registry Indexing... ");
+            Console.Write("Test 14: .meta Sidecar & Asset Registry Indexing... ");
             var tempDir = Path.Combine(Path.GetTempPath(), "BEngine_AssetTest_" + Guid.NewGuid().ToString("N"));
             var (projRoot, _) = ProjectStorageService.CreateNewProject(tempDir, "AssetTestProject");
 
@@ -594,7 +594,7 @@ public static class AutomatedTests
             f 5/1/1 6/2/1 7/3/1 8/4/1
             """;
 
-            var mesh = objProcessor.Parse(sampleObj, Geometry.ObjCoordinateConversion.ThreeJsToUe5, Geometry.ObjPivotMode.BottomCenter);
+            var mesh = objProcessor.Parse(sampleObj, Geometry.ObjCoordinateConversion.ThreeJsToZUp, Geometry.ObjPivotMode.BottomCenter);
 
             bool hasVertices = mesh.Positions.Length == 24; // 8 unique vertices in parsed triangles
             bool hasColors = mesh.Colors.Length == 24;
@@ -927,7 +927,7 @@ public static class AutomatedTests
                 }
             }
 
-            // 2. AABB Collision Math Check (UE5 cm units)
+            // 2. AABB Collision Math Check (standard cm units)
             // Box 1 at (0, 50, 0), size (100, 100, 100) -> half: (50, 50, 50)
             // Box 2 at (60, 50, 0), size (100, 100, 100) -> half: (50, 50, 50) -> distance: 60 < 100 -> overlap 40cm
             float posA_x = 0, halfA_x = 50;
@@ -1188,7 +1188,7 @@ public static class AutomatedTests
 
             var expectedActions = new string[]
             {
-                "copy_ue5", "csg_cut", "bake_ao", "get_grid_texture", "save_project",
+                "copy_clipboard", "csg_cut", "bake_ao", "get_grid_texture", "save_project",
                 "load_project", "get_toolchains", "export_usd", "export_obj", "get_native_status",
                 "create_project", "open_project", "get_project_status", "get_asset_registry", "import_asset",
                 "reimport_asset", "delete_asset", "show_in_explorer", "get_asset_content", "load_mesh_binary",

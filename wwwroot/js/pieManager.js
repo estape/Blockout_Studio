@@ -61,8 +61,8 @@ export function startPie() {
   }
 
   if (!possessedEntity) {
-    // Spawn default UE5 Mannequin player actor
-    const playerBlock = createBlock('BP_Player_Mannequin', 'cylinder', 60, 60, 180, 0, 0, 0, false);
+    // Spawn default 180cm Dummy player actor
+    const playerBlock = createBlock('BP_Player_Dummy', 'cylinder', 60, 60, 180, 0, 0, 0, false);
     ensureEntityComponents(playerBlock);
     addComponent(playerBlock, new CharacterControllerComponent({
       height: 180,

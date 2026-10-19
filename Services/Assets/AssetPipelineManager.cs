@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Text.Json;
 
-namespace UE5BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Services.Assets;
 
 public class AssetPipelineManager : IAssetPipelineManager
 {
@@ -16,7 +16,7 @@ public class AssetPipelineManager : IAssetPipelineManager
             defaultName,
             "Wavefront OBJ (*.obj)\0*.obj\0All Files (*.*)\0*.*\0",
             "obj",
-            "Export .OBJ for Unreal Engine 5"
+            "Export .OBJ"
         );
     }
 
@@ -28,13 +28,13 @@ public class AssetPipelineManager : IAssetPipelineManager
             defaultName,
             "USD ASCII (*.usda)\0*.usda\0Universal Scene Description (*.usd)\0*.usd\0All Files (*.*)\0*.*\0",
             "usda",
-            "Export USD Stage for Unreal Engine 5"
+            "Export USD Stage"
         );
     }
 
     public ModelData ParseFromFrontendScene(JsonElement sceneElement)
     {
-        var model = new ModelData { SceneName = "UE5_Blockout_Stage" };
+        var model = new ModelData { SceneName = "Blockout_Stage" };
 
         if (!sceneElement.TryGetProperty("blocks", out var blocksProp) || blocksProp.ValueKind != JsonValueKind.Array)
         {

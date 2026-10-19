@@ -1,6 +1,6 @@
-# UE5 Blockout Studio — Technical Reference & Architecture Guide
+# Blockout Studio — Technical Reference & Architecture Guide
 
-This document provides a complete engineering reference of **UE5 Blockout Studio** (`UE5BlockoutStudio`), detailing its classes, interfaces, functions, IPC message contracts, Native C++20 ABI, frontend ES6 modules, binary formats, and external SDK integrations. It is intended for engineers implementing new features, performing maintenance, or diagnosing bugs.
+This document provides a complete engineering reference of **Blockout Studio** (`BlockoutStudio`), detailing its classes, interfaces, functions, IPC message contracts, Native C++20 ABI, frontend ES6 modules, binary formats, and external SDK integrations. It is intended for engineers implementing new features, performing maintenance, or diagnosing bugs.
 
 ---
 
@@ -13,7 +13,7 @@ This document provides a complete engineering reference of **UE5 Blockout Studio
    - [2.4 Geometry, CSG, `.OBJ` & `.USD` Stage Services (`Services/Geometry/`)](#24-geometry-csg-obj--usd-stage-services-servicesgeometry)
    - [2.5 Graphics, Vulkan Compute & Bakers (`Services/Graphics/`)](#25-graphics-vulkan-compute--bakers-servicesgraphics)
    - [2.6 Build Pipeline, SDK Probing & Native Compiler (`Services/BuildPipeline/`)](#26-build-pipeline-sdk-probing--native-compiler-servicesbuildpipeline)
-   - [2.7 Project Storage & UE5 T3D Clipboard (`Services/`)](#27-project-storage--ue5-t3d-clipboard-services)
+   - [2.7 Project Storage & Level Clipboard (`Services/`)](#27-project-storage--level-clipboard-services)
 3. [Native C++20 Core (`Native/EngineNative/` & `Services/NativeInterop/`)](#3-native-c20-core-nativeenginenative--servicesnativeinterop)
 4. [Frontend ES6 Module Architecture (`wwwroot/js/`)](#4-frontend-es6-module-architecture-wwwrootjs)
 5. [External SDK Integrations & Command Pipelines](#5-external-sdk-integrations--command-pipelines)
@@ -34,7 +34,7 @@ flowchart TD
         ToolsJS["tools/*<br/>(rectTool, circleTool, pushPullTool, holeTool)"]
         EcsJS["pieManager.js & ecs/*<br/>(Entity, 7 Components, Physics/Char/Script/Audio Systems)"]
         AssetJS["assetManager.js & usdObjLoader.js<br/>(Content Drawer, Ref Viewer, Binary .beng Streaming)"]
-        BuildJS["buildManager.js & ue5Bridge.js<br/>(SDK Modal, Compiler Console, ADB Deploy, T3D Export)"]
+        BuildJS["buildManager.js & sceneBridge.js<br/>(SDK Modal, Compiler Console, ADB Deploy, Clipboard Export)"]
         IpcJS["ipcBridge.js<br/>(sendToBackend / registerHandler / CustomEvent)"]
     end
 
@@ -88,7 +88,7 @@ All communication between JavaScript and C# passes through [`IpcRouter`](file://
 
 | IPC `action` Request | Response `action` | Handler Class & File | Purpose |
 | :--- | :--- | :--- | :--- |
-| `copy_ue5` | `copy_ue5_response` | [`CopyUe5Handler`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/Ipc/Handlers/CopyUe5Handler.cs) | Generates UE5 `.t3d` text from scene blocks/lights and copies to OS clipboard via `TextCopy`. |
+| `copy_clipboard` | `copy_clipboard_response` | [`CopyClipboardHandler`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/Ipc/Handlers/CopyClipboardHandler.cs) | Generates actor clipboard text from scene blocks/lights and copies to OS clipboard via `TextCopy`. |
 | `csg_cut` | `csg_cut_response` | [`CsgCutHandler`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/Ipc/Handlers/CsgCutHandler.cs) | Executes 3D CSG boolean subtraction (`rect`, `circle`, `arch`, through or blind depth) via `ICsgEngine`. |
 | `bake_ao` | `bake_ao_response` | [`BakeAoHandler`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/Ipc/Handlers/BakeAoHandler.cs) | Computes per-vertex Ambient Occlusion colors via Vulkan Compute, C++20 AVX2, or C# SIMD. |
 | `get_grid_texture` | `grid_texture_response` | [`GetGridTextureHandler`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/Ipc/Handlers/GetGridTextureHandler.cs) | Generates a Base64 PNG metric grid texture tinted to a hex color via `TextureBaker`. |
@@ -131,7 +131,7 @@ All communication between JavaScript and C# passes through [`IpcRouter`](file://
     - `Assets/Meshes`, `Assets/Materials`, `Assets/Textures`, `Assets/Levels`, `Assets/Prefabs`, `Assets/Audio`, `Assets/Scripts`, `Assets/Shaders`, `Assets/NativePlugins`
     - `Library/ArtifactCache`, `ProjectSettings`, `Saved/Autosaves`, `Saved/Logs`
   - Generates deterministic `.meta` sidecar files ([`AssetMeta.cs`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/Assets/AssetMeta.cs)) containing a 32-character hex `Guid`, `AssetType`, `ImporterSettings`, and `Dependencies`.
-  - Serializes the fast lookup index to `Library/AssetRegistry.bin` ([`AssetRegistryItem.cs`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/Assets/AssetRegistryItem.cs)) with virtual UE5-style paths (`/Game/Meshes/...`).
+  - Serializes the fast lookup index to `Library/AssetRegistry.bin` ([`AssetRegistryItem.cs`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/Assets/AssetRegistryItem.cs)) with virtual project paths (`/Game/Meshes/...`).
 
 ---
 
@@ -165,7 +165,7 @@ All communication between JavaScript and C# passes through [`IpcRouter`](file://
   - Fibonacci hemisphere ray-marched Ambient Occlusion baker (`32` rays per vertex, `250 cm` occlusion radius).
   - 3-tier execution path: **Vulkan Compute (SPIR-V GPU)** $\rightarrow$ **Native C++20 AVX2/AVX-512 (`EngineNative.dll`)** $\rightarrow$ **Managed C# `Parallel.For` + `System.Numerics.Vector3` SIMD**.
 - **[`TextureBaker`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/Graphics/TextureBaker.cs)**:
-  - Generates `256×256` RGBA procedural UE5 metric grid textures with major borders, `64px` sub-grids, center crosshairs, and corner studs, encoded as PNG data URLs (`GenerateGridPngBase64`).
+  - Generates `256×256` RGBA procedural metric grid textures with major borders, `64px` sub-grids, center crosshairs, and corner studs, encoded as PNG data URLs (`GenerateGridPngBase64`).
 
 ---
 
@@ -186,10 +186,10 @@ All communication between JavaScript and C# passes through [`IpcRouter`](file://
 
 ---
 
-### 2.7 Project Storage & UE5 T3D Clipboard (`Services/`)
+### 2.7 Project Storage & Level Clipboard (`Services/`)
 
-- **[`Ue5ClipboardService`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/Ue5ClipboardService.cs)**:
-  - Translates editor blocks (`box`, `cylinder`, `sphere`, `ramp`) and lights (`point`, `spot`, `directional` with `Static`/`Stationary`/`Movable` mobility) into Unreal Engine 5 `.t3d` clipboard text (`Begin Map / Begin Level / Begin Actor Class=/Script/Engine.StaticMeshActor ...`).
+- **[`ClipboardExportService`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/ClipboardExportService.cs)**:
+  - Translates editor blocks (`box`, `cylinder`, `sphere`, `ramp`) and lights (`point`, `spot`, `directional` with `Static`/`Stationary`/`Movable` mobility) into standard actor clipboard text (`Begin Map / Begin Level / Begin Actor Class=/Script/Engine.StaticMeshActor ...`).
 - **[`IProjectStorageService`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/IProjectStorageService.cs) / [`ProjectStorageService`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/ProjectStorageService.cs)**:
   - Handles native OS Save/Load file dialogs via `PhotinoWindow.ShowSaveFile` and `ShowOpenFile`.
 
@@ -197,7 +197,7 @@ All communication between JavaScript and C# passes through [`IpcRouter`](file://
 
 ## 3. Native C++20 Core (`Native/EngineNative/` & `Services/NativeInterop/`)
 
-To maximize geometry and raytracing throughput, UE5 Blockout Studio includes a native C++20 shared library (`Native/EngineNative/src/EngineNative.cpp`, header `include/EngineNative.h`) compiled via `build_msvc.cmd` into `EngineNative.dll` (copied to the output directory next to `UE5BlockoutStudio.exe`).
+To maximize geometry and raytracing throughput, Blockout Studio includes a native C++20 shared library (`Native/EngineNative/src/EngineNative.cpp`, header `include/EngineNative.h`) compiled via `build_msvc.cmd` into `EngineNative.dll` (copied to the output directory next to `BlockoutStudio.exe`).
 
 ### Exported C ABI Functions (`EngineNativeBindings.cs`)
 Bound in [`EngineNativeBindings`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/Services/NativeInterop/EngineNativeBindings.cs) using .NET 10 source-generated `[LibraryImport("EngineNative")]` with `[SuppressGCTransition]` where appropriate:
@@ -218,12 +218,12 @@ All frontend modules reside in `wwwroot/js/` and are loaded in strict topologica
 | Module File | Key Exports & Responsibilities |
 | :--- | :--- |
 | [`ipcBridge.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/ipcBridge.js) | `sendToBackend(payload)`, `sendIpcMessage(payload)`, `registerHandler(action, fn)`, `showToast(msg, isError)`. Bridges `window.external.sendMessage` / `receiveMessage` and dispatches `CustomEvent('ipc-message')`. |
-| [`engine.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/engine.js) | Initializes `THREE.Scene` (`Z-Up`), `PerspectiveCamera`, `WebGLRenderer`, `OrbitControls`, `SCALABILITY_TIERS` (`0`–`3`), `setScalabilityTier()`, `rebuildInstancedBatches()`, `createAutoLodObject()`, `toggleGpuHud()`, `updateGpuHud()`, and the `180 cm` UE5 Mannequin mesh. |
+| [`engine.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/engine.js) | Initializes `THREE.Scene` (`Z-Up`), `PerspectiveCamera`, `WebGLRenderer`, `OrbitControls`, `SCALABILITY_TIERS` (`0`–`3`), `setScalabilityTier()`, `rebuildInstancedBatches()`, `createAutoLodObject()`, `toggleGpuHud()`, `updateGpuHud()`, and the `180 cm` reference dummy mesh. |
 | [`transformGizmo.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/transformGizmo.js) | Configures `THREE.TransformControls`, grid/rotation snapping (`updateSnapSize`), live floating 3D measurement badge (`#gizmo-measure-badge`), and non-destructive USD `over` tracking on transform change. |
 | [`sceneManager.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/sceneManager.js) | Manages `blocks[]`, `selectedBlock`, `createBlock()`, `selectBlock()`, `spawnPreset()` (`wall`, `floor`, `ramp`, `cylinder`, `stairs`, `arch_door`), `duplicateSelected()`, `deleteSelected()`, `refreshOutliner()`, and ECS Inspector rendering (`renderEcsInspector`). |
 | [`lights.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/lights.js) | `spawnLight(type, mobility, record)`, `updateLightShadowLimits(maxLights)`, light gizmo helpers, and inspector synchronization. |
 | [`historyManager.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/historyManager.js) | 50-level Undo/Redo ring buffer (`initHistory()`, `recordState(label)`, `undo()`, `redo()`), serializing full geometry, CSG vertex buffers, lights, and ECS components. |
-| [`ue5Bridge.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/ue5Bridge.js) | `copyToUe5()`, `saveProject()`, `loadProject()`, `loadProjectFromData()`, `requestBakeAo()`, `applyAoColors()`, `exportToUE5Obj()`, `exportToUE5Usd()`, `queryToolchains()`, `queryNativeStatus()`. |
+| [`sceneBridge.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/sceneBridge.js) | `copyToClipboard()`, `saveProject()`, `loadProject()`, `loadProjectFromData()`, `requestBakeAo()`, `applyAoColors()`, `exportToObj()`, `exportToUsd()`, `queryToolchains()`, `queryNativeStatus()`. |
 | [`assetManager.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/assetManager.js) | Controls the bottom Content Drawer (`toggleContentDrawer`, `togglePinDrawer`), folder tree, smart collections, context menu, and interactive SVG **Reference Viewer** (`openReferenceViewer`). |
 | [`usdObjLoader.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/usdObjLoader.js) | Decodes Base64 `.beng` binary buffers into zero-copy `Float32Array` / `Uint32Array` `THREE.BufferGeometry` (`buildBufferGeometryFromBeng`), spawns imported `.obj`/`.usd` assets, and triggers `saveSelectedAsObj()` / `saveLevelAsUsdStage()`. |
 | [`pieManager.js`](file:///D:/Rodrigo/Documents/Dev/vscode/Desktop/dotNET/Blockout_Studio/wwwroot/js/pieManager.js) | Orchestrates **Play-In-Editor (PIE)** (`startPie()`, `pausePie()`, `stopPie()`, `updatePie(dt)`), snapshotting editor state, locking the pointer, possessing the `CharacterControllerComponent`, and ticking ECS systems. |

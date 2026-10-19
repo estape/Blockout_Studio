@@ -339,7 +339,7 @@ export function renderComponentStack(entity) {
       `;
     } else if (comp.type === 'CharacterController') {
       icon = '🏃';
-      title = 'Character Controller (UE5 Mannequin)';
+      title = 'Character Controller (180cm Dummy)';
       body = `
         <div class="comp-row">
           <span class="comp-lbl">Walk Speed</span>

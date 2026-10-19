@@ -1,7 +1,7 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Text.Json;
 
-namespace UE5BlockoutStudio.Services.Geometry;
+namespace BlockoutStudio.Services.Geometry;
 
 public class CsgVertex
 {

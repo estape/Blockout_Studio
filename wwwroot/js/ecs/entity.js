@@ -17,8 +17,8 @@ export function ensureEntityComponents(object) {
     // 1. Base Transform Component
     const transform = new TransformComponent({
       posX: object.position ? object.position.x : 0,
-      posY: object.position ? object.position.z : 0, // UE5 Y = Three.js Z
-      posZ: object.position ? object.position.y : 0, // UE5 Z = Three.js Y (Z-Up)
+      posY: object.position ? object.position.z : 0, // Engine Y = Three.js Z
+      posZ: object.position ? object.position.y : 0, // Engine Z = Three.js Y (Z-Up)
       rotX: object.rotation ? object.rotation.x : 0,
       rotY: object.rotation ? object.rotation.z : 0,
       rotZ: object.rotation ? object.rotation.y : 0

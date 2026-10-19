@@ -1,6 +1,6 @@
-using System.Numerics;
+﻿using System.Numerics;
 
-namespace UE5BlockoutStudio.Services.NativeInterop;
+namespace BlockoutStudio.Services.NativeInterop;
 
 public interface INativeInteropService
 {

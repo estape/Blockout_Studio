@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace UE5BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Services.Assets;
 
 public class UsdPipeline : IAssetPipeline
 {
@@ -16,7 +16,7 @@ public class UsdPipeline : IAssetPipeline
         sb.AppendLine("#usda 1.0");
         sb.AppendLine("(");
         sb.AppendLine($"    defaultPrim = \"{Sanitize(model.SceneName)}\"");
-        sb.AppendLine("    metersPerUnit = 0.01"); // 1 unit = 1 cm (UE5 standard)
+        sb.AppendLine("    metersPerUnit = 0.01"); // 1 unit = 1 cm (Metric standard)
         sb.AppendLine("    upAxis = \"Z\"");
         sb.AppendLine(")");
         sb.AppendLine();
@@ -66,7 +66,7 @@ public class UsdPipeline : IAssetPipeline
             }
             sb.AppendLine("]");
 
-            // Points (UE5 coordinate mapping: X forward = -posZ, Y right = posX, Z up = posY)
+            // Points (Engine coordinate mapping: X forward = -posZ, Y right = posX, Z up = posY)
             sb.Append("        point3f[] points = [");
             int vertCount = pos.Length / 3;
             for (int i = 0; i < vertCount; ++i)

@@ -1,16 +1,16 @@
 using System.Globalization;
 using System.Numerics;
 using System.Text;
-using UE5BlockoutStudio.Services.Assets;
-using UE5BlockoutStudio.Services.Graphics;
+using BlockoutStudio.Services.Assets;
+using BlockoutStudio.Services.Graphics;
 
-namespace UE5BlockoutStudio.Services.Geometry;
+namespace BlockoutStudio.Services.Geometry;
 
 public enum ObjCoordinateConversion
 {
     Raw,
-    ThreeJsToUe5, // Three.js Y-Up -> UE5 Z-Up Centimeters
-    Ue5ToThreeJs  // UE5 Z-Up Centimeters -> Three.js Y-Up
+    ThreeJsToZUp, // Three.js Y-Up -> Z-Up Centimeters
+    ZUpToThreeJs  // Z-Up Centimeters -> Three.js Y-Up
 }
 
 public enum ObjPivotMode
@@ -37,7 +37,7 @@ public class ObjNativeProcessor
 {
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
-    public ObjMeshResult Parse(string objText, ObjCoordinateConversion conversion = ObjCoordinateConversion.ThreeJsToUe5, ObjPivotMode pivot = ObjPivotMode.WorldOrigin)
+    public ObjMeshResult Parse(string objText, ObjCoordinateConversion conversion = ObjCoordinateConversion.ThreeJsToZUp, ObjPivotMode pivot = ObjPivotMode.WorldOrigin)
     {
         var rawPositions = new List<Vector3>(1024);
         var rawColors = new List<Vector3>(1024);
@@ -107,19 +107,19 @@ public class ObjNativeProcessor
             float y = posArray[i + 1];
             float z = posArray[i + 2];
 
-            if (conversion == ObjCoordinateConversion.ThreeJsToUe5)
+            if (conversion == ObjCoordinateConversion.ThreeJsToZUp)
             {
-                // Three.js (Right=X, Up=Y, Backward=Z) -> UE5 (Forward=-Z, Right=X, Up=Y)
-                float ueX = -z;
-                float ueY = x;
-                float ueZ = y;
-                posArray[i] = ueX;
-                posArray[i + 1] = ueY;
-                posArray[i + 2] = ueZ;
+                // Three.js (Right=X, Up=Y, Backward=Z) -> Z-Up (Forward=-Z, Right=X, Up=Y)
+                float wX = -z;
+                float wY = x;
+                float wZ = y;
+                posArray[i] = wX;
+                posArray[i + 1] = wY;
+                posArray[i + 2] = wZ;
             }
-            else if (conversion == ObjCoordinateConversion.Ue5ToThreeJs)
+            else if (conversion == ObjCoordinateConversion.ZUpToThreeJs)
             {
-                // UE5 (X=Fwd, Y=Right, Z=Up) -> Three.js (X=Right, Y=Up, Z=-Fwd)
+                // Z-Up (X=Fwd, Y=Right, Z=Up) -> Three.js (X=Right, Y=Up, Z=-Fwd)
                 float thX = y;
                 float thY = z;
                 float thZ = -x;
@@ -132,7 +132,7 @@ public class ObjNativeProcessor
             bMax = Vector3.Max(bMax, new Vector3(posArray[i], posArray[i + 1], posArray[i + 2]));
         }
 
-        if (conversion == ObjCoordinateConversion.ThreeJsToUe5)
+        if (conversion == ObjCoordinateConversion.ThreeJsToZUp)
         {
             for (int i = 0; i < normArray.Length; i += 3)
             {
@@ -360,8 +360,8 @@ public class ObjNativeProcessor
     public string ExportToObjString(ModelData model, bool includeAoColors = true, ObjPivotMode pivot = ObjPivotMode.WorldOrigin)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("# Exported from UE5 Blockout Studio Native Pipeline");
-        sb.AppendLine("# Coordinate System: UE5 Z-Up Centimeters (1 Unit = 1 cm)");
+        sb.AppendLine("# Exported from Blockout Studio Native Pipeline");
+        sb.AppendLine("# Coordinate System: Z-Up Centimeters (1 Unit = 1 cm)");
         sb.AppendLine();
 
         int vOffset = 1;

@@ -41,7 +41,7 @@ dirLight.position.set(1200, 2200, 1400);
 dirLight.castShadow = true;
 scene.add(dirLight);
 
-// UE5 Centimeter Grid (40m x 40m arena)
+// Metric Centimeter Grid (40m x 40m arena)
 export const subGrid = new THREE.GridHelper(4000, 80, 0x333b49, 0x1f242d);
 scene.add(subGrid);
 export const majorGrid = new THREE.GridHelper(4000, 40, 0xf58220, 0x3d4756);
@@ -56,8 +56,8 @@ export const groundPlane = new THREE.Mesh(
 groundPlane.rotation.x = -Math.PI / 2;
 scene.add(groundPlane);
 
-// Procedural UE5 Grid Texture (100 cm tile with 50 cm subdivisions)
-export function createUE5GridTexture() {
+// Procedural Modular Grid Texture (100 cm tile with 50 cm subdivisions)
+export function createGridTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 256; canvas.height = 256;
   const ctx = canvas.getContext('2d');
@@ -72,7 +72,7 @@ export function createUE5GridTexture() {
   tex.anisotropy = 8;
   return tex;
 }
-export let gridTexture = createUE5GridTexture();
+export let gridTexture = createGridTexture();
 
 // Scale Dummy (180 cm Dummy)
 export const mannequinGroup = new THREE.Group();

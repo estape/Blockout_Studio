@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Text;
 
-namespace UE5BlockoutStudio.Services.Geometry;
+namespace BlockoutStudio.Services.Geometry;
 
 public class UsdPrim
 {
@@ -24,7 +24,7 @@ public class UsdPrim
 public class UsdStage
 {
     public string StageName { get; set; } = "SceneStage";
-    public float MetersPerUnit { get; set; } = 0.01f; // 1 unit = 1 cm (UE5 standard)
+    public float MetersPerUnit { get; set; } = 0.01f; // 1 unit = 1 cm (Metric standard)
     public string UpAxis { get; set; } = "Z";
     public List<string> Sublayers { get; set; } = new();
     public List<UsdPrim> RootPrims { get; set; } = new();
@@ -189,7 +189,7 @@ public class UsdStageService : IUsdStageService
         sb.AppendLine($"{indent}{prim.Specifier}{typeDecl} \"{prim.Name}\"{refDecl}{payloadDecl}");
         sb.AppendLine($"{indent}{{");
 
-        // Transforms (UE5 xformOps)
+        // Transforms (xformOps)
         if (prim.Translation != Vector3.Zero || prim.RotationDegrees != Vector3.Zero || prim.Scale != Vector3.One)
         {
             sb.AppendLine($"{indent}    double3 xformOp:translate = ({prim.Translation.X.ToString("F3", Inv)}, {prim.Translation.Y.ToString("F3", Inv)}, {prim.Translation.Z.ToString("F3", Inv)})");

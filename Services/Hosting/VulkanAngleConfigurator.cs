@@ -1,6 +1,6 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
-namespace UE5BlockoutStudio.Services.Hosting;
+namespace BlockoutStudio.Services.Hosting;
 
 public enum VulkanBackendStatus
 {

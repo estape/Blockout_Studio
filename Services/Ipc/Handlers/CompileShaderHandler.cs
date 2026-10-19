@@ -1,8 +1,8 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Photino.NET;
-using UE5BlockoutStudio.Services.Graphics;
+using BlockoutStudio.Services.Graphics;
 
-namespace UE5BlockoutStudio.Services.Ipc.Handlers;
+namespace BlockoutStudio.Services.Ipc.Handlers;
 
 public class CompileShaderHandler : IIpcActionHandler
 {

@@ -1,10 +1,10 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
-using UE5BlockoutStudio.Services.Assets;
-using UE5BlockoutStudio.Services.Graphics;
+using BlockoutStudio.Services.Assets;
+using BlockoutStudio.Services.Graphics;
 
-namespace UE5BlockoutStudio.Services.Geometry;
+namespace BlockoutStudio.Services.Geometry;
 
 public class CompiledMeshArtifact
 {

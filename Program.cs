@@ -1,14 +1,14 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Photino.NET;
-using UE5BlockoutStudio.Services;
-using UE5BlockoutStudio.Services.Assets;
-using UE5BlockoutStudio.Services.BuildPipeline;
-using UE5BlockoutStudio.Services.Geometry;
-using UE5BlockoutStudio.Services.Graphics;
-using UE5BlockoutStudio.Services.Hosting;
-using UE5BlockoutStudio.Services.Ipc;
+using BlockoutStudio.Services;
+using BlockoutStudio.Services.Assets;
+using BlockoutStudio.Services.BuildPipeline;
+using BlockoutStudio.Services.Geometry;
+using BlockoutStudio.Services.Graphics;
+using BlockoutStudio.Services.Hosting;
+using BlockoutStudio.Services.Ipc;
 
-namespace UE5BlockoutStudio;
+namespace BlockoutStudio;
 
 internal class Program
 {

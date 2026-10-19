@@ -1,12 +1,12 @@
-# UE5 Blockout Studio — User Guide & Manual
+# Blockout Studio — User Guide & Manual
 
-Welcome to **UE5 Blockout Studio**, a fast, metric-accurate 3D architectural blockout, CSG modeling, ECS gameplay prototyping, and multi-platform packaging studio engineered for **Unreal Engine 5**, Desktop PC, and Mobile (Android) workflows.
+Welcome to **Blockout Studio**, a fast, metric-accurate 3D architectural blockout, CSG modeling, ECS gameplay prototyping, and multi-platform packaging studio engineered for Desktop PC, Mobile (Android), and 3D game development workflows.
 
 ---
 
 ## Table of Contents
 1. [Quick Start & Launching](#1-quick-start--launching)
-2. [Spatial Standards & UE5 Scale Metrics](#2-spatial-standards--ue5-scale-metrics)
+2. [Spatial Standards & Metric Scale](#2-spatial-standards--metric-scale)
 3. [Interface Overview](#3-interface-overview)
    - [Top Menu Bar (`File`, `Edit`, `Assets`, `Tools`, `Build`, `View`)](#31-top-menu-bar)
    - [Top Toolbar](#32-top-toolbar)
@@ -16,7 +16,7 @@ Welcome to **UE5 Blockout Studio**, a fast, metric-accurate 3D architectural blo
 4. [Keyboard & Mouse Shortcuts Reference](#4-keyboard--mouse-shortcuts-reference)
 5. [Core Workflows (Step-by-Step)](#5-core-workflows-step-by-step)
    - [Workflow 1: Sketching, Extruding & Cutting Holes (CSG)](#workflow-1-sketching-extruding--cutting-holes-csg)
-   - [Workflow 2: Sending Levels to Unreal Engine 5 (T3D / OBJ / USD)](#workflow-2-sending-levels-to-unreal-engine-5-t3d--obj--usd)
+   - [Workflow 2: Exporting Levels (Clipboard / OBJ / USD)](#workflow-2-exporting-levels-clipboard--obj--usd)
    - [Workflow 3: Managing Projects, `.OBJ`/`.USD` Assets & Reference Graphs](#workflow-3-managing-projects-objusd-assets--reference-graphs)
    - [Workflow 4: ECS Gameplay Components & Play-In-Editor (PIE)](#workflow-4-ecs-gameplay-components--play-in-editor-pie)
    - [Workflow 5: Baking Ambient Occlusion & 4-Tier Scalability](#workflow-5-baking-ambient-occlusion--4-tier-scalability)
@@ -48,13 +48,13 @@ dotnet run -- --test
 
 ---
 
-## 2. Spatial Standards & UE5 Scale Metrics
+## 2. Spatial Standards & Scale Metrics
 
-UE5 Blockout Studio is locked to **Unreal Engine 5 spatial conventions** so your blockouts never require rescaling after export:
+Blockout Studio is locked to **standard spatial conventions** so your blockouts never require rescaling after export:
 - **Unit Scale:** `1 Unit = 1 cm` (`100 Units = 1 Meter`).
 - **Coordinate System:** **Z-Up** (`X` = Forward/Right, `Y` = Depth, `Z` = Elevation/Height).
 - **Pivot Convention:** Bottom-center (`Z = 0` at the base of the object) so walls, floors, ramps, and pillars snap flush onto floors.
-- **UE5 Mannequin Reference (`180 cm`):** A yellow wireframe/semi-transparent reference silhouette (`180 cm` tall, `60 cm` wide) stands in the scene to give instant visual feedback on door heights, cover height, and stair proportions.
+- **180cm Dummy Reference (`180 cm`):** A yellow wireframe/semi-transparent reference silhouette (`180 cm` tall, `60 cm` wide) stands in the scene to give instant visual feedback on door heights, cover height, and stair proportions.
   - Standard Door Height: `210 cm – 240 cm`
   - Standard Wall Height: `300 cm – 400 cm`
   - Standard Crouch Cover Height: `90 cm – 110 cm`
@@ -66,7 +66,7 @@ UE5 Blockout Studio is locked to **Unreal Engine 5 spatial conventions** so your
 
 ```
 +-----------------------------------------------------------------------------------+
-| [B] UE5 Blockout Studio   File   Edit   Assets   Tools   Build   View             | <- Top Menu Bar
+| [B] Blockout Studio       File   Edit   Assets   Tools   Build   View             | <- Top Menu Bar
 +-----------------------------------------------------------------------------------+
 | Snap:[10cm] | Undo Redo | [Play][Pause][Stop] | Quality:[Low][Med][High][Epic] ...| <- Top Toolbar
 +---------------+---------------------------------------------------+---------------+
@@ -92,18 +92,18 @@ Located at the very top of the window:
 
 - **File Menu**:
   - **New Project (`Ctrl+N`)**: Scaffolds a complete project directory structure (`Assets/`, `Library/`, `ProjectSettings/`, `Saved/`, `Binaries/`) at a chosen disk path.
-  - **Open Project (`Ctrl+Shift+O`)**: Opens an existing UE5 Blockout Studio project directory and indexes its Asset Registry.
+  - **Open Project (`Ctrl+Shift+O`)**: Opens an existing Blockout Studio project directory and indexes its Asset Registry.
   - **Save Project (.json) (`Ctrl+S`)**: Saves the current level actors, CSG geometry buffers, lights, and ECS components to a `.json` project file.
   - **Load Project (.json) (`Ctrl+O`)**: Restores a saved `.json` project file.
   - **Import Asset...**: Imports external `.obj`, `.usda`/`.usd`, textures, audio, or script files into the active project's `Assets/` folder and generates a `.meta` sidecar.
   - **Save Selected as .OBJ**: Converts the currently selected blockout/CSG mesh into a reusable `.obj` asset inside `Assets/Meshes/` with baked Vertex AO colors (`v x y z r g b`).
   - **Save Level as .USD Stage**: Saves the entire scene graph as a non-destructive `.usda` composition inside `Assets/Levels/`.
-  - **Export Level (.OBJ)** / **Export Level (.USD)**: Exports the level to an external folder for direct import into Unreal Engine 5, Blender, or Maya.
+  - **Export Level (.OBJ)** / **Export Level (.USD)**: Exports the level to an external folder for direct import into game engines, DCCs, Blender, or Maya.
 - **Edit Menu**:
   - **Undo (`Ctrl+Z`)** & **Redo (`Ctrl+Y`)**: Steps backward or forward through the 50-state scene snapshot history.
   - **Duplicate Selected (`Ctrl+D`)**: Clones the selected actor (offset by `+50 cm` on X and Y).
   - **Delete Selected (`Del`)**: Removes the selected actor or light from the scene.
-  - **Copy UE5 T3D to Clipboard (`Ctrl+C`)**: Generates Unreal Engine 5 `.t3d` Actor text and copies it to your OS clipboard so you can press `Ctrl+V` directly inside the Unreal Engine 5 Level Viewport.
+  - **Copy Level to Clipboard (`Ctrl+C`)**: Generates 3D actor text and copies it to your OS clipboard.
 - **Assets Menu**:
   - **Toggle Content Drawer (`Ctrl+Space`)**: Opens or closes the bottom asset browser.
   - **Import Asset to Project...**: Opens the native OS file picker to import assets.
@@ -115,7 +115,7 @@ Located at the very top of the window:
   - **Compile Native C++20 Plugin**: Immediately compiles `.cpp` files in `Assets/NativePlugins/` using MSVC `cl.exe` or Linux `g++`.
   - **Vulkan / C++ Toolchains Report**: Displays detailed diagnostic status of your host OS, WebGL ANGLE backend, `EngineNative.dll` SIMD capabilities, Vulkan SDK, MSVC, Android SDK, and GCC.
 - **View Menu**:
-  - **Toggle UE5 Scale Mannequin (180cm)**: Shows or hides the `180 cm` reference human mesh.
+  - **Toggle Scale Dummy (180cm)**: Shows or hides the `180 cm` reference human mesh.
   - **Toggle GPU & Vulkan Performance HUD**: Shows or hides the real-time frame-time, FPS, draw-call, triangle, and active scalability overlay in the top-right of the 3D viewport.
   - **Scalability Tiers (`0`–`3`)**: Switches between **Tier 0 (Mobile Low)**, **Tier 1 (Mobile High)**, **Tier 2 (Desktop PC)**, and **Tier 3 (Console / Epic)**.
 
@@ -123,7 +123,7 @@ Located at the very top of the window:
 
 ### 3.2 Top Toolbar
 Provides 1-click access to high-frequency runtime and rendering controls:
-- **Snap Grid Selector**: Choose grid snapping increments of **Off**, **1 cm**, **5 cm**, **10 cm (Default)**, **25 cm**, **50 cm (UE5 Grid)**, or **100 cm (1m)**.
+- **Snap Grid Selector**: Choose grid snapping increments of **Off**, **1 cm**, **5 cm**, **10 cm (Default)**, **25 cm**, **50 cm**, or **100 cm (1m)**.
 - **Undo / Redo**: Instant history navigation.
 - **Play-In-Editor (PIE) Controls**:
   - **▶ Play**: Snapshots the editor scene, hides gizmos, possesses the `CharacterControllerComponent` (or spawns a default `180 cm` first-person player), locks the mouse cursor, and starts physics, scripts, and 3D spatial audio.
@@ -132,7 +132,7 @@ Provides 1-click access to high-frequency runtime and rendering controls:
 - **Scalability Bar (`Low`, `Med`, `High`, `Epic` + `GPU HUD`)**: Real-time rendering tier switcher and telemetry overlay toggle.
 - **Bake AO**: Runs ray-marched Vertex Ambient Occlusion across all meshes in the scene using Vulkan GPU Compute or SIMD multi-core fallback.
 - **⚙️ Build & SDKs**: Opens the Build, Compilers & SDK Settings modal (with a live green/orange health status indicator dot).
-- **📋 Copy UE5**: Copies the level as UE5 `.t3d` clipboard text.
+- **📋 Copy Level**: Copies the level as 3D actor clipboard text.
 
 ---
 
@@ -148,7 +148,7 @@ Houses all 8 interactive viewport tools in a clean 2-column grid with hotkey bad
 | **Push/Pull** | `P` | Click any block and drag vertically to extrude its height (`H`) up or down in real time with live centimeter readouts. |
 | **Hole** | `H` | Activates the **Hole Cutter (C# CSG)** panel directly below the tools grid to subtract rectangular doors/windows, circular pipes, or arched doorways from the selected block. |
 | **Sphere** | `S` | Prompts for a diameter in `cm` and spawns a sphere primitive at the origin. |
-| **Light** | `L` | Spawns a UE5-compatible Point Light actor (`Static`, `Stationary`, or `Movable`) with dynamic attenuation radius. |
+| **Light** | `L` | Spawns a Point Light actor (`Static`, `Stationary`, or `Movable`) with dynamic attenuation radius. |
 
 #### Contextual Hole Cutter (C# CSG) Panel
 When the **Hole (`H`)** tool is selected, the **Hole Cutter (C# CSG)** block appears in the Left Sidebar:
@@ -165,7 +165,7 @@ When the **Hole (`H`)** tool is selected, the **Hole Cutter (C# CSG)** block app
 Organized into four vertical blocks:
 
 1. **Forms (Architectural Presets)**:
-   - 1-click spawn buttons for UE5-scaled architectural primitives:
+   - 1-click spawn buttons for metric-scaled architectural primitives:
      - **Wall** (`400 × 20 × 300 cm`)
      - **Floor** (`400 × 400 × 20 cm`)
      - **Ramp** (`200 × 400 × 150 cm` sloped wedge)
@@ -238,7 +238,7 @@ Press **`Ctrl + Space`** or click the **📁 Content Drawer** pill at the bottom
 | `Ctrl + Z` | **Undo** |
 | `Ctrl + Y` / `Ctrl + Shift + Z` | **Redo** |
 | `Ctrl + D` | **Duplicate Selected** Actor |
-| `Ctrl + C` | **Copy Level to UE5 Clipboard (`.t3d`)** |
+| `Ctrl + C` | **Copy Level to Clipboard** |
 | `Ctrl + N` | **New Project...** |
 | `Ctrl + Shift + O` | **Open Project Folder...** |
 | `Ctrl + S` | **Save Project (`.json`)** |
@@ -258,14 +258,14 @@ Press **`Ctrl + Space`** or click the **📁 Content Drawer** pill at the bottom
 5. In the **Hole Cutter (C# CSG)** panel, set **Shape** to `Arch (Rounded Top)`, **Hole W** to `120`, **Hole H** to `220`, **Height From Base** to `0`, and click **✂️ Punch Hole in Selected**.
 6. The C# CSG engine performs a 3D boolean subtraction and replaces the wall with a watertight mesh containing the arched doorway.
 
-### Workflow 2: Sending Levels to Unreal Engine 5 (T3D / OBJ / USD)
-- **Method A — Instant Clipboard Paste (`.t3d`)**:
-  1. Click **📋 Copy UE5** in the Top Toolbar (or press `Ctrl+C`).
-  2. Switch to **Unreal Engine 5**, click inside the Level Viewport, and press `Ctrl+V`.
+### Workflow 2: Exporting Levels (Clipboard / OBJ / USD)
+- **Method A — Instant Clipboard Copy**:
+  1. Click **📋 Copy Level** in the Top Toolbar (or press `Ctrl+C`).
+  2. Paste directly into your target engine or clipboard-compatible editor (`Ctrl+V`).
   3. Every blockout actor and light spawns at its exact centimeter coordinates and scale.
 - **Method B — Native `.OBJ` or `.USD` Export**:
   1. Open **File $\rightarrow$ Export Level (.OBJ)** or **File $\rightarrow$ Export Level (.USD)**.
-  2. Choose a destination file. The exported `.obj` or `.usda` file includes `metersPerUnit = 0.01` (`1 cm`) and `upAxis = "Z"`, importing 1:1 into Unreal Engine 5 without axis flipping.
+  2. Choose a destination file. The exported `.obj` or `.usda` file includes `metersPerUnit = 0.01` (`1 cm`) and `upAxis = "Z"`, importing 1:1 into standard 3D suites without axis flipping.
 
 ### Workflow 3: Managing Projects, `.OBJ`/`.USD` Assets & Reference Graphs
 1. Click **File $\rightarrow$ New Project...** (`Ctrl+N`), enter a project name (e.g., `SciFiOutpost`), and choose a parent folder.
@@ -279,7 +279,7 @@ Press **`Ctrl + Space`** or click the **📁 Content Drawer** pill at the bottom
 3. Use **+ Add Component...** to attach:
    - **`Collider`**: Choose `Box`, `Sphere`, `Capsule`, or `Mesh`, or mark it as `Is Trigger`.
    - **`Rigidbody`**: Set `Body Type` (`Static`, `Kinematic`, or `Dynamic`), `Mass (kg)`, and `Use Gravity`.
-   - **`CharacterController`**: Pre-configured to UE5 Mannequin metrics (`Height: 180 cm`, `Radius: 30 cm`, `Step Offset: 45 cm`, `Move Speed: 500 cm/s`, `Jump Speed: 450 cm/s`).
+   - **`CharacterController`**: Pre-configured to human metrics (`Height: 180 cm`, `Radius: 30 cm`, `Step Offset: 45 cm`, `Move Speed: 500 cm/s`, `Jump Speed: 450 cm/s`).
    - **`Script`**: Select a gameplay script from `Assets/Scripts/` (`Rotator.js`, `DoorTrigger.js`, `PlayerMovement.js`) and customize its JSON parameters.
    - **`AudioSource`**: Configure 3D spatial WebAudio synthesis (`AmbientHum`, `Beep`, `Wind`, `Pulse`) with min/max distance falloff.
 4. Click **▶ Play** in the Top Toolbar to enter **Play-In-Editor (PIE)** mode. Walk around your blockout in first-person (`WASD` + `Mouse` + `Space` to jump), climb stairs up to `45 cm` step height, and test triggers. Click **⏹ Stop** (or press `Esc`) to return to the editor with your scene restored to its exact pre-Play state.

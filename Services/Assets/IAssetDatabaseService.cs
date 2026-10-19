@@ -1,6 +1,6 @@
-using Photino.NET;
+﻿using Photino.NET;
 
-namespace UE5BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Services.Assets;
 
 public interface IAssetDatabaseService
 {

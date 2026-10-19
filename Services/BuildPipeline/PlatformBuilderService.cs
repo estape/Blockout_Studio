@@ -1,11 +1,11 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using UE5BlockoutStudio.Services.Assets;
-using UE5BlockoutStudio.Services.Geometry;
-using UE5BlockoutStudio.Services.Graphics;
+using BlockoutStudio.Services.Assets;
+using BlockoutStudio.Services.Geometry;
+using BlockoutStudio.Services.Graphics;
 
-namespace UE5BlockoutStudio.Services.BuildPipeline;
+namespace BlockoutStudio.Services.BuildPipeline;
 
 public class PlatformBuilderService : IPlatformBuilderService
 {
@@ -370,7 +370,7 @@ public class PlatformBuilderService : IPlatformBuilderService
         // Touch mock APK file if AAPT2 / gradle not invoked directly
         if (!File.Exists(apkOut))
         {
-            await File.WriteAllTextAsync(apkOut, "UE5BLOCKOUT_ANDROID_APK_PACKAGE");
+            await File.WriteAllTextAsync(apkOut, "BLOCKOUTSTUDIO_ANDROID_APK_PACKAGE");
         }
 
         log($"[STAGE] Staged Android package artifact: {Path.GetFileName(apkOut)}");
@@ -391,7 +391,7 @@ public class PlatformBuilderService : IPlatformBuilderService
             adb = "adb";
         }
 
-        var apkPath = Path.Combine(projectRoot, "Saved", "StagedBuilds", "Android", "UE5BlockoutGame.apk");
+        var apkPath = Path.Combine(projectRoot, "Saved", "StagedBuilds", "Android", "BlockoutGame.apk");
         if (!File.Exists(apkPath))
         {
             Log($"[ERROR] Android package not found at {apkPath}. Package Android build first.");
@@ -423,7 +423,7 @@ public class PlatformBuilderService : IPlatformBuilderService
                 if (proc.ExitCode == 0)
                 {
                     Log("[DEPLOY] Launching app on device...");
-                    var launchPsi = new ProcessStartInfo(adb, $"{devArg} shell am start -n com.ue5blockout.game/.MainActivity")
+                    var launchPsi = new ProcessStartInfo(adb, $"{devArg} shell am start -n com.blockoutstudio.game/.MainActivity")
                     {
                         RedirectStandardOutput = true,
                         UseShellExecute = false,

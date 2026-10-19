@@ -1,7 +1,7 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Photino.NET;
 
-namespace UE5BlockoutStudio.Services.Ipc;
+namespace BlockoutStudio.Services.Ipc;
 
 public interface IIpcActionHandler
 {

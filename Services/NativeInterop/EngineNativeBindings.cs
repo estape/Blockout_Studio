@@ -1,6 +1,6 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
-namespace UE5BlockoutStudio.Services.NativeInterop;
+namespace BlockoutStudio.Services.NativeInterop;
 
 internal static unsafe partial class EngineNativeBindings
 {

@@ -1,9 +1,9 @@
 ---
-project_name: "UE5BlockoutStudio"
-current_version: "1.0.0"
+project_name: "Blockout Studio"
+current_version: "1.0.0-alpha"
 architecture_pattern: "Modular Service-Oriented Desktop Architecture (.NET 10 DI + Photino IPC Router + ES6 Module ECS Frontend + Native C++20 SIMD/Vulkan Compute Core)"
 primary_stack: [".NET 10 (C# 13)", "Photino.NET 4.0.16 (WebView2 / WebKitGTK)", "Three.js (WebGL 2.0)", "C++20 (MSVC / GCC AVX2 & AVX-512)", "LunarG Vulkan SDK (SPIR-V / Compute)", "OpenUSD (.usda/.usdc) & Wavefront (.obj)"]
-last_updated: 2026-10-16
+last_updated: 2026-10-18
 status: "Active / In-Development"
 ---
 
@@ -14,9 +14,9 @@ This document serves as the absolute single source of truth (SSOT) for context, 
 ---
 
 ## 🎯 1. Project Overview & Core Goals
-* **System Purpose:** **UE5 Blockout Studio** is a high-performance, native-accelerated 3D level blockout, CSG modeling, ECS gameplay prototyping, and multi-platform packaging studio built on .NET 10, C++20 SIMD, Vulkan Compute, and WebGL 2.0. It bridges rapid SketchUp/Hammer-style architectural blockout directly into Unreal Engine 5 (via 1-click `.t3d` clipboard paste, native `.obj`, and non-destructive `.usda` stages) while also functioning as a standalone game editor with Play-In-Editor (PIE) and native Windows/Linux/Android APK packaging.
-* **Target Audience:** Level Designers, Environment Artists, Technical Designers, and Indie/Solo Game Developers targeting Unreal Engine 5, Desktop PC, and Mobile (Android) platforms.
-* **Value Proposition:** Eliminates the heavy iteration loop of blocking out levels inside massive engine editors by providing instant metric-accurate (`1 unit = 1 cm`) SketchUp-style push/pull and CSG boolean modeling, hybrid Unity `.meta` + UE5 `AssetRegistry.bin` asset management, GPU/SIMD-accelerated Ambient Occlusion baking, instant in-editor first-person playtesting (PIE) with UE5 Mannequin metrics (`180 cm` height), and direct 1-click transfer to UE5 or standalone compiled builds.
+* **System Purpose:** **Blockout Studio** is a high-performance, native-accelerated 3D level blockout, CSG modeling, ECS gameplay prototyping, and multi-platform packaging studio built on .NET 10, C++20 SIMD, Vulkan Compute, and WebGL 2.0. It bridges rapid SketchUp/Hammer-style architectural blockout directly into game engines and DCCs (via native `.obj` and non-destructive `.usda` stages) while also functioning as a standalone game editor with Play-In-Editor (PIE) and native Windows/Linux/Android APK packaging.
+* **Target Audience:** Level Designers, Environment Artists, Technical Designers, and Indie/Solo Game Developers targeting Desktop PC and Mobile (Android) platforms.
+* **Value Proposition:** Eliminates the heavy iteration loop of blocking out levels inside massive engine editors by providing instant metric-accurate (`1 unit = 1 cm`) SketchUp-style push/pull and CSG boolean modeling, hybrid Unity `.meta` + binary `AssetRegistry.bin` asset management, GPU/SIMD-accelerated Ambient Occlusion baking, instant in-editor first-person playtesting (PIE) with standard human dummy metrics (`180 cm` height), and direct 1-click export to standalone compiled builds or industry-standard 3D formats (OBJ / USD).
 
 ---
 
@@ -25,7 +25,7 @@ This document serves as the absolute single source of truth (SSOT) for context, 
   * **Language & Runtime:** C# 13 on **.NET 10.0** (`net10.0`, `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>`, `<Nullable>enable</Nullable>`).
   * **Desktop Shell:** `Photino.NET` (`4.0.16`) hosting native OS WebView2 (Windows) / WebKitGTK (Linux).
   * **Dependency Injection:** `Microsoft.Extensions.DependencyInjection` (`10.0.13`) configured in `Services/ServiceRegistration.cs`.
-  * **Clipboard Integration:** `TextCopy` (`6.2.1`) for direct OS clipboard injection of Unreal Engine `.t3d` actor graphs.
+  * **Clipboard Integration:** `TextCopy` (`6.2.1`) for direct OS clipboard export of level geometry and actors.
   * **Native C++20 Core (`EngineNative.dll` / `libEngineNative.so`):** Custom C++20 shared library (`Native/EngineNative/`) compiled with `/std:c++20 /O2 /arch:AVX2` and bound via `.NET 10` source-generated `[LibraryImport]` (`Services/NativeInterop/EngineNativeBindings.cs`) for hardware-intrinsic AVX2/AVX-512 ray-triangle intersection, CSG math, and Vertex AO baking.
 * **Frontend:**
   * **Architecture:** Native ES6 Modules (`wwwroot/js/*.js`) with zero bundler build-step latency.
@@ -33,7 +33,7 @@ This document serves as the absolute single source of truth (SSOT) for context, 
   * **UI & Styling:** Vanilla HTML5 & Modern CSS (`wwwroot/index.html`, `wwwroot/css/main.css`) using the **HTML Popover API** (`popover` / `popovertarget`), **CSS Anchor Positioning** (`anchor-name`, `position-anchor`, `position-area`), **CSS Grid** (`grid-template-areas`), and responsive Flexbox (`flex-wrap: balance`, `align-items: safe center`).
   * **State Management:** Event-driven IPC synchronization over `ipcBridge.js`, Undo/Redo command snapshot stack in `historyManager.js`, and Entity-Component-System (ECS) state inside `sceneManager.js` and `pieManager.js`.
 * **Database, Storage & Binary Formats:**
-  * **Hybrid Asset Database (`Services/Assets/AssetDatabaseService.cs`):** Combines Unity-style YAML/JSON `.meta` sidecar files (persistent 32-char hex GUIDs) with a fast UE5-style binary/JSON cache at `<ProjectRoot>/Library/AssetRegistry.bin`.
+  * **Hybrid Asset Database (`Services/Assets/AssetDatabaseService.cs`):** Combines Unity-style YAML/JSON `.meta` sidecar files (persistent 32-char hex GUIDs) with a fast binary/JSON cache at `<ProjectRoot>/Library/AssetRegistry.bin`.
   * **Binary Geometry Artifact Cache (`.beng`):** Zero-stall compiled mesh cache in `<ProjectRoot>/Library/ArtifactCache/<guid>.beng` with magic header `BENG` (`0x474E4542`), storing flat `Float32Array` (Positions, Normals, UVs, Colors) and `Uint32Array` (Indices).
   * **Scene & Prefab Composition (`.usda` / `.obj`):** Native zero-allocation `Span<T>` Wavefront `.obj` processor (`ObjNativeProcessor.cs`) and OpenUSD `.usda` stage composer (`UsdStageService.cs`) supporting `subLayers`, `references`, `payload`, `variantSets`, and non-destructive `over` delta opinions.
 * **External Integrations & Native SDKs:**
@@ -71,7 +71,7 @@ Agents must strictly follow these rules to maintain codebase integrity:
 ---
 
 ## 🚦 4. Critical Business Rules (The "Never-Break" Rules)
-* **Rule #1 (UE5 Spatial & Metric Standards):** `1 Engine Unit = 1 cm` (`100 units = 1 m`). The editor uses a Z-Up coordinate convention aligned with Unreal Engine 5. All architectural presets and the `CharacterControllerComponent` must honor UE5 Mannequin metrics (`180 cm` height, `60 cm` width, `45 cm` max step height).
+* **Rule #1 (Spatial & Metric Standards):** `1 Engine Unit = 1 cm` (`100 units = 1 m`). The editor uses a Z-Up coordinate convention. All architectural presets and the `CharacterControllerComponent` must honor standard human reference metrics (`180 cm` height, `60 cm` width, `45 cm` max step height).
 * **Rule #2 (Non-Destructive USD & Asset Pipeline):** Transforming an imported `.obj`/`.usd` asset or overriding its material in a level must NEVER destructively overwrite the source asset in `Assets/Meshes/`. Instead, write non-destructive USD `over` opinions via `UsdStageService.cs` and preserve `.meta` GUIDs.
 * **Rule #3 (Hardware & Hybrid-GPU Resilience):**
   * On Windows 11 hybrid-GPU (Optimus) laptops, Chromium WebView2 crashes its GPU process when forced onto experimental Vulkan ANGLE (`--use-angle=vulkan`). Therefore, `VulkanAngleConfigurator.cs` MUST default Windows WebView2 to `--use-angle=d3d11` (unless `FORCE_VULKAN_ANGLE=1` or `--vulkan-angle` is passed), while C# backend compute (`VulkanComputeService.cs`) uses the native LunarG Vulkan SDK directly.
@@ -85,7 +85,7 @@ Agents must strictly follow these rules to maintain codebase integrity:
 *Every time a major design choice is made or a session ends, the model must append a new entry below.*
 
 ### [2026-10-14] - Session #1: Core Engine Architecture & Module 1 (Hybrid Asset Database)
-* **Context:** Initialized the .NET 10 + Photino.NET + Three.js hybrid desktop studio with DI (`ServiceRegistration.cs`), `IpcRouter`, Native C++20 `EngineNative.dll` (`[LibraryImport]`), and Module 1 (Unity `.meta` sidecars + UE5 `AssetRegistry.bin` + Bottom Content Drawer UI).
+* **Context:** Initialized the .NET 10 + Photino.NET + Three.js hybrid desktop studio with DI (`ServiceRegistration.cs`), `IpcRouter`, Native C++20 `EngineNative.dll` (`[LibraryImport]`), and Module 1 (Unity `.meta` sidecars + `AssetRegistry.bin` + Bottom Content Drawer UI).
 * **Decisions Made:** Chose deterministic `.meta` sidecars paired with a fast `Library/AssetRegistry.bin` cache so assets can be moved/renamed without breaking scene references.
 
 ### [2026-10-15] - Session #2: Modules 2, 3, 4 & 5 (Geometry, Vulkan/Scalability, ECS/PIE, Build/SDK Pipeline)

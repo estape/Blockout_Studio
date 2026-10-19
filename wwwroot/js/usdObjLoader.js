@@ -140,7 +140,7 @@ function handleMeshBinaryResponse(msg) {
   const pos = req.targetPosition || new THREE.Vector3(0, 0, 0);
   mesh.position.set(pos.x, pos.y, pos.z);
 
-  // Bounding measurements in UE5 units (cm)
+  // Bounding measurements in metric units (cm)
   geom.computeBoundingBox();
   const box = geom.boundingBox;
   const sizeX = Math.round(box.max.x - box.min.x) || 100;

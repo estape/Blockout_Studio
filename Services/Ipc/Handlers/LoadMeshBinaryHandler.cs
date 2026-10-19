@@ -1,9 +1,9 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Photino.NET;
-using UE5BlockoutStudio.Services.Assets;
-using UE5BlockoutStudio.Services.Geometry;
+using BlockoutStudio.Services.Assets;
+using BlockoutStudio.Services.Geometry;
 
-namespace UE5BlockoutStudio.Services.Ipc.Handlers;
+namespace BlockoutStudio.Services.Ipc.Handlers;
 
 public class LoadMeshBinaryHandler : IIpcActionHandler
 {

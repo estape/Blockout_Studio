@@ -1,7 +1,7 @@
-using System.Text.Json.Serialization;
-using UE5BlockoutStudio.Services.Assets;
+﻿using System.Text.Json.Serialization;
+using BlockoutStudio.Services.Assets;
 
-namespace UE5BlockoutStudio.Services.BuildPipeline;
+namespace BlockoutStudio.Services.BuildPipeline;
 
 public record VulkanSdkInfo(
     bool Available,

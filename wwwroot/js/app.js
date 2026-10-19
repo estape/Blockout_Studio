@@ -19,9 +19,9 @@ import { handleCirclePointerDown, handleCirclePointerMove, handleCirclePointerUp
 import { handlePushPullPointerDown, handlePushPullPointerMove, handlePushPullPointerUp } from './tools/pushPullTool.js';
 import { updateHoleUi, punchHoleOnSelected, applyCsgGeometry } from './tools/holeTool.js';
 import {
-  copyToUe5, saveProject, loadProject, loadProjectFromData, requestBakeAo,
-  applyAoColors, exportToUE5Obj, exportToUE5Usd, queryToolchains, queryNativeStatus
-} from './ue5Bridge.js';
+  copyToClipboard, saveProject, loadProject, loadProjectFromData, requestBakeAo,
+  applyAoColors, exportToObj, exportToUsd, queryToolchains, queryNativeStatus
+} from './sceneBridge.js';
 import { registerHandler, showToast } from './ipcBridge.js';
 export { showToast };
 import { initHistory, undo, redo, recordState } from './historyManager.js';
@@ -185,7 +185,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 function spawnSpherePrompt() {
-  const diam = prompt('Enter Sphere Diameter in cm (UE5 units):', '100');
+  const diam = prompt('Enter Sphere Diameter in cm:', '100');
   if (diam) {
     const d = Math.max(10, parseFloat(diam) || 100);
     createBlock('SM_Sphere', 'sphere', d, d, d, 0, 0, 0);
@@ -389,7 +389,7 @@ registerTierChangeCallback((tier) => {
 });
 
 // Register IPC Response Handlers
-registerHandler('copy_ue5_response', (msg) => {
+registerHandler('copy_clipboard_response', (msg) => {
   showToast(msg.message, !msg.success);
 });
 
@@ -616,7 +616,7 @@ initHistory();
 queryToolchains();
 queryNativeStatus();
 
-// Initialize Hybrid Unity/UE5 Asset Manager & Content Drawer
+// Initialize Asset Manager & Content Drawer
 initAssetManager();
 
 // Initialize Native .OBJ & .USD Geometry Streaming Loader
@@ -643,12 +643,12 @@ window.duplicateSelected = duplicateSelected;
 window.deleteSelected = deleteSelected;
 window.updateHoleUi = updateHoleUi;
 window.punchHoleOnSelected = punchHoleOnSelected;
-window.copyToUe5 = copyToUe5;
+window.copyToClipboard = copyToClipboard;
 window.saveProject = saveProject;
 window.loadProject = loadProject;
 window.loadProjectFromData = loadProjectFromData;
-window.exportToUE5Obj = exportToUE5Obj;
-window.exportToUE5Usd = exportToUE5Usd;
+window.exportToObj = exportToObj;
+window.exportToUsd = exportToUsd;
 window.requestBakeAo = requestBakeAo;
 window.openToolchainsModal = openToolchainsModal;
 window.closeToolchainsModal = closeToolchainsModal;

@@ -1,12 +1,12 @@
 // ============================================================================
-// ECS PHYSICS SYSTEM (UE5 Centimeter Units: g = -980 cm/s², AABB / Sphere)
+// ECS PHYSICS SYSTEM (Centimeter Units: g = -980 cm/s², AABB / Sphere)
 // ============================================================================
 
 import { getComponent } from '../entity.js';
 
 export class PhysicsSystem {
   constructor() {
-    this.gravity = -980.0; // cm/s^2 (UE5 standard gravity)
+    this.gravity = -980.0; // cm/s^2 (Standard metric gravity)
     this.terminalVelocity = -2500.0; // cm/s
     this.collisionEvents = [];
   }
@@ -102,7 +102,7 @@ export class PhysicsSystem {
       return { collided: false };
     }
 
-    // Default: AABB vs AABB (UE5 cm units)
+    // Default: AABB vs AABB (Metric cm units)
     // Three.js: X = width, Y = height, Z = length
     const hAx = (colA.sizeX || 100) / 2;
     const hAy = (colA.sizeZ || 100) / 2; // Three.js Y is height (sizeZ)
