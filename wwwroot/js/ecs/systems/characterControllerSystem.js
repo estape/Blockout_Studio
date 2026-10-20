@@ -1,19 +1,39 @@
+/**
+ * @file characterControllerSystem.js
+ * @brief ECS Character Controller System for player avatars (180cm Dummy, step-climbing, mouse-look).
+ */
+
 // ============================================================================
 // ECS CHARACTER CONTROLLER SYSTEM (180cm Dummy: 180cm H, 60cm W, 45cm Step)
 // ============================================================================
 
 import { getComponent } from '../entity.js';
 
+/**
+ * @class CharacterControllerSystem
+ * @brief Handles first-person dummy physics, AABB sweeps, step-climbing, and pointer-lock mouse look.
+ */
 export class CharacterControllerSystem {
+  /**
+   * @brief Initializes a new instance of the CharacterControllerSystem class.
+   */
   constructor() {
-    this.gravity = -980.0; // cm/s^2
+    /** @type {number} Downward gravitational acceleration in cm/s^2. */
+    this.gravity = -980.0;
+    /** @type {Set<string>} Active set of pressed keyboard key codes. */
     this.keys = new Set();
+    /** @type {number} Accumulated horizontal mouse movement delta for yaw rotation. */
     this.mouseDeltaX = 0;
+    /** @type {number} Accumulated vertical mouse movement delta for pitch rotation. */
     this.mouseDeltaY = 0;
+    /** @type {boolean} Indicates whether the browser pointer lock is currently acquired. */
     this.isPointerLocked = false;
 
+    /** @type {(e: KeyboardEvent) => void} Event listener callback for keydown events. */
     this.onKeyDown = (e) => { this.keys.add(e.code); };
+    /** @type {(e: KeyboardEvent) => void} Event listener callback for keyup events. */
     this.onKeyUp = (e) => { this.keys.delete(e.code); };
+    /** @type {(e: MouseEvent) => void} Event listener callback for mousemove events. */
     this.onMouseMove = (e) => {
       if (this.isPointerLocked) {
         this.mouseDeltaX += e.movementX || 0;
@@ -22,12 +42,18 @@ export class CharacterControllerSystem {
     };
   }
 
+  /**
+   * @brief Binds keyboard and mouse event listeners to the global window object.
+   */
   attachInputListeners() {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('mousemove', this.onMouseMove);
   }
 
+  /**
+   * @brief Removes keyboard and mouse event listeners from the global window object and clears inputs.
+   */
   detachInputListeners() {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
@@ -37,6 +63,13 @@ export class CharacterControllerSystem {
     this.mouseDeltaY = 0;
   }
 
+  /**
+   * @brief Updates the character controller entity physics, step-climbing, and camera attachment.
+   * @param {THREE.Object3D} entity The character controller root entity.
+   * @param {THREE.Camera} camera The viewport camera to synchronize with dummy eye-level.
+   * @param {Array<{entity: THREE.Object3D, collider: Object}>} colliders Array of world obstacle colliders.
+   * @param {number} dt Delta time in seconds since the last simulation frame.
+   */
   update(entity, camera, colliders, dt) {
     if (!entity) return;
     const cc = getComponent(entity, 'CharacterController');
@@ -190,4 +223,8 @@ export class CharacterControllerSystem {
   }
 }
 
+/**
+ * @type {CharacterControllerSystem}
+ * @brief Singleton instance of the CharacterControllerSystem.
+ */
 export const characterControllerSystem = new CharacterControllerSystem();

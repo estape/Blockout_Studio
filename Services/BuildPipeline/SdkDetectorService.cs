@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -7,10 +7,15 @@ using BlockoutStudio.Services.Hosting;
 
 namespace BlockoutStudio.Services.BuildPipeline;
 
+/// <summary>
+/// Service implementation for discovering native platform SDKs, build tools, and connected hardware targets.
+/// </summary>
 public class SdkDetectorService : ISdkDetectorService
 {
+    /// <summary>JSON serializer options for persisting SDK path overrides.</summary>
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
+    /// <inheritdoc/>
     public SdkEnvironmentReport DetectAllSdks(string? projectRoot = null)
     {
         string? customVulkan = null;
@@ -58,6 +63,7 @@ public class SdkDetectorService : ISdkDetectorService
         );
     }
 
+    /// <inheritdoc/>
     public VulkanSdkInfo ProbeVulkan(string? customPath = null)
     {
         var tools = new List<string>();
@@ -137,6 +143,7 @@ public class SdkDetectorService : ISdkDetectorService
         return new VulkanSdkInfo(available, version ?? "1.4+", sdkPath, includePath, libPath, tools, msg, hasHeaders, hasLibs);
     }
 
+    /// <inheritdoc/>
     public WindowsSdkInfo ProbeWindowsSdk(string? customKitsRoot = null)
     {
         var tools = new List<string>();
@@ -242,6 +249,7 @@ public class SdkDetectorService : ISdkDetectorService
         return new WindowsSdkInfo(available, version, kitsRoot, includePath, libPath, rcPath, signToolPath, tools, msg);
     }
 
+    /// <inheritdoc/>
     public MsvcInfo ProbeMsvc(string? customVsPath = null)
     {
         var tools = new List<string>();
@@ -353,6 +361,7 @@ public class SdkDetectorService : ISdkDetectorService
         return new MsvcInfo(available, version, vsPath, clPath, linkPath, vcVarsPath, includePath, libPath, tools, msg);
     }
 
+    /// <inheritdoc/>
     public LinuxSdkInfo ProbeLinux()
     {
         var tools = new List<string>();
@@ -425,6 +434,7 @@ public class SdkDetectorService : ISdkDetectorService
         return new LinuxSdkInfo(available, version, gccPath, wslAvailable, wslDetails, tools, msg);
     }
 
+    /// <inheritdoc/>
     public AndroidSdkInfo ProbeAndroid(string? customSdkPath = null, string? customNdkPath = null)
     {
         var tools = new List<string>();
@@ -566,6 +576,7 @@ public class SdkDetectorService : ISdkDetectorService
         );
     }
 
+    /// <inheritdoc/>
     public List<AdbDeviceInfo> GetConnectedAdbDevices(string? adbPath = null)
     {
         var devices = new List<AdbDeviceInfo>();
@@ -634,6 +645,7 @@ public class SdkDetectorService : ISdkDetectorService
         return devices;
     }
 
+    /// <inheritdoc/>
     public void SaveCustomSdkPaths(string projectRoot, SdkPathsSettings paths)
     {
         if (string.IsNullOrWhiteSpace(projectRoot)) return;

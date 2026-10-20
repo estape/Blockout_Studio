@@ -4,15 +4,24 @@ using System.Text.RegularExpressions;
 
 namespace BlockoutStudio.Services.BuildPipeline;
 
+/// <summary>
+/// Service managing the execution of native C++20 compilers (MSVC on Windows, GCC/WSL on Linux).
+/// </summary>
 public class NativeCompilerService : INativeCompilerService
 {
+    /// <summary>SDK and toolchain detector service.</summary>
     private readonly ISdkDetectorService _sdkDetector;
 
+    /// <summary>
+    /// Initializes a new compiler service with injected SDK detector.
+    /// </summary>
+    /// <param name="sdkDetector">SDK detector service instance.</param>
     public NativeCompilerService(ISdkDetectorService sdkDetector)
     {
         _sdkDetector = sdkDetector;
     }
 
+    /// <inheritdoc/>
     public async Task<CompilationResult> CompileModuleAsync(
         string projectRoot,
         CompilationOptions? options = null,
@@ -75,6 +84,9 @@ public class NativeCompilerService : INativeCompilerService
         }
     }
 
+    /// <summary>
+    /// Compiles C++ plugin code using Microsoft Visual C++ (cl.exe).
+    /// </summary>
     private static async Task<CompilationResult> CompileMsvcAsync(
         string projectRoot,
         List<string> sourceFiles,
@@ -191,6 +203,9 @@ if errorlevel 1 exit /b %errorlevel%
         return new CompilationResult(success, proc.ExitCode, success ? outputDll : null, sw.ElapsedMilliseconds, diagnostics, rawLogs, status);
     }
 
+    /// <summary>
+    /// Compiles C++ plugin code using GCC/G++ either natively on Linux or through WSL on Windows.
+    /// </summary>
     private static async Task<CompilationResult> CompileGccAsync(
         string projectRoot,
         List<string> sourceFiles,
@@ -281,6 +296,9 @@ if errorlevel 1 exit /b %errorlevel%
         return new CompilationResult(success, proc.ExitCode, success ? outputSo : null, sw.ElapsedMilliseconds, diagnostics, rawLogs, status);
     }
 
+    /// <summary>
+    /// Parses MSVC cl.exe compiler output strings into structured diagnostics.
+    /// </summary>
     private static void ParseMsvcDiagnostic(string line, List<CompilerDiagnostic> diagnostics)
     {
         // Example: C:\Path\Source.cpp(14,5): error C2143: syntax error : missing ';' before '}'
@@ -313,6 +331,9 @@ if errorlevel 1 exit /b %errorlevel%
         }
     }
 
+    /// <summary>
+    /// Parses GCC/G++ output strings into structured diagnostics.
+    /// </summary>
     private static void ParseGccDiagnostic(string line, List<CompilerDiagnostic> diagnostics)
     {
         // Example: /path/file.cpp:12:5: error: expected ';' before '}'
@@ -330,6 +351,10 @@ if errorlevel 1 exit /b %errorlevel%
         }
     }
 
+    /// <summary>
+    /// Generates boilerplate C++20 starter code for a new game native plugin.
+    /// </summary>
+    /// <returns>C++ source code string.</returns>
     public static string DefaultPluginSourceCode()
     {
         return @"// ==============================================================================

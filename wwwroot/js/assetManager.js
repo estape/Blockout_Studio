@@ -1,3 +1,8 @@
+/**
+ * @file assetManager.js
+ * @brief Content Browser and hybrid asset management UI coordinating virtual folders, filters, and drag-and-drop.
+ */
+
 // ============================================================================
 // CONTENT BROWSER & HYBRID ASSET MANAGER (.meta Sidecars + Fast Registry Cache)
 // ============================================================================
@@ -7,17 +12,29 @@ import { createBlock, selectBlock, blocks } from './sceneManager.js';
 import { camera, scene, raycaster } from './engine.js';
 import { requestMeshBinary } from './usdObjLoader.js';
 
+/** @type {boolean} Indicates whether the Content Drawer bottom panel is currently open. */
 let isOpen = false;
+/** @type {boolean} Indicates whether the Content Drawer is docked persistently to the layout. */
 let isDocked = false;
+/** @type {string} Currently active virtual directory path (e.g. '/Game/Meshes'). */
 let activeFolder = '/Game';
+/** @type {string|null} Active quick-access collection filter key, or null if navigating folders. */
 let activeCollection = null;
+/** @type {string} Active asset type filter pill ('all', 'StaticMesh', 'UsdStage', etc.). */
 let activeTypeFilter = 'all';
+/** @type {string} Current text query entered in the search filter box. */
 let searchQuery = '';
+/** @type {{assets: Array<Object>}} Cached in-memory copy of the project asset registry. */
 let currentRegistry = { assets: [] };
+/** @type {string|null} GUID of the currently highlighted or selected asset card. */
 let selectedAssetGuid = null;
+/** @type {Object|null} Asset metadata targeted by the right-click context menu. */
 let contextTargetItem = null;
 
-// Color mapping for asset types
+/**
+ * @brief Color code mapping used for visual badges and borders corresponding to asset types.
+ * @type {Object.<string, string>}
+ */
 export const ASSET_TYPE_COLORS = {
   StaticMesh: '#00e5ff',   // Cyan
   UsdStage: '#f58220',     // Orange
@@ -31,6 +48,10 @@ export const ASSET_TYPE_COLORS = {
   Unknown: '#64748b'        // Slate Gray
 };
 
+/**
+ * @brief Emoji icon symbols associated with each asset type in the Content Browser.
+ * @type {Object.<string, string>}
+ */
 export const ASSET_TYPE_ICONS = {
   StaticMesh: '🧊',
   UsdStage: '🌐',
@@ -48,6 +69,9 @@ export const ASSET_TYPE_ICONS = {
 // INITIALIZATION & IPC LISTENERS
 // ============================================================================
 
+/**
+ * @brief Initializes the asset manager, registers IPC response callbacks, and hooks DOM listeners.
+ */
 export function initAssetManager() {
   // Query initial project status and asset registry
   sendToBackend('get_project_status');
@@ -109,6 +133,11 @@ export function initAssetManager() {
   setupViewportDropTarget();
 }
 
+/**
+ * @brief Updates the window title and branding label with the active project name.
+ * @param {string} name Active project name.
+ * @param {string} root Physical path to the project root directory.
+ */
 function updateProjectTitle(name, root) {
   const brandEl = document.querySelector('.brand span:nth-child(3)');
   if (brandEl) {
@@ -120,6 +149,9 @@ function updateProjectTitle(name, root) {
 // CONTENT DRAWER TOGGLE & DOCKING (Ctrl + Space)
 // ============================================================================
 
+/**
+ * @brief Toggles the Content Drawer sliding drawer open or closed.
+ */
 export function toggleContentDrawer() {
   isOpen = !isOpen;
   const drawer = document.getElementById('content-drawer');
@@ -139,6 +171,9 @@ export function toggleContentDrawer() {
   }
 }
 
+/**
+ * @brief Toggles persistent docking of the Content Drawer at the bottom of the workspace.
+ */
 export function togglePinDrawer() {
   isDocked = !isDocked;
   const drawer = document.getElementById('content-drawer');
@@ -159,6 +194,9 @@ export function togglePinDrawer() {
   window.dispatchEvent(new Event('resize'));
 }
 
+/**
+ * @brief Sets up input search filtering and context menu dismissal handlers for the drawer.
+ */
 function setupDrawerEventListeners() {
   // Search input
   const searchInput = document.getElementById('cb-search');
@@ -179,6 +217,9 @@ function setupDrawerEventListeners() {
 // FOLDER TREE & COLLECTIONS (Left Pane)
 // ============================================================================
 
+/**
+ * @brief Dynamically renders the hierarchical virtual folder tree navigation in the left drawer pane.
+ */
 function renderFolderTree() {
   const treeContainer = document.getElementById('cb-folder-tree');
   if (!treeContainer) return;
@@ -219,6 +260,10 @@ function renderFolderTree() {
   treeContainer.innerHTML = html;
 }
 
+/**
+ * @brief Navigates the Content Browser to a specified virtual folder path.
+ * @param {string} folder Target virtual directory path.
+ */
 export function selectFolder(folder) {
   activeFolder = folder;
   activeCollection = null;
@@ -227,6 +272,10 @@ export function selectFolder(folder) {
   renderAssetGrid();
 }
 
+/**
+ * @brief Activates a quick-access category collection (e.g. 'meshes', 'materials', 'scenes').
+ * @param {string} colKey Identifier key of the selected collection.
+ */
 export function selectCollection(colKey) {
   activeCollection = colKey;
   activeFolder = '/Game';
@@ -235,6 +284,9 @@ export function selectCollection(colKey) {
   renderAssetGrid();
 }
 
+/**
+ * @brief Updates the breadcrumb navigation bar reflecting the currently viewed folder or collection.
+ */
 function updateBreadcrumbs() {
   const bcContainer = document.getElementById('cb-breadcrumbs');
   if (!bcContainer) return;
@@ -267,6 +319,9 @@ function updateBreadcrumbs() {
 // FILTER PILLS & TOKENIZED SEARCH
 // ============================================================================
 
+/**
+ * @brief Renders the asset type filter buttons along with dynamic count badges.
+ */
 function renderFilterPills() {
   const container = document.getElementById('cb-filter-pills');
   if (!container) return;
@@ -306,6 +361,10 @@ function renderFilterPills() {
   container.innerHTML = html;
 }
 
+/**
+ * @brief Sets the active asset type filter and refreshes the asset grid.
+ * @param {string} filterKey Target asset type ('all', 'StaticMesh', 'Material', etc.).
+ */
 export function setAssetTypeFilter(filterKey) {
   activeTypeFilter = filterKey;
   renderFilterPills();
@@ -316,6 +375,9 @@ export function setAssetTypeFilter(filterKey) {
 // MAIN ASSET GRID & CARDS
 // ============================================================================
 
+/**
+ * @brief Renders the grid of asset cards filtered by the active folder, collection, type, and search query.
+ */
 function renderAssetGrid() {
   const grid = document.getElementById('cb-asset-grid');
   if (!grid) return;
@@ -411,6 +473,10 @@ function renderAssetGrid() {
   });
 }
 
+/**
+ * @brief Selects an asset card in the grid view by its unique GUID.
+ * @param {string} guid Unique GUID of the asset to select.
+ */
 export function selectAssetTile(guid) {
   selectedAssetGuid = guid;
   const grid = document.getElementById('cb-asset-grid');
@@ -421,6 +487,10 @@ export function selectAssetTile(guid) {
   }
 }
 
+/**
+ * @brief Handles double-click activation of an asset card, loading scenes or spawning meshes.
+ * @param {string} guid Unique GUID of the activated asset.
+ */
 export function handleAssetDoubleClick(guid) {
   const item = (currentRegistry.assets || []).find(a => a.guid === guid);
   if (!item) return;
@@ -440,6 +510,9 @@ export function handleAssetDoubleClick(guid) {
 // DRAG & DROP TO 3D VIEWPORT
 // ============================================================================
 
+/**
+ * @brief Configures drag-and-drop listener hooks on the 3D viewport for spawning assets from the browser.
+ */
 function setupViewportDropTarget() {
   const vp = document.getElementById('viewport');
   if (!vp) return;
@@ -489,6 +562,10 @@ function setupViewportDropTarget() {
   });
 }
 
+/**
+ * @brief Spawns asset content into the scene upon receiving backend payload data.
+ * @param {Object} msg IPC response message containing asset metadata and file content.
+ */
 function handleSpawnAssetContent(msg) {
   if (msg.assetType === 'Scene') {
     try {
@@ -517,6 +594,11 @@ function handleSpawnAssetContent(msg) {
 // CONTEXT MENU & REFERENCE VIEWER MODAL
 // ============================================================================
 
+/**
+ * @brief Displays the contextual right-click actions menu for an asset item card.
+ * @param {MouseEvent} e Mouse right-click event.
+ * @param {string} guid Unique GUID of the targeted asset.
+ */
 export function handleAssetContextMenu(e, guid) {
   e.preventDefault();
   selectedAssetGuid = guid;
@@ -531,11 +613,17 @@ export function handleAssetContextMenu(e, guid) {
   }
 }
 
+/**
+ * @brief Hides the active asset context menu.
+ */
 export function hideContextMenu() {
   const menu = document.getElementById('asset-context-menu');
   if (menu) menu.style.display = 'none';
 }
 
+/**
+ * @brief Context menu action: instantiates the selected asset into the 3D scene.
+ */
 export function cmPlaceInScene() {
   if (contextTargetItem) {
     handleAssetDoubleClick(contextTargetItem.guid);
@@ -543,6 +631,9 @@ export function cmPlaceInScene() {
   hideContextMenu();
 }
 
+/**
+ * @brief Context menu action: triggers an asset reimport via backend IPC.
+ */
 export function cmReimport() {
   if (contextTargetItem) {
     sendToBackend('reimport_asset', { guid: contextTargetItem.guid });
@@ -550,6 +641,9 @@ export function cmReimport() {
   hideContextMenu();
 }
 
+/**
+ * @brief Context menu action: reveals the physical asset and .meta file in Windows Explorer.
+ */
 export function cmShowInExplorer() {
   if (contextTargetItem) {
     sendToBackend('show_in_explorer', { guid: contextTargetItem.guid });
@@ -557,6 +651,9 @@ export function cmShowInExplorer() {
   hideContextMenu();
 }
 
+/**
+ * @brief Context menu action: copies the virtual path (e.g. /Game/Meshes/Cube) to the clipboard.
+ */
 export function cmCopyVirtualPath() {
   if (contextTargetItem) {
     navigator.clipboard.writeText(contextTargetItem.virtualPath);
@@ -565,6 +662,9 @@ export function cmCopyVirtualPath() {
   hideContextMenu();
 }
 
+/**
+ * @brief Context menu action: prompts to delete the asset file and its associated .meta sidecar.
+ */
 export function cmDelete() {
   if (contextTargetItem) {
     if (confirm(`Delete asset '${contextTargetItem.fileName}' and its .meta sidecar?`)) {
@@ -574,6 +674,9 @@ export function cmDelete() {
   hideContextMenu();
 }
 
+/**
+ * @brief Context menu action: opens the Reference Viewer modal inspect dependency graph.
+ */
 export function cmOpenReferenceViewer() {
   if (contextTargetItem) {
     openReferenceViewer(contextTargetItem.guid);
@@ -585,6 +688,10 @@ export function cmOpenReferenceViewer() {
 // REFERENCE VIEWER MODAL
 // ============================================================================
 
+/**
+ * @brief Opens the modal dialog displaying referencers (used by) and dependencies (uses) for an asset.
+ * @param {string} guid Unique GUID of the asset to inspect.
+ */
 export function openReferenceViewer(guid) {
   const item = (currentRegistry.assets || []).find(a => a.guid === guid);
   if (!item) return;
@@ -653,6 +760,10 @@ export function openReferenceViewer(guid) {
   modal.style.display = 'flex';
 }
 
+/**
+ * @brief Navigates the Reference Viewer to inspect a node by its virtual path.
+ * @param {string} virtualPath Target asset virtual path.
+ */
 export function openReferenceViewerByPath(virtualPath) {
   const item = (currentRegistry.assets || []).find(a => a.virtualPath === virtualPath);
   if (item) {
@@ -662,6 +773,9 @@ export function openReferenceViewerByPath(virtualPath) {
   }
 }
 
+/**
+ * @brief Closes the Reference Viewer modal window.
+ */
 export function closeReferenceViewer() {
   const modal = document.getElementById('ref-viewer-modal');
   if (modal) modal.style.display = 'none';
@@ -671,14 +785,23 @@ export function closeReferenceViewer() {
 // IMPORT & PROJECT ACTIONS
 // ============================================================================
 
+/**
+ * @brief Requests the backend to show an import file dialog targeting the active virtual folder.
+ */
 export function importAssetDialog() {
   sendToBackend('import_asset', { targetFolder: activeFolder });
 }
 
+/**
+ * @brief Requests the backend to display the project creation dialog.
+ */
 export function createProjectDialog() {
   sendToBackend('create_project');
 }
 
+/**
+ * @brief Requests the backend to display the project open dialog.
+ */
 export function openProjectDialog() {
   sendToBackend('open_project');
 }

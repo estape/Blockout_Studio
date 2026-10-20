@@ -1,22 +1,43 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 
 namespace BlockoutStudio.Services.Hosting;
 
+/// <summary>
+/// Status enumeration indicating which graphics hardware backend was selected for the embedded WebView2 browser.
+/// </summary>
 public enum VulkanBackendStatus
 {
+    /// <summary>Backend probing has not yet run.</summary>
     NotChecked,
+    /// <summary>Vulkan ANGLE active (--use-angle=vulkan).</summary>
     VulkanAngleActive,
+    /// <summary>Direct3D 11 ANGLE active for stability on hybrid GPUs (--use-angle=d3d11).</summary>
     FallbackD3D11,
+    /// <summary>Default system browser graphics backend.</summary>
     Default
 }
 
+/// <summary>
+/// Probes host graphics capabilities and configures WebView2 / WebKitGTK ANGLE presentation flags on application startup.
+/// </summary>
 public static class VulkanAngleConfigurator
 {
+    /// <summary>Gets the current ANGLE backend selection status.</summary>
     public static VulkanBackendStatus Status { get; private set; } = VulkanBackendStatus.NotChecked;
+
+    /// <summary>Gets the resolved path to the Vulkan SDK installation directory, if detected.</summary>
     public static string? VulkanSdkPath { get; private set; }
+
+    /// <summary>Gets the path to the system vulkan-1.dll or libvulkan.so.1 driver library.</summary>
     public static string? VulkanDriverPath { get; private set; }
+
+    /// <summary>Gets the command line argument string injected into WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS.</summary>
     public static string ActiveBrowserArguments { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// Configures the browser engine flags, defaulting to Direct3D 11 on Windows for stability, or Vulkan on Linux.
+    /// </summary>
+    /// <returns>The resolved <see cref="VulkanBackendStatus"/>.</returns>
     public static VulkanBackendStatus Configure()
     {
         bool hasVulkan = DetectVulkanRuntime();
@@ -53,6 +74,10 @@ public static class VulkanAngleConfigurator
         return Status;
     }
 
+    /// <summary>
+    /// Detects if Vulkan runtime libraries (vulkan-1.dll or libvulkan.so.1) are available on the operating system.
+    /// </summary>
+    /// <returns>True if a Vulkan driver library was found; otherwise false.</returns>
     public static bool DetectVulkanRuntime()
     {
         // 1. Check VULKAN_SDK environment variable

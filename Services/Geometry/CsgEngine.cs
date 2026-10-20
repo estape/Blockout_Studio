@@ -1,14 +1,26 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Text.Json;
 
 namespace BlockoutStudio.Services.Geometry;
 
+/// <summary>
+/// Represents a single vertex in a CSG polygon holding position, surface normal, and texture coordinates.
+/// </summary>
 public class CsgVertex
 {
+    /// <summary>3D spatial position of the vertex.</summary>
     public Vector3 Pos;
+    /// <summary>Surface normal vector at the vertex.</summary>
     public Vector3 Normal;
+    /// <summary>2D UV texture coordinate.</summary>
     public Vector2 UV;
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="CsgVertex"/>.
+    /// </summary>
+    /// <param name="pos">Vertex position.</param>
+    /// <param name="normal">Normal vector.</param>
+    /// <param name="uv">Texture coordinate.</param>
     public CsgVertex(Vector3 pos, Vector3 normal, Vector2 uv)
     {
         Pos = pos;
@@ -16,13 +28,22 @@ public class CsgVertex
         UV = uv;
     }
 
+    /// <summary>Creates a deep copy of this vertex.</summary>
     public CsgVertex Clone() => new(Pos, Normal, UV);
 
+    /// <summary>Inverts the direction of the vertex normal vector.</summary>
     public void Flip()
     {
         Normal = -Normal;
     }
 
+    /// <summary>
+    /// Linearly interpolates position, normal, and UV coordinates between two CSG vertices.
+    /// </summary>
+    /// <param name="a">Starting vertex.</param>
+    /// <param name="b">Ending vertex.</param>
+    /// <param name="t">Interpolation factor [0, 1].</param>
+    /// <returns>A new interpolated <see cref="CsgVertex"/>.</returns>
     public static CsgVertex Interpolate(CsgVertex a, CsgVertex b, float t)
     {
         return new CsgVertex(
@@ -33,18 +54,36 @@ public class CsgVertex
     }
 }
 
+/// <summary>
+/// Represents an infinite 3D splitting plane used by the BSP tree for polygon clipping and classification.
+/// </summary>
 public class CsgPlane
 {
+    /// <summary>Numerical precision tolerance threshold for coplanar point classification.</summary>
     public const float Epsilon = 1e-4f;
+    /// <summary>Unit normal vector of the plane.</summary>
     public Vector3 Normal;
+    /// <summary>Distance from the world origin along the normal vector.</summary>
     public float W;
 
+    /// <summary>
+    /// Initializes a new plane from an explicit normal vector and offset.
+    /// </summary>
+    /// <param name="normal">Unit normal vector.</param>
+    /// <param name="w">Distance from origin.</param>
     public CsgPlane(Vector3 normal, float w)
     {
         Normal = normal;
         W = w;
     }
 
+    /// <summary>
+    /// Constructs a plane passing through three non-collinear 3D points.
+    /// </summary>
+    /// <param name="a">First point.</param>
+    /// <param name="b">Second point.</param>
+    /// <param name="c">Third point.</param>
+    /// <returns>A normalized <see cref="CsgPlane"/>.</returns>
     public static CsgPlane FromPoints(Vector3 a, Vector3 b, Vector3 c)
     {
         var n = Vector3.Cross(b - a, c - a);
@@ -59,14 +98,24 @@ public class CsgPlane
         return new CsgPlane(n, Vector3.Dot(n, a));
     }
 
+    /// <summary>Clones the plane instance.</summary>
     public CsgPlane Clone() => new(Normal, W);
 
+    /// <summary>Inverts plane orientation by negating its normal and offset.</summary>
     public void Flip()
     {
         Normal = -Normal;
         W = -W;
     }
 
+    /// <summary>
+    /// Splits an input polygon against this plane into front, back, and coplanar sub-polygons.
+    /// </summary>
+    /// <param name="polygon">Polygon to classify and split.</param>
+    /// <param name="coplanarFront">List receiving coplanar polygons facing the same direction.</param>
+    /// <param name="coplanarBack">List receiving coplanar polygons facing the opposite direction.</param>
+    /// <param name="front">List receiving polygons strictly in front of the plane.</param>
+    /// <param name="back">List receiving polygons strictly behind the plane.</param>
     public void SplitPolygon(
         CsgPolygon polygon,
         List<CsgPolygon> coplanarFront,
@@ -136,12 +185,23 @@ public class CsgPlane
     }
 }
 
+/// <summary>
+/// Represents a convex planar polygon bounded by ordered CSG vertices.
+/// </summary>
 public class CsgPolygon
 {
+    /// <summary>List of coplanar boundary vertices ordered counter-clockwise.</summary>
     public List<CsgVertex> Vertices;
+    /// <summary>Geometric plane in which all vertices reside.</summary>
     public CsgPlane Plane;
+    /// <summary>Optional user/material ID tag associated with the polygon.</summary>
     public int Shared;
 
+    /// <summary>
+    /// Initializes a new convex polygon from an ordered vertex list.
+    /// </summary>
+    /// <param name="vertices">List of vertices (at least 3).</param>
+    /// <param name="shared">Optional user tag.</param>
     public CsgPolygon(List<CsgVertex> vertices, int shared = 0)
     {
         Vertices = vertices;
@@ -149,6 +209,7 @@ public class CsgPolygon
         Plane = CsgPlane.FromPoints(vertices[0].Pos, vertices[1].Pos, vertices[2].Pos);
     }
 
+    /// <summary>Deep clones this polygon and its vertices.</summary>
     public CsgPolygon Clone()
     {
         var list = new List<CsgVertex>(Vertices.Count);
@@ -156,6 +217,7 @@ public class CsgPolygon
         return new CsgPolygon(list, Shared);
     }
 
+    /// <summary>Inverts vertex winding order and face normal.</summary>
     public void Flip()
     {
         Vertices.Reverse();
@@ -164,20 +226,31 @@ public class CsgPolygon
     }
 }
 
+/// <summary>
+/// Node in a Binary Space Partitioning (BSP) tree holding a dividing plane and front/back child subtrees.
+/// </summary>
 public class CsgNode
 {
+    /// <summary>Partitioning plane separating front and back space for this node.</summary>
     public CsgPlane? Plane;
+    /// <summary>Child subtree containing geometry on the positive half-space of the plane.</summary>
     public CsgNode? Front;
+    /// <summary>Child subtree containing geometry on the negative half-space of the plane.</summary>
     public CsgNode? Back;
+    /// <summary>Polygons coplanar with this node's dividing plane.</summary>
     public List<CsgPolygon> Polygons = new();
 
+    /// <summary>Initializes an empty BSP tree node.</summary>
     public CsgNode() { }
 
+    /// <summary>Initializes a BSP tree node from a collection of polygons.</summary>
+    /// <param name="polygons">List of polygons to partition.</param>
     public CsgNode(List<CsgPolygon> polygons)
     {
         Build(polygons);
     }
 
+    /// <summary>Recursively clones this node and all children.</summary>
     public CsgNode Clone()
     {
         var node = new CsgNode();
@@ -188,6 +261,7 @@ public class CsgNode
         return node;
     }
 
+    /// <summary>Inverts the BSP tree, swapping interior and exterior solid space.</summary>
     public void Invert()
     {
         foreach (var poly in Polygons) poly.Flip();
@@ -197,6 +271,9 @@ public class CsgNode
         (Front, Back) = (Back, Front);
     }
 
+    /// <summary>Clips an input list of polygons against this BSP tree, discarding geometry inside solid volume.</summary>
+    /// <param name="list">List of polygons to clip.</param>
+    /// <returns>Filtered list of external polygons.</returns>
     public List<CsgPolygon> ClipPolygons(List<CsgPolygon> list)
     {
         if (Plane == null) return new List<CsgPolygon>(list);
@@ -217,6 +294,8 @@ public class CsgNode
         return f;
     }
 
+    /// <summary>Recursively clips all polygons within this BSP tree to another BSP tree.</summary>
+    /// <param name="bsp">Clipping BSP tree.</param>
     public void ClipTo(CsgNode bsp)
     {
         Polygons = bsp.ClipPolygons(Polygons);
@@ -224,6 +303,8 @@ public class CsgNode
         Back?.ClipTo(bsp);
     }
 
+    /// <summary>Collects all polygons stored across this node and its recursive children.</summary>
+    /// <returns>Flattened list of all CSG polygons.</returns>
     public List<CsgPolygon> AllPolygons()
     {
         var list = new List<CsgPolygon>(Polygons);
@@ -232,6 +313,8 @@ public class CsgNode
         return list;
     }
 
+    /// <summary>Builds the BSP tree hierarchy from an initial list of polygons.</summary>
+    /// <param name="list">Polygons to insert into the tree.</param>
     public void Build(List<CsgPolygon> list)
     {
         if (list.Count == 0) return;
@@ -259,6 +342,9 @@ public class CsgNode
     }
 }
 
+/// <summary>
+/// Computational Solid Geometry engine performing exact BSP-based boolean subtraction and mesh slicing.
+/// </summary>
 public class CsgEngine : ICsgEngine
 {
     (float[] positions, float[] normals, float[] uvs, int[] indices) ICsgEngine.Subtract(
@@ -266,6 +352,14 @@ public class CsgEngine : ICsgEngine
         float[] cutPos, float[]? cutNorm, float[]? cutUV, int[]? cutIdx) =>
         Subtract(subPos, subNorm, subUV, subIdx, cutPos, cutNorm, cutUV, cutIdx);
 
+    /// <summary>
+    /// Converts raw vertex arrays and triangle indices into a list of <see cref="CsgPolygon"/> objects.
+    /// </summary>
+    /// <param name="positions">Vertex position coordinates [x, y, z, ...].</param>
+    /// <param name="normals">Optional vertex surface normals.</param>
+    /// <param name="uvs">Optional texture coordinates [u, v, ...].</param>
+    /// <param name="indices">Optional triangle index buffer.</param>
+    /// <returns>List of CSG polygons ready for BSP insertion.</returns>
     public static List<CsgPolygon> PolygonsFromMesh(float[] positions, float[]? normals, float[]? uvs, int[]? indices)
     {
         var polygons = new List<CsgPolygon>();
@@ -314,6 +408,11 @@ public class CsgEngine : ICsgEngine
         return polygons;
     }
 
+    /// <summary>
+    /// Re-triangulates a collection of CSG polygons and generates flattened vertex position, normal, UV, and index arrays.
+    /// </summary>
+    /// <param name="polygons">List of input polygons.</param>
+    /// <returns>A tuple of (positions, normals, uvs, indices) ready for WebGL rendering.</returns>
     public static (float[] positions, float[] normals, float[] uvs, int[] indices) MeshFromPolygons(List<CsgPolygon> polygons)
     {
         var posList = new List<float>();
@@ -382,8 +481,17 @@ public class CsgEngine : ICsgEngine
     }
 
     /// <summary>
-    /// Performs Boolean Subtraction: Subject - Cutter (e.g. Wall minus Doorway or Wall minus Circular Tube)
+    /// Performs Boolean Subtraction: Subject minus Cutter (e.g. Wall minus Doorway or Wall minus Circular Hole).
     /// </summary>
+    /// <param name="subPos">Subject mesh vertex positions [x, y, z, ...].</param>
+    /// <param name="subNorm">Subject mesh surface normals.</param>
+    /// <param name="subUV">Subject mesh UV coordinates.</param>
+    /// <param name="subIdx">Subject mesh index array.</param>
+    /// <param name="cutPos">Cutting mesh vertex positions.</param>
+    /// <param name="cutNorm">Cutting mesh surface normals.</param>
+    /// <param name="cutUV">Cutting mesh UV coordinates.</param>
+    /// <param name="cutIdx">Cutting mesh index array.</param>
+    /// <returns>Resulting subtracted watertight geometry arrays.</returns>
     public static (float[] positions, float[] normals, float[] uvs, int[] indices) Subtract(
         float[] subPos, float[]? subNorm, float[]? subUV, int[]? subIdx,
         float[] cutPos, float[]? cutNorm, float[]? cutUV, int[]? cutIdx)

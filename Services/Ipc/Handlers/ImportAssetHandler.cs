@@ -1,20 +1,27 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Photino.NET;
 using BlockoutStudio.Services.Assets;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for importing an external mesh or texture asset into the project's virtual file hierarchy.
+/// </summary>
 public class ImportAssetHandler : IIpcActionHandler
 {
+    /// <summary>Asset database service instance.</summary>
     private readonly IAssetDatabaseService _assetDb;
 
+    /// <summary>Initializes handler with the asset database service.</summary>
     public ImportAssetHandler(IAssetDatabaseService assetDb)
     {
         _assetDb = assetDb;
     }
 
+    /// <inheritdoc/>
     public string Action => "import_asset";
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         string? sourceFile = null;

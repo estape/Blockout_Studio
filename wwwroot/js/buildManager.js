@@ -1,18 +1,34 @@
+/**
+ * @file buildManager.js
+ * @brief Native SDK health monitoring, C++20 compiler invocation, multi-platform packaging, and ADB deployment.
+ */
+
 // ==============================================================================
 // buildManager.js — Native SDKs, C++20 Compiler & Multi-Platform Builder Module
 // ==============================================================================
 
 import { sendIpcMessage, showToast } from './ipcBridge.js';
 
+/** @type {Object|null} Cached SDK detection report from the backend. */
 let currentSdkReport = null;
+/** @type {Array<Object>} List of currently connected ADB devices. */
 let currentAdbDevices = [];
+/** @type {boolean} Flag indicating whether native compilation is actively running. */
 let isCompiling = false;
+/** @type {boolean} Flag indicating whether game packaging is actively running. */
 let isPackaging = false;
 
+/**
+ * @brief Initializes the build manager and attaches IPC message listeners.
+ */
 export function initBuildManager() {
     window.addEventListener('ipc-message', onIpcMessage);
 }
 
+/**
+ * @brief Handles incoming IPC messages related to SDK detection, compilation, and packaging.
+ * @param {CustomEvent} e Custom event carrying parsed IPC payload detail.
+ */
 function onIpcMessage(e) {
     const data = e.detail;
     if (!data || !data.type) return;
@@ -66,6 +82,10 @@ function onIpcMessage(e) {
     }
 }
 
+/**
+ * @brief Displays the Build & Packaging modal dialog and switches to a specified tab.
+ * @param {string} [tabName='sdks'] Initial tab to activate ('sdks', 'compiler', or 'package').
+ */
 export function openBuildModal(tabName = 'sdks') {
     const modal = document.getElementById('build-modal');
     if (!modal) return;
@@ -80,11 +100,19 @@ export function openBuildModal(tabName = 'sdks') {
     sendIpcMessage('get_adb_devices', {});
 }
 
+/**
+ * @brief Closes the Build & Packaging modal dialog.
+ */
 export function closeBuildModal() {
     const modal = document.getElementById('build-modal');
-    if (modal) modal.style.display = 'none';
+    if (!modal) return;
+    modal.style.display = 'none';
 }
 
+/**
+ * @brief Switches the active view pane within the Build modal dialog.
+ * @param {string} tabName Target tab identifier ('sdks', 'compiler', or 'package').
+ */
 export function switchBuildTab(tabName) {
     document.querySelectorAll('.build-tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tabName);
@@ -95,6 +123,10 @@ export function switchBuildTab(tabName) {
     });
 }
 
+/**
+ * @brief Updates the status dot indicator in the top application bar reflecting SDK readiness.
+ * @param {Object} report SDK health detection report.
+ */
 function updateTopbarSdkBadge(report) {
     const badge = document.getElementById('topbar-sdk-badge');
     if (!badge || !report) return;
@@ -114,6 +146,10 @@ function updateTopbarSdkBadge(report) {
     }
 }
 
+/**
+ * @brief Renders the visual status cards for Vulkan, MSVC, Linux GCC, and Android toolchains.
+ * @param {Object} report SDK health detection report.
+ */
 function renderSdkHealthTab(report) {
     if (!report) return;
 
@@ -224,6 +260,11 @@ function renderSdkHealthTab(report) {
     populatePathInput('input-custom-ndk', report.android.ndkPath);
 }
 
+/**
+ * @brief Helper utility to pre-populate an input element value if currently empty.
+ * @param {string} id Element ID.
+ * @param {string} val Fallback value to populate.
+ */
 function populatePathInput(id, val) {
     const el = document.getElementById(id);
     if (el && !el.value && val) {
@@ -231,6 +272,9 @@ function populatePathInput(id, val) {
     }
 }
 
+/**
+ * @brief Gathers user-edited SDK directory paths and saves them to project configuration via IPC.
+ */
 export function saveCustomSdkPaths() {
     const vulkan = document.getElementById('input-custom-vulkan')?.value.trim();
     const msvc = document.getElementById('input-custom-msvc')?.value.trim();
@@ -248,6 +292,10 @@ export function saveCustomSdkPaths() {
     });
 }
 
+/**
+ * @brief Renders the list of detected ADB devices into the deployment target dropdown and list cards.
+ * @param {Array<Object>} devices List of detected ADB device objects.
+ */
 function renderAdbDevices(devices) {
     const select = document.getElementById('adb-device-select');
     const container = document.getElementById('adb-devices-list');
@@ -283,6 +331,9 @@ function renderAdbDevices(devices) {
     });
 }
 
+/**
+ * @brief Dispatches an IPC query to refresh connected ADB devices.
+ */
 export function refreshAdbDevices() {
     sendIpcMessage('get_adb_devices', {});
 }
@@ -291,6 +342,9 @@ export function refreshAdbDevices() {
 // Native C++20 Compiler
 // ==============================================================================
 
+/**
+ * @brief Triggers asynchronous C++20 compilation of game native plugins via backend MSVC/Clang.
+ */
 export function compileNativePlugin() {
     if (isCompiling) return;
     isCompiling = true;
@@ -322,6 +376,10 @@ export function compileNativePlugin() {
     });
 }
 
+/**
+ * @brief Appends a formatted line to the compiler output console log.
+ * @param {string} line Raw compiler log line.
+ */
 function appendCompilerLog(line) {
     const consoleBox = document.getElementById('compiler-console');
     if (!consoleBox) return;
@@ -353,6 +411,10 @@ function appendCompilerLog(line) {
     consoleBox.scrollTop = consoleBox.scrollHeight;
 }
 
+/**
+ * @brief Callback invoked when native C++ compilation completes.
+ * @param {Object} result Compilation result summary payload.
+ */
 function onCompileFinished(result) {
     isCompiling = false;
     const btn = document.getElementById('btn-compile-plugin');
@@ -372,6 +434,9 @@ function onCompileFinished(result) {
 // Multi-Platform Packaging & Cooking
 // ==============================================================================
 
+/**
+ * @brief Starts multi-platform game packaging and asset cooking via backend IPC.
+ */
 export function packageGame() {
     if (isPackaging) return;
     isPackaging = true;
@@ -404,6 +469,10 @@ export function packageGame() {
     });
 }
 
+/**
+ * @brief Appends a formatted line to the packaging and cooking console log.
+ * @param {string} line Raw packaging log line.
+ */
 function appendPackageLog(line) {
     const consoleBox = document.getElementById('package-console');
     if (!consoleBox) return;
@@ -428,6 +497,10 @@ function appendPackageLog(line) {
     consoleBox.scrollTop = consoleBox.scrollHeight;
 }
 
+/**
+ * @brief Callback invoked when game packaging completes.
+ * @param {Object} result Build packaging result payload.
+ */
 function onPackageFinished(result) {
     isPackaging = false;
     const btn = document.getElementById('btn-package-game');
@@ -447,6 +520,9 @@ function onPackageFinished(result) {
     }
 }
 
+/**
+ * @brief Deploys the packaged Android build onto the selected ADB device or emulator.
+ */
 export function deployToSelectedDevice() {
     const select = document.getElementById('adb-device-select');
     const deviceId = select ? select.value : null;
@@ -459,6 +535,11 @@ export function deployToSelectedDevice() {
     });
 }
 
+/**
+ * @brief Escapes HTML characters in log messages to prevent DOM injection vulnerabilities.
+ * @param {string} str Raw string containing potential HTML entities.
+ * @returns {string} Sanitized string safe for HTML rendering.
+ */
 function escapeHtml(str) {
     return str
         .replace(/&/g, '&amp;')

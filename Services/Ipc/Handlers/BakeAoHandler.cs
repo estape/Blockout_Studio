@@ -1,21 +1,28 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Text.Json;
 using Photino.NET;
 using BlockoutStudio.Services.Graphics;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for baking vertex ambient occlusion on target meshes using Vulkan compute or CPU SIMD.
+/// </summary>
 public class BakeAoHandler : IIpcActionHandler
 {
+    /// <summary>Vulkan compute service instance.</summary>
     private readonly IVulkanComputeService _vulkanCompute;
 
+    /// <inheritdoc/>
     public string Action => "bake_ao";
 
+    /// <summary>Initializes handler with the Vulkan compute service.</summary>
     public BakeAoHandler(IVulkanComputeService vulkanCompute)
     {
         _vulkanCompute = vulkanCompute;
     }
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         var trianglesProp = root.GetProperty("triangles");

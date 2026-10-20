@@ -1,3 +1,8 @@
+/**
+ * @file pieManager.js
+ * @brief Play-In-Editor (PIE) lifecycle manager coordinating runtime simulation, possession, and scene restoration.
+ */
+
 // ============================================================================
 // PLAY-IN-EDITOR (PIE) LIFECYCLE MANAGER
 // ============================================================================
@@ -14,27 +19,71 @@ import { physicsSystem } from './ecs/systems/physicsSystem.js';
 import { scriptSystem } from './ecs/systems/scriptSystem.js';
 import { audioSystem } from './ecs/systems/audioSystem.js';
 
+/**
+ * @enum {string}
+ * @brief Simulation states for Play-In-Editor mode.
+ */
 export const PieState = {
   STOPPED: 'STOPPED',
   PLAYING: 'PLAYING',
   PAUSED: 'PAUSED'
 };
 
+/**
+ * @type {string}
+ * @brief Current simulation state (STOPPED, PLAYING, or PAUSED).
+ */
 export let currentPieState = PieState.STOPPED;
+
+/**
+ * @type {Object|null}
+ * @brief Pre-simulation scene snapshot used to restore pristine editor state upon exiting PIE.
+ */
 let prePlaySnapshot = null;
+
+/**
+ * @type {THREE.Object3D|null}
+ * @brief Active possessed character entity driven by player input.
+ */
 let possessedEntity = null;
+
+/**
+ * @type {THREE.Vector3}
+ * @brief Cached camera position prior to entering PIE mode.
+ */
 let savedCameraPos = new THREE.Vector3();
+
+/**
+ * @type {THREE.Euler}
+ * @brief Cached camera rotation prior to entering PIE mode.
+ */
 let savedCameraRot = new THREE.Euler();
+
+/**
+ * @type {THREE.Vector3}
+ * @brief Cached OrbitControls target prior to entering PIE mode.
+ */
 let savedOrbitTarget = new THREE.Vector3();
 
+/**
+ * @brief Checks if Play-In-Editor simulation is active (either playing or paused).
+ * @returns {boolean} True if PIE is currently active; otherwise false.
+ */
 export function isPieActive() {
   return currentPieState !== PieState.STOPPED;
 }
 
+/**
+ * @brief Checks if Play-In-Editor simulation is actively running and unpaused.
+ * @returns {boolean} True if PIE is currently running; otherwise false.
+ */
 export function isPiePlaying() {
   return currentPieState === PieState.PLAYING;
 }
 
+/**
+ * @brief Starts Play-In-Editor simulation, takes a non-destructive scene snapshot, and possesses a player avatar.
+ */
 export function startPie() {
   if (isPieActive()) return;
 
@@ -103,6 +152,9 @@ export function startPie() {
   showToast('Play In Editor Started (Esc to Stop, WASD to Move)');
 }
 
+/**
+ * @brief Toggles simulation between paused and playing states.
+ */
 export function pausePie() {
   if (!isPieActive()) return;
 
@@ -121,6 +173,9 @@ export function pausePie() {
   updatePieUi();
 }
 
+/**
+ * @brief Stops Play-In-Editor simulation and restores the scene to its pre-play snapshot state.
+ */
 export function stopPie() {
   if (!isPieActive()) return;
 
@@ -162,6 +217,10 @@ export function stopPie() {
   showToast('Play In Editor Stopped (Scene Restored)');
 }
 
+/**
+ * @brief Ticks character controller, physics, scripts, and audio listener each simulation frame.
+ * @param {number} dt Delta time in seconds since the previous frame.
+ */
 export function updatePie(dt) {
   if (currentPieState !== PieState.PLAYING) return;
 
@@ -193,6 +252,9 @@ export function updatePie(dt) {
   updatePieHud();
 }
 
+/**
+ * @brief Synchronizes toolbar Play/Pause/Stop button visual states with the current PIE state.
+ */
 function updatePieUi() {
   const btnPlay = document.getElementById('btn-pie-play');
   const btnPause = document.getElementById('btn-pie-pause');
@@ -211,6 +273,9 @@ function updatePieUi() {
   }
 }
 
+/**
+ * @brief Updates the head-up display showing live dummy movement speed and grounding status.
+ */
 function updatePieHud() {
   const speedEl = document.getElementById('pie-speed');
   const groundEl = document.getElementById('pie-ground');

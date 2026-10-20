@@ -1,14 +1,27 @@
-﻿using System.Numerics;
+using System.Numerics;
 
 namespace BlockoutStudio.Services.Graphics;
 
+/// <summary>
+/// Represents a 3D triangle face within the scene geometry used for occlusion testing.
+/// </summary>
 public struct SceneTriangle
 {
+    /// <summary>First vertex of triangle.</summary>
     public Vector3 V0;
+    /// <summary>Second vertex of triangle.</summary>
     public Vector3 V1;
+    /// <summary>Third vertex of triangle.</summary>
     public Vector3 V2;
+    /// <summary>Unit face normal vector calculated via cross product.</summary>
     public Vector3 Normal;
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="SceneTriangle"/> from three vertices, computing its face normal.
+    /// </summary>
+    /// <param name="v0">First vertex.</param>
+    /// <param name="v1">Second vertex.</param>
+    /// <param name="v2">Third vertex.</param>
     public SceneTriangle(Vector3 v0, Vector3 v1, Vector3 v2)
     {
         V0 = v0;
@@ -18,11 +31,19 @@ public struct SceneTriangle
     }
 }
 
+/// <summary>
+/// Multi-threaded CPU ray-marched Ambient Occlusion baker using cosine-weighted hemisphere sampling.
+/// </summary>
 public static class VertexAoBaker
 {
-    // Precomputed hemisphere sample directions (32 samples cosine-weighted)
+    /// <summary>Precomputed cosine-weighted hemisphere ray sample directions (32 samples).</summary>
     private static readonly Vector3[] HemisphereSamples = GenerateHemisphereSamples(32);
 
+    /// <summary>
+    /// Pre-generates stratified cosine-weighted directional samples over an upward hemisphere.
+    /// </summary>
+    /// <param name="count">Number of ray samples to generate.</param>
+    /// <returns>Array of normalized hemisphere direction vectors.</returns>
     private static Vector3[] GenerateHemisphereSamples(int count)
     {
         var samples = new Vector3[count];
@@ -45,8 +66,16 @@ public static class VertexAoBaker
     }
 
     /// <summary>
-    /// Fast Möller–Trumbore ray-triangle intersection
+    /// Fast Möller–Trumbore ray-triangle intersection calculation.
     /// </summary>
+    /// <param name="origin">Origin point of casting ray.</param>
+    /// <param name="dir">Normalized ray direction vector.</param>
+    /// <param name="v0">First vertex of triangle.</param>
+    /// <param name="v1">Second vertex of triangle.</param>
+    /// <param name="v2">Third vertex of triangle.</param>
+    /// <param name="maxDist">Maximum ray horizon distance.</param>
+    /// <param name="t">Output hit distance along ray.</param>
+    /// <returns>True if the ray intersects the triangle within maxDist; otherwise, false.</returns>
     private static bool RayIntersectsTriangle(
         Vector3 origin, Vector3 dir,
         Vector3 v0, Vector3 v1, Vector3 v2,
@@ -85,13 +114,17 @@ public static class VertexAoBaker
 
     /// <summary>
     /// Computes Raytraced Vertex Ambient Occlusion in parallel across CPU cores.
-    /// Returns RGB vertex colors array [r, g, b, r, g, b, ...] matching positions count.
     /// </summary>
+    /// <param name="positions">Flat array of vertex coordinates [x, y, z, ...].</param>
+    /// <param name="normals">Flat array of surface normals.</param>
+    /// <param name="sceneTriangles">Collection of all occluding triangles in the scene.</param>
+    /// <param name="maxDistance">Occlusion horizon distance in centimeters (default 120cm).</param>
+    /// <returns>RGB vertex colors array [r, g, b, r, g, b, ...] matching positions count.</returns>
     public static float[] BakeMeshAo(
         float[] positions,
         float[] normals,
         List<SceneTriangle> sceneTriangles,
-        float maxDistance = 120.0f) // 120 cm ambient horizon
+        float maxDistance = 120.0f)
     {
         int vertCount = positions.Length / 3;
         float[] colors = new float[positions.Length];
@@ -153,4 +186,3 @@ public static class VertexAoBaker
         return colors;
     }
 }
-

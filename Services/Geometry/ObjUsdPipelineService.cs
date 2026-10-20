@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 using BlockoutStudio.Services.Assets;
@@ -6,41 +6,110 @@ using BlockoutStudio.Services.Graphics;
 
 namespace BlockoutStudio.Services.Geometry;
 
+/// <summary>
+/// Cached binary mesh artifact (.mesh.bin) containing pre-packed vertex attributes and index buffers.
+/// </summary>
 public class CompiledMeshArtifact
 {
+    /// <summary>Unique identifier of the compiled asset.</summary>
     public string Guid { get; set; } = "";
+
+    /// <summary>Mesh display or part name.</summary>
     public string Name { get; set; } = "";
+
+    /// <summary>Total number of 3D vertices.</summary>
     public int VertexCount { get; set; }
+
+    /// <summary>Total number of triangle indices.</summary>
     public int IndexCount { get; set; }
+
+    /// <summary>Raw byte buffer containing the binary 'BENG' payload.</summary>
     public byte[] BinaryData { get; set; } = [];
+
+    /// <summary>Bounding box minimum coordinate.</summary>
     public Vector3 BoundingMin { get; set; }
+
+    /// <summary>Bounding box maximum coordinate.</summary>
     public Vector3 BoundingMax { get; set; }
+
+    /// <summary>Geometric center point.</summary>
     public Vector3 Center { get; set; }
 }
 
+/// <summary>
+/// Pipeline interface for converting, compiling, caching, and persisting OBJ and USD assets.
+/// </summary>
 public interface IObjUsdPipelineService
 {
+    /// <summary>
+    /// Retrieves a cached binary mesh artifact or compiles and caches one from disk.
+    /// </summary>
+    /// <param name="assetPathOrGuid">Relative virtual path, disk path, or asset GUID.</param>
+    /// <param name="projectRoot">Root directory of the active project.</param>
+    /// <returns>Compiled binary mesh artifact or null if unresolved.</returns>
     CompiledMeshArtifact? GetOrCompileMeshBinary(string assetPathOrGuid, string projectRoot);
+
+    /// <summary>
+    /// Serializes active blockout mesh geometry into a Wavefront OBJ asset file with metadata sidecar.
+    /// </summary>
+    /// <param name="projectRoot">Active project root folder.</param>
+    /// <param name="blockName">Desired mesh name.</param>
+    /// <param name="positions">Vertex positions.</param>
+    /// <param name="normals">Optional vertex normals.</param>
+    /// <param name="uvs">Optional UV coordinates.</param>
+    /// <param name="indices">Optional triangle indices.</param>
+    /// <param name="bakeAo">Whether to bake ambient occlusion.</param>
+    /// <param name="pivot">Pivot re-centering mode.</param>
+    /// <returns>Full path to the written OBJ file.</returns>
     string SaveBlockoutAsObj(string projectRoot, string blockName, float[] positions, float[]? normals, float[]? uvs, int[]? indices, bool bakeAo = false, ObjPivotMode pivot = ObjPivotMode.BottomCenter);
+
+    /// <summary>
+    /// Persists a USD stage into an ASCII USDA file under Assets/Scenes/.
+    /// </summary>
+    /// <param name="projectRoot">Active project root directory.</param>
+    /// <param name="stageName">Target scene/stage name.</param>
+    /// <param name="stage">USD stage definition.</param>
+    /// <returns>Full path to the saved USDA file.</returns>
     string SaveUsdStage(string projectRoot, string stageName, UsdStage stage);
+
+    /// <summary>
+    /// Loads a USDA stage file from disk or creates a fallback default stage.
+    /// </summary>
+    /// <param name="stagePathOrGuid">File path or identifier.</param>
+    /// <param name="projectRoot">Active project root path.</param>
+    /// <returns>Loaded <see cref="UsdStage"/> instance.</returns>
     UsdStage LoadUsdStage(string stagePathOrGuid, string projectRoot);
 }
 
+/// <summary>
+/// Service managing the interop, compilation, and storage of Wavefront OBJ and OpenUSD assets.
+/// </summary>
 public class ObjUsdPipelineService : IObjUsdPipelineService
 {
+    /// <summary>Native OBJ text processor.</summary>
     private readonly ObjNativeProcessor _objProcessor;
+
+    /// <summary>USD stage composition service.</summary>
     private readonly IUsdStageService _usdService;
 
+    /// <summary>
+    /// Initializes a new pipeline instance with an injected USD stage service.
+    /// </summary>
+    /// <param name="usdService">Underlying USD stage service.</param>
     public ObjUsdPipelineService(IUsdStageService usdService)
     {
         _objProcessor = new ObjNativeProcessor();
         _usdService = usdService;
     }
 
+    /// <summary>
+    /// Parameterless constructor using default service implementations.
+    /// </summary>
     public ObjUsdPipelineService() : this(new UsdStageService())
     {
     }
 
+    /// <inheritdoc/>
     public CompiledMeshArtifact? GetOrCompileMeshBinary(string assetPathOrGuid, string projectRoot)
     {
         string? resolvedFilePath = null;
@@ -150,6 +219,11 @@ public class ObjUsdPipelineService : IObjUsdPipelineService
         };
     }
 
+    /// <summary>
+    /// Packs parsed mesh vertex streams and triangle indices into a binary 'BENG' buffer format.
+    /// </summary>
+    /// <param name="mesh">Parsed mesh geometry.</param>
+    /// <returns>Packed byte array payload.</returns>
     private static byte[] PackMeshBinary(ObjMeshResult mesh)
     {
         int vCount = mesh.Positions.Length / 3;
@@ -218,18 +292,23 @@ public class ObjUsdPipelineService : IObjUsdPipelineService
         return buffer;
     }
 
+    /// <summary>Writes a 32-bit integer into a byte buffer advancing the offset by 4.</summary>
     private static void BinaryPrimitivesWrite(byte[] dest, ref int offset, int val)
     {
         BitConverter.TryWriteBytes(dest.AsSpan(offset, 4), val);
         offset += 4;
     }
 
+    /// <summary>Writes a 32-bit single-precision float into a byte buffer advancing the offset by 4.</summary>
     private static void BinaryPrimitivesWrite(byte[] dest, ref int offset, float val)
     {
         BitConverter.TryWriteBytes(dest.AsSpan(offset, 4), val);
         offset += 4;
     }
 
+    /// <summary>
+    /// Converts primitives of a USD stage into a synthetic mesh representation for rapid viewport visualization.
+    /// </summary>
     private ObjMeshResult ConvertStageToMesh(UsdStage stage)
     {
         // Simple synthetic representation of stage prims for viewport preview
@@ -274,6 +353,7 @@ public class ObjUsdPipelineService : IObjUsdPipelineService
         };
     }
 
+    /// <inheritdoc/>
     public string SaveBlockoutAsObj(
         string projectRoot,
         string blockName,
@@ -310,6 +390,7 @@ public class ObjUsdPipelineService : IObjUsdPipelineService
         return targetFile;
     }
 
+    /// <inheritdoc/>
     public string SaveUsdStage(string projectRoot, string stageName, UsdStage stage)
     {
         var usdaText = _usdService.ExportToUsdaString(stage);
@@ -323,6 +404,7 @@ public class ObjUsdPipelineService : IObjUsdPipelineService
         return targetFile;
     }
 
+    /// <inheritdoc/>
     public UsdStage LoadUsdStage(string stagePathOrGuid, string projectRoot)
     {
         string fullPath = File.Exists(stagePathOrGuid) ? stagePathOrGuid : Path.Combine(projectRoot, stagePathOrGuid);

@@ -1,20 +1,27 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Photino.NET;
 using BlockoutStudio.Services.Assets;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for creating a new game project folder structure and initializing asset database tracking.
+/// </summary>
 public class CreateProjectHandler : IIpcActionHandler
 {
+    /// <summary>Asset database service instance.</summary>
     private readonly IAssetDatabaseService _assetDb;
 
+    /// <summary>Initializes handler with the asset database service.</summary>
     public CreateProjectHandler(IAssetDatabaseService assetDb)
     {
         _assetDb = assetDb;
     }
 
+    /// <inheritdoc/>
     public string Action => "create_project";
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         string? projectRoot = null;

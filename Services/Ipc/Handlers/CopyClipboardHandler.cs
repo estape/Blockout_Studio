@@ -4,10 +4,15 @@ using BlockoutStudio.Services;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for copying selected scene actors into the system clipboard.
+/// </summary>
 public class CopyClipboardHandler : IIpcActionHandler
 {
+    /// <inheritdoc/>
     public string Action => "copy_clipboard";
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         var data = root.TryGetProperty("data", out var d) ? d : payload;

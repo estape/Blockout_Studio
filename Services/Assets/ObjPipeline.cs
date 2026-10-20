@@ -3,11 +3,18 @@ using System.Text;
 
 namespace BlockoutStudio.Services.Assets;
 
+/// <summary>
+/// Asset pipeline for importing and exporting Wavefront OBJ files with coordinate remapping (Z-Up Centimeters).
+/// </summary>
 public class ObjPipeline : IAssetPipeline
 {
+    /// <inheritdoc/>
     public string FormatExtension => ".obj";
+
+    /// <inheritdoc/>
     public string FormatDescription => "Wavefront OBJ (.obj)";
 
+    /// <inheritdoc/>
     public string ExportToString(ModelData model)
     {
         var sb = new StringBuilder();
@@ -117,6 +124,7 @@ public class ObjPipeline : IAssetPipeline
         return sb.ToString();
     }
 
+    /// <inheritdoc/>
     public ModelData ImportFromString(string content)
     {
         var model = new ModelData();

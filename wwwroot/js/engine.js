@@ -1,14 +1,24 @@
+/**
+ * @file engine.js
+ * @brief Three.js rendering engine core, camera controls, lighting, metric grid, and Vulkan scalability pipeline.
+ */
+
 // ============================================================================
 // THREE.JS VIEWPORT & ENGINE CORE (1 Unit = 1 cm)
 // ============================================================================
 
+/** @type {HTMLElement} The DOM container element hosting the WebGL canvas. */
 export const viewport = document.getElementById('viewport');
+
+/** @type {THREE.Scene} The primary Three.js 3D scene root. */
 export const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x121417);
 
+/** @type {THREE.PerspectiveCamera} The primary perspective camera for the 3D viewport. */
 export const camera = new THREE.PerspectiveCamera(50, viewport.clientWidth / viewport.clientHeight, 5, 50000);
 camera.position.set(450, 500, 850);
 
+/** @type {THREE.WebGLRenderer} The hardware-accelerated WebGL 2.0 renderer. */
 export const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setClearColor(0x121417, 1);
 renderer.setSize(viewport.clientWidth, viewport.clientHeight);
@@ -26,6 +36,7 @@ renderer.domElement.addEventListener('webglcontextrestored', () => {
   renderer.setSize(viewport.clientWidth, viewport.clientHeight);
 }, false);
 
+/** @type {THREE.OrbitControls} Orbit controls for interactive editor viewport navigation. */
 export const orbit = new THREE.OrbitControls(camera, renderer.domElement);
 orbit.target.set(0, 100, 0);
 orbit.enableDamping = true;
@@ -33,22 +44,28 @@ orbit.dampingFactor = 0.08;
 orbit.update();
 
 // Lighting
+/** @type {THREE.HemisphereLight} Ambient sky/ground hemisphere light source. */
 export const hemiLight = new THREE.HemisphereLight(0xffffff, 0x242a34, 0.75);
 scene.add(hemiLight);
 
+/** @type {THREE.DirectionalLight} Sun directional light source with shadow casting. */
 export const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
 dirLight.position.set(1200, 2200, 1400);
 dirLight.castShadow = true;
 scene.add(dirLight);
 
 // Metric Centimeter Grid (40m x 40m arena)
+/** @type {THREE.GridHelper} Minor 50cm metric subdivision grid helper. */
 export const subGrid = new THREE.GridHelper(4000, 80, 0x333b49, 0x1f242d);
 scene.add(subGrid);
+
+/** @type {THREE.GridHelper} Major 100cm metric grid helper with orange accent lines. */
 export const majorGrid = new THREE.GridHelper(4000, 40, 0xf58220, 0x3d4756);
 majorGrid.position.y = 0.2;
 scene.add(majorGrid);
 
 // Ground plane for raycasting
+/** @type {THREE.Mesh} Invisible infinite floor plane used for cursor raycasting intersections. */
 export const groundPlane = new THREE.Mesh(
   new THREE.PlaneGeometry(20000, 20000),
   new THREE.MeshBasicMaterial({ visible: false })
@@ -56,7 +73,10 @@ export const groundPlane = new THREE.Mesh(
 groundPlane.rotation.x = -Math.PI / 2;
 scene.add(groundPlane);
 
-// Procedural Modular Grid Texture (100 cm tile with 50 cm subdivisions)
+/**
+ * @brief Generates a procedural 100cm prototype grid texture with 50cm subdivision borders.
+ * @returns {THREE.CanvasTexture} The generated repeating texture.
+ */
 export function createGridTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 256; canvas.height = 256;
@@ -72,10 +92,17 @@ export function createGridTexture() {
   tex.anisotropy = 8;
   return tex;
 }
+
+/** @type {THREE.CanvasTexture} Active modular grid texture applied to blockout materials. */
 export let gridTexture = createGridTexture();
 
 // Scale Dummy (180 cm Dummy)
+/** @type {THREE.Group} Reference mannequin group standing at 180cm human height. */
 export const mannequinGroup = new THREE.Group();
+
+/**
+ * @brief Constructs the 180cm human reference dummy hierarchy and adds it to the scene.
+ */
 function buildMannequin() {
   const mat = new THREE.MeshStandardMaterial({ color: 0xf58220, roughness: 0.4 });
   const legGeo = new THREE.BoxGeometry(18, 90, 20);
@@ -101,6 +128,9 @@ function buildMannequin() {
 }
 buildMannequin();
 
+/**
+ * @brief Resets the 180cm scale reference dummy back to its default scene transform coordinates.
+ */
 export function resetDummyTransform() {
   mannequinGroup.position.set(-150, 0, 150);
   mannequinGroup.rotation.set(0, 0, 0);
@@ -108,6 +138,9 @@ export function resetDummyTransform() {
   mannequinGroup.updateMatrixWorld();
 }
 
+/**
+ * @brief Toggles the visibility of the 180cm scale reference dummy.
+ */
 export function toggleMannequin() {
   mannequinGroup.visible = !mannequinGroup.visible;
   const btn = document.getElementById('toggle-mannequin');
@@ -115,9 +148,15 @@ export function toggleMannequin() {
 }
 
 // Raycaster & Mouse helpers
+/** @type {THREE.Raycaster} Global raycaster for viewport mouse picking. */
 export const raycaster = new THREE.Raycaster();
+/** @type {THREE.Vector2} Normalized device coordinates (-1 to +1) of mouse position. */
 export const mouse = new THREE.Vector2();
 
+/**
+ * @brief Updates normalized device coordinates and camera ray direction from a mouse event.
+ * @param {MouseEvent} e Mouse event to cast ray from.
+ */
 export function getMouseRay(e) {
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -129,6 +168,10 @@ export function getMouseRay(e) {
 // MODULE 3: 4-TIER SCALABILITY SYSTEM & VULKAN ANGLE RENDERER
 // ============================================================================
 
+/**
+ * @type {Array<Object>}
+ * @brief 4-tier engine scalability presets tuning resolution scale, shadow maps, tone mapping, and fog.
+ */
 export const SCALABILITY_TIERS = [
   {
     index: 0,
@@ -200,13 +243,25 @@ export const SCALABILITY_TIERS = [
   }
 ];
 
+/** @type {number} Index of the currently active scalability tier preset (0-3). */
 export let currentScalabilityTier = 2; // Default: Desktop PC
+
+/** @type {Array<Function>} Registered subscriber callbacks invoked when scalability tier changes. */
 const tierChangeCallbacks = [];
 
+/**
+ * @brief Registers a callback to be notified when the active scalability tier is adjusted.
+ * @param {Function} fn Callback function receiving the active tier preset configuration.
+ */
 export function registerTierChangeCallback(fn) {
   if (typeof fn === 'function') tierChangeCallbacks.push(fn);
 }
 
+/**
+ * @brief Configures renderer resolution, shadow maps, tone mapping, and fog based on a target scalability tier.
+ * @param {number|string} tierIndex Index of the target scalability tier (0 to 3).
+ * @param {boolean} [notifyBackend=true] Whether to dispatch an IPC event to the C# backend.
+ */
 export function setScalabilityTier(tierIndex, notifyBackend = true) {
   const idx = Math.max(0, Math.min(SCALABILITY_TIERS.length - 1, parseInt(tierIndex, 10) || 0));
   const tier = SCALABILITY_TIERS[idx];
@@ -269,8 +324,12 @@ export function setScalabilityTier(tierIndex, notifyBackend = true) {
 // GPU INSTANCING & STATIC GEOMETRY BATCHING
 // ============================================================================
 
+/** @type {Array<THREE.InstancedMesh>} Active instanced mesh batches rendered in the scene. */
 export const instancedMeshBatches = [];
 
+/**
+ * @brief Removes all active GPU instanced mesh batches and disposes their resources.
+ */
 export function clearInstancedBatches() {
   for (const batch of instancedMeshBatches) {
     scene.remove(batch);
@@ -280,6 +339,13 @@ export function clearInstancedBatches() {
   instancedMeshBatches.length = 0;
 }
 
+/**
+ * @brief Creates a batched Three.js InstancedMesh for high-performance rendering of repetitive geometries.
+ * @param {THREE.BufferGeometry} geometry Shared base geometry.
+ * @param {THREE.Material} material Shared material instance.
+ * @param {Array<Object>} transforms Array of transform parameters for each instance.
+ * @returns {THREE.InstancedMesh|null} The created instanced mesh, or null if transforms is empty.
+ */
 export function createInstancedMesh(geometry, material, transforms) {
   if (!transforms || transforms.length === 0) return null;
   const count = transforms.length;
@@ -306,14 +372,24 @@ export function createInstancedMesh(geometry, material, transforms) {
 // REAL-TIME GPU & VULKAN STATUS HUD (F3)
 // ============================================================================
 
+/** @type {boolean} Indicates whether the real-time GPU statistics HUD is visible. */
 let hudVisible = false;
+/** @type {number} Timestamp in milliseconds of the last FPS counter sample. */
 let lastFpsTime = performance.now();
+/** @type {number} Number of frames rendered since the last FPS calculation. */
 let frameCount = 0;
+/** @type {number} Current computed frames-per-second rate. */
 let currentFps = 60;
+/** @type {string} Current frame rendering time in milliseconds. */
 let currentFrameTime = '16.60';
+/** @type {string} Unmasked GPU hardware vendor string. */
 let gpuVendor = '';
+/** @type {string} Unmasked GPU renderer / driver string. */
 let gpuRenderer = '';
 
+/**
+ * @brief Queries unmasked GPU hardware and driver strings via the WEBGL_debug_renderer_info extension.
+ */
 export function initGpuRendererInfo() {
   try {
     const gl = renderer.getContext();
@@ -329,6 +405,9 @@ export function initGpuRendererInfo() {
   }
 }
 
+/**
+ * @brief Toggles the visibility of the on-screen GPU and Vulkan performance HUD overlay.
+ */
 export function toggleGpuHud() {
   hudVisible = !hudVisible;
   const hudEl = document.getElementById('gpu-hud');
@@ -339,10 +418,18 @@ export function toggleGpuHud() {
   if (btn) btn.classList.toggle('active', hudVisible);
 }
 
+/**
+ * @brief Checks if the GPU status HUD overlay is currently visible.
+ * @returns {boolean} True if the HUD is visible; otherwise false.
+ */
 export function isGpuHudVisible() {
   return hudVisible;
 }
 
+/**
+ * @brief Updates FPS, frame times, draw calls, triangle counts, and memory usage in the GPU HUD.
+ * @param {boolean} [force=false] Force an immediate HUD redraw regardless of the elapsed interval.
+ */
 export function updateGpuHud(force = false) {
   frameCount++;
   const now = performance.now();
@@ -402,5 +489,3 @@ window.addEventListener('keydown', (e) => {
     toggleGpuHud();
   }
 });
-
-

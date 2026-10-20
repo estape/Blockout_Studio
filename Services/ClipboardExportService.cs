@@ -5,6 +5,9 @@ using TextCopy;
 
 namespace BlockoutStudio.Services;
 
+/// <summary>
+/// Provides clipboard serialization for level geometry, generating actor graph text from scene objects and lights.
+/// </summary>
 public static class ClipboardExportService
 {
     /// <summary>
@@ -12,6 +15,8 @@ public static class ClipboardExportService
     /// and copies it to the system clipboard.
     /// Supports StaticMeshActors (Cube, Cylinder, Sphere, Plane) and LightActors (PointLight, SpotLight with Static or Stationary mobility).
     /// </summary>
+    /// <param name="items">JsonElement containing array of scene actors and lights.</param>
+    /// <returns>A tuple indicating success status, human-readable status message, and total actors serialized.</returns>
     public static (bool Success, string Message, int ActorCount) CopyToClipboard(JsonElement items)
     {
         try
@@ -177,6 +182,11 @@ public static class ClipboardExportService
         }
     }
 
+    /// <summary>
+    /// Parses a standard #RRGGBB hex color string into separate 8-bit RGB color bytes.
+    /// </summary>
+    /// <param name="hex">Hex color string (e.g. #ff8800).</param>
+    /// <returns>A tuple of (R, G, B) byte values.</returns>
     private static (byte R, byte G, byte B) ParseHexColor(string hex)
     {
         try

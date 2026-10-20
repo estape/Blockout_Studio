@@ -1,3 +1,8 @@
+/**
+ * @file lights.js
+ * @brief PointLight and SpotLight actor creation, attenuation geometry visualization, and shadow allocation.
+ */
+
 // ============================================================================
 // STATIC & STATIONARY LIGHTS (PointLight & SpotLight)
 // ============================================================================
@@ -6,8 +11,19 @@ import { scene } from './engine.js';
 import { blocks, selectBlock, refreshOutliner } from './sceneManager.js';
 import { recordState } from './historyManager.js';
 
+/**
+ * @type {number}
+ * @brief Auto-incrementing numerical identifier for generated light actor names.
+ */
 let lightCounter = 1;
 
+/**
+ * @brief Instantiates and places a new light actor into the scene with attenuation wireframe indicators.
+ * @param {string} [type='point'] Light type ('point', 'point_light', 'spot', or 'spot_light').
+ * @param {string} [mobility='Static'] Light mobility classification ('Static', 'Stationary', or 'Dynamic').
+ * @param {boolean} [shouldRecord=true] Whether to push an entry to the history manager undo stack.
+ * @returns {THREE.Group} The newly created light actor group.
+ */
 export function spawnLight(type = 'point', mobility = 'Static', shouldRecord = true) {
   const isSpot = type === 'spot' || type === 'spot_light';
   const group = new THREE.Group();
@@ -68,6 +84,11 @@ export function spawnLight(type = 'point', mobility = 'Static', shouldRecord = t
   return group;
 }
 
+/**
+ * @brief Restores a light actor from a serialized snapshot state object.
+ * @param {Object} data Serialized light metadata including position, rotation, color, and intensity.
+ * @returns {THREE.Group} The restored light actor group.
+ */
 export function restoreLightFromData(data) {
   const isSpot = data.shapeType === 'spot' || data.shapeType === 'spot_light';
   const group = new THREE.Group();
@@ -129,6 +150,10 @@ export function restoreLightFromData(data) {
   return group;
 }
 
+/**
+ * @brief Configures real-time shadow casting flags based on engine scalability limits.
+ * @param {number} [maxShadowLights=4] Maximum number of light actors allowed to cast shadows simultaneously.
+ */
 export function updateLightShadowLimits(maxShadowLights = 4) {
   let shadowCount = 0;
   for (const block of blocks) {
@@ -147,4 +172,3 @@ export function updateLightShadowLimits(maxShadowLights = 4) {
     }
   }
 }
-

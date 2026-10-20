@@ -1,23 +1,32 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Photino.NET;
 using BlockoutStudio.Services.Assets;
 using BlockoutStudio.Services.Geometry;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for serializing viewport blockout meshes into an OBJ asset file under Assets/Meshes/.
+/// </summary>
 public class SaveBlockoutAsObjHandler : IIpcActionHandler
 {
+    /// <summary>Geometry pipeline service.</summary>
     private readonly IObjUsdPipelineService _pipeline;
+
+    /// <summary>Asset database service.</summary>
     private readonly IAssetDatabaseService _assetDb;
 
+    /// <summary>Initializes handler with geometry pipeline and asset database services.</summary>
     public SaveBlockoutAsObjHandler(IObjUsdPipelineService pipeline, IAssetDatabaseService assetDb)
     {
         _pipeline = pipeline;
         _assetDb = assetDb;
     }
 
+    /// <inheritdoc/>
     public string Action => "save_blockout_as_obj";
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         var projectRoot = _assetDb.CurrentProjectRoot;

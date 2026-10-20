@@ -1,24 +1,32 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Photino.NET;
 using BlockoutStudio.Services.Geometry;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for performing constructive solid geometry (CSG) subtraction between subject and cutter meshes.
+/// </summary>
 public class CsgCutHandler : IIpcActionHandler
 {
+    /// <summary>CSG BSP tree boolean engine.</summary>
     private readonly ICsgEngine _csgEngine;
 
+    /// <summary>Initializes handler with an injected CSG engine.</summary>
     public CsgCutHandler(ICsgEngine csgEngine)
     {
         _csgEngine = csgEngine;
     }
 
+    /// <summary>Parameterless constructor using default CSG engine.</summary>
     public CsgCutHandler() : this(new CsgEngine())
     {
     }
 
+    /// <inheritdoc/>
     public string Action => "csg_cut";
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         var sub = root.GetProperty("subject");

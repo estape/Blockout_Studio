@@ -1,12 +1,18 @@
-// ============================================================================
-// ECS ENTITY WRAPPER & COMPONENT MANAGEMENT
-// ============================================================================
+/**
+ * @file entity.js
+ * @brief Entity Component System (ECS) entity container and component lifecycle management.
+ */
 
 import {
   TransformComponent, MeshComponent, ColliderComponent,
   createComponentByType
 } from './components.js';
 
+/**
+ * Initializes default Transform and Mesh/Collider components on a 3D scene object if missing.
+ * @param {THREE.Object3D} object - Scene node representing the entity.
+ * @returns {Array<Object>|undefined} List of attached components.
+ */
 export function ensureEntityComponents(object) {
   if (!object) return;
   if (!object.userData) object.userData = {};
@@ -50,15 +56,33 @@ export function ensureEntityComponents(object) {
   return object.userData.components;
 }
 
+/**
+ * Retrieves a component by type name from an entity.
+ * @param {THREE.Object3D} object - Target scene object.
+ * @param {string} type - Component type name (e.g. 'Transform', 'RigidBody').
+ * @returns {Object|null} Matching component instance or null.
+ */
 export function getComponent(object, type) {
   if (!object || !object.userData || !Array.isArray(object.userData.components)) return null;
   return object.userData.components.find((c) => c.type === type) || null;
 }
 
+/**
+ * Checks if an entity possesses a component of a given type.
+ * @param {THREE.Object3D} object - Target scene object.
+ * @param {string} type - Component type name.
+ * @returns {boolean} True if the component exists on the entity.
+ */
 export function hasComponent(object, type) {
   return getComponent(object, type) !== null;
 }
 
+/**
+ * Adds or replaces a component on an entity.
+ * @param {THREE.Object3D} object - Target scene object.
+ * @param {Object} component - Component instance to add.
+ * @returns {Object|null} The attached component.
+ */
 export function addComponent(object, component) {
   if (!object) return null;
   ensureEntityComponents(object);
@@ -73,6 +97,12 @@ export function addComponent(object, component) {
   return component;
 }
 
+/**
+ * Removes a component of the specified type from an entity.
+ * @param {THREE.Object3D} object - Target scene object.
+ * @param {string} type - Component type to remove (Transform cannot be removed).
+ * @returns {boolean} True if removed, false otherwise.
+ */
 export function removeComponent(object, type) {
   if (!object || !object.userData || !Array.isArray(object.userData.components)) return false;
   if (type === 'Transform') return false; // Transform is mandatory
@@ -84,6 +114,11 @@ export function removeComponent(object, type) {
   return false;
 }
 
+/**
+ * Serializes all attached entity components into plain JSON-serializable objects.
+ * @param {THREE.Object3D} object - Target scene object.
+ * @returns {Array<Object>} List of serialized component data objects.
+ */
 export function serializeEntityComponents(object) {
   if (!object || !object.userData || !Array.isArray(object.userData.components)) return [];
   return object.userData.components.map((c) => {
@@ -91,6 +126,11 @@ export function serializeEntityComponents(object) {
   });
 }
 
+/**
+ * Deserializes an array of raw component configurations and attaches them to an entity.
+ * @param {THREE.Object3D} object - Target scene object.
+ * @param {Array<Object>} rawComponents - Raw component property objects.
+ */
 export function deserializeEntityComponents(object, rawComponents) {
   if (!object || !Array.isArray(rawComponents)) return;
   if (!object.userData) object.userData = {};

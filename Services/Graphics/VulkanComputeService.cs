@@ -1,27 +1,48 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using BlockoutStudio.Services.NativeInterop;
 
 namespace BlockoutStudio.Services.Graphics;
 
+/// <summary>
+/// Provides LunarG Vulkan SDK integration, GLSL to SPIR-V compilation, spirv-opt optimization,
+/// spirv-cross transpilation to WebGL 2.0 GLSL ES, and raytraced Ambient Occlusion computation.
+/// </summary>
 public class VulkanComputeService : IVulkanComputeService
 {
+    /// <summary>Reference to the native C++ SIMD interop service for fallback processing.</summary>
     private readonly INativeInteropService? _nativeInterop;
+    /// <summary>Detected root directory of the LunarG Vulkan SDK.</summary>
     private string? _sdkPath;
+    /// <summary>Semantic version string of the installed Vulkan SDK.</summary>
     private string? _vulkanVersion;
+    /// <summary>Resolved executable path to the glslc shader compiler.</summary>
     private string? _glslcPath;
+    /// <summary>Resolved executable path to the spirv-opt bytecode optimizer.</summary>
     private string? _spirvOptPath;
+    /// <summary>Resolved executable path to the spirv-cross transpiler.</summary>
     private string? _spirvCrossPath;
+    /// <summary>Indicates whether glslc and the core SDK toolchain are accessible.</summary>
     private bool _isSdkAvailable;
 
+    /// <summary>Gets whether the LunarG Vulkan SDK is installed and ready.</summary>
     public bool IsVulkanSdkAvailable => _isSdkAvailable;
+    /// <summary>Gets the detected Vulkan SDK version string.</summary>
     public string? VulkanVersion => _vulkanVersion;
+    /// <summary>Gets the root path of the Vulkan SDK installation.</summary>
     public string? SdkPath => _sdkPath;
+    /// <summary>Gets the executable path to glslc.</summary>
     public string? GlslcPath => _glslcPath;
+    /// <summary>Gets the executable path to spirv-opt.</summary>
     public string? SpirvOptPath => _spirvOptPath;
+    /// <summary>Gets the executable path to spirv-cross.</summary>
     public string? SpirvCrossPath => _spirvCrossPath;
+    /// <summary>Gets whether compute acceleration via glslc/SPIR-V is active.</summary>
     public bool IsComputeAccelerated => _isSdkAvailable && !string.IsNullOrEmpty(_glslcPath);
 
+    /// <summary>
+    /// Default GLSL compute shader source code used for GPU ray-marched Ambient Occlusion baking.
+    /// </summary>
     public const string DefaultAoComputeShader = """
         #version 450
         layout(local_size_x = 64) in;
@@ -112,12 +133,19 @@ public class VulkanComputeService : IVulkanComputeService
         }
         """;
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="VulkanComputeService"/> and discovers installed Vulkan SDK tools.
+    /// </summary>
+    /// <param name="nativeInterop">Optional native interop service dependency.</param>
     public VulkanComputeService(INativeInteropService? nativeInterop = null)
     {
         _nativeInterop = nativeInterop;
         ProbeTools();
     }
 
+    /// <summary>
+    /// Probes environment variables (VULKAN_SDK), registry/filesystem directories, and system PATH to locate glslc, spirv-opt, and spirv-cross.
+    /// </summary>
     private void ProbeTools()
     {
         string? sdk = Environment.GetEnvironmentVariable("VULKAN_SDK");
@@ -161,6 +189,11 @@ public class VulkanComputeService : IVulkanComputeService
         _isSdkAvailable = !string.IsNullOrEmpty(_glslcPath);
     }
 
+    /// <summary>
+    /// Searches the system PATH environment variable for a designated executable file.
+    /// </summary>
+    /// <param name="exeName">Base executable name (e.g. glslc).</param>
+    /// <returns>Full filesystem path to the executable if located; otherwise null.</returns>
     private static string? FindExecutableOnPath(string exeName)
     {
         var ext = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ".exe" : "";
@@ -181,6 +214,13 @@ public class VulkanComputeService : IVulkanComputeService
         return null;
     }
 
+    /// <summary>
+    /// Compiles high-level GLSL source text into SPIR-V binary bytecode via glslc and optionally optimizes with spirv-opt.
+    /// </summary>
+    /// <param name="glslSource">GLSL source text to compile.</param>
+    /// <param name="stage">Target shader stage (Vertex, Fragment, or Compute).</param>
+    /// <param name="optimize">Whether to run spirv-opt optimization passes.</param>
+    /// <returns>A <see cref="ShaderCompilationResult"/> containing Base64 SPIR-V or error diagnostics.</returns>
     public ShaderCompilationResult CompileGlslToSpirv(string glslSource, ShaderStage stage, bool optimize = true)
     {
         var sw = Stopwatch.StartNew();
@@ -299,6 +339,12 @@ public class VulkanComputeService : IVulkanComputeService
         return result;
     }
 
+    /// <summary>
+    /// Cross-compiles binary SPIR-V bytecode into WebGL 2.0 GLSL ES 3.00 (or GLSL ES 3.10 for compute) using spirv-cross.
+    /// </summary>
+    /// <param name="spirvBytes">Binary array containing SPIR-V bytecode.</param>
+    /// <param name="stage">Target shader stage.</param>
+    /// <returns>A <see cref="ShaderCompilationResult"/> containing GLSL ES source code or error details.</returns>
     public ShaderCompilationResult TranspileSpirvToGlslEs(byte[] spirvBytes, ShaderStage stage)
     {
         var sw = Stopwatch.StartNew();
@@ -377,6 +423,13 @@ public class VulkanComputeService : IVulkanComputeService
         return result;
     }
 
+    /// <summary>
+    /// Compiles GLSL to SPIR-V, optimizes via spirv-opt, and transpiles to WebGL 2.0 GLSL ES in a single pipeline pass.
+    /// </summary>
+    /// <param name="glslSource">Raw input GLSL shader string.</param>
+    /// <param name="stage">Shader stage.</param>
+    /// <param name="optimize">Whether to apply spirv-opt optimization flags.</param>
+    /// <returns>A <see cref="ShaderCompilationResult"/> containing the final GLSL ES string.</returns>
     public ShaderCompilationResult CompileAndTranspileShader(string glslSource, ShaderStage stage, bool optimize = true)
     {
         var compileRes = CompileGlslToSpirv(glslSource, stage, optimize);
@@ -392,6 +445,15 @@ public class VulkanComputeService : IVulkanComputeService
         return transpileRes;
     }
 
+    /// <summary>
+    /// Computes per-vertex Ambient Occlusion across scene geometry, routing to Vulkan GPU Compute or CPU SIMD fallback.
+    /// </summary>
+    /// <param name="positions">Flat array of 3D vertex positions.</param>
+    /// <param name="normals">Flat array of vertex normal vectors.</param>
+    /// <param name="sceneTriangles">Collection of triangles composing the occluding scene geometry.</param>
+    /// <param name="sampleCount">Number of directional ray samples cast per vertex.</param>
+    /// <param name="maxDistance">Occlusion horizon distance in centimeters.</param>
+    /// <returns>A <see cref="VulkanAoBakeResult"/> containing vertex colors, timing, and active acceleration mode.</returns>
     public VulkanAoBakeResult BakeVertexAo(
         float[] positions,
         float[] normals,
@@ -457,6 +519,10 @@ public class VulkanComputeService : IVulkanComputeService
         return result;
     }
 
+    /// <summary>
+    /// Safely deletes a temporary file from disk, suppressing filesystem exceptions.
+    /// </summary>
+    /// <param name="path">Filesystem path to the file to delete.</param>
     private static void SafeDelete(string path)
     {
         try

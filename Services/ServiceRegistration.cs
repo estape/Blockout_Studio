@@ -10,8 +10,16 @@ using BlockoutStudio.Services.BuildPipeline;
 
 namespace BlockoutStudio.Services;
 
+/// <summary>
+/// Dependency injection setup registering all engine subsystems, storage engines, compilers, and IPC handlers.
+/// </summary>
 public static class ServiceRegistration
 {
+    /// <summary>
+    /// Registers all singleton services and IPC handlers into the dependency injection container.
+    /// </summary>
+    /// <param name="services">The target service collection.</param>
+    /// <returns>The modified service collection for chaining.</returns>
     public static IServiceCollection AddEngineServices(this IServiceCollection services)
     {
         // Core Subsystem Services & Storage
@@ -88,6 +96,10 @@ public static class ServiceRegistration
         return services;
     }
 
+    /// <summary>
+    /// Builds and returns the configured dependency injection service provider for the engine host.
+    /// </summary>
+    /// <returns>Configured <see cref="IServiceProvider"/> instance.</returns>
     public static IServiceProvider BuildEngineServiceProvider()
     {
         var services = new ServiceCollection();

@@ -1,22 +1,41 @@
-// ============================================================================
-// CIRCLE TOOL (Cylindrical Surface & Extrude)
-// ============================================================================
+/**
+ * @file circleTool.js
+ * @brief Circle drawing and cylinder extrusion tool for radial 3D geometry drafting.
+ */
 
 import { scene, groundPlane, raycaster, orbit } from '../engine.js';
 import { createBlock, rebuildBlockMesh, selectBlock, blocks, refreshOutliner } from '../sceneManager.js';
 import { transformControl, snapSize } from '../transformGizmo.js';
 import { recordState } from '../historyManager.js';
 
+/** @type {number} Current drawing state (0: idle, 1: drawing radius, 2: extruding). */
 let drawStage = 0;
+
+/** @type {THREE.Vector3} Center origin coordinate of the circle on the ground plane. */
 let drawStartPt = new THREE.Vector3();
+
+/** @type {THREE.Mesh|null} Active cylinder mesh currently being sized. */
 let activeDraftMesh = null;
+
+/** @type {number} Starting pointer screen Y position during vertical extrusion. */
 let pushPullStartMouseY = 0;
+
+/** @type {number} Starting height dimension prior to extrusion drag. */
 let pushPullStartHeight = 0;
 
+/**
+ * Snaps a scalar value to the active grid increment.
+ * @param {number} val - Input scalar distance.
+ * @returns {number} Grid-aligned value.
+ */
 function snapVal(val) {
   return Math.round(val / snapSize) * snapSize;
 }
 
+/**
+ * Handles pointer down events to place cylinder center or confirm extrusion height.
+ * @param {PointerEvent|MouseEvent} e - Pointer event.
+ */
 export function handleCirclePointerDown(e) {
   if (transformControl.axis !== null || e.button !== 0) return;
 
@@ -41,6 +60,10 @@ export function handleCirclePointerDown(e) {
   }
 }
 
+/**
+ * Handles pointer move events for dynamic radius sizing or vertical cylinder extrusion.
+ * @param {PointerEvent|MouseEvent} e - Pointer event.
+ */
 export function handleCirclePointerMove(e) {
   if (!activeDraftMesh) return;
   const liveMeasure = document.getElementById('live-measure');
@@ -70,6 +93,10 @@ export function handleCirclePointerMove(e) {
   }
 }
 
+/**
+ * Handles pointer up events to transition from radius sizing to height extrusion.
+ * @param {PointerEvent|MouseEvent} e - Pointer event.
+ */
 export function handleCirclePointerUp(e) {
   if (drawStage === 1 && activeDraftMesh) {
     drawStage = 2;
@@ -78,6 +105,9 @@ export function handleCirclePointerUp(e) {
   }
 }
 
+/**
+ * Resets the circle tool and removes unfinished draft meshes.
+ */
 export function resetCircleTool() {
   if (activeDraftMesh && drawStage !== 0) {
     scene.remove(activeDraftMesh);

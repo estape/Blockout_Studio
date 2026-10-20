@@ -4,8 +4,14 @@ using BlockoutStudio.Services.Assets;
 
 namespace BlockoutStudio.Services;
 
+/// <summary>
+/// Provides project directory management, template asset scaffolding, and Win32 / POSIX file dialog integration.
+/// </summary>
 public class ProjectStorageService : IProjectStorageService
 {
+    /// <summary>
+    /// Default filesystem directory where newly created Blockout Studio projects are placed.
+    /// </summary>
     public static readonly string DefaultProjectsDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
         "BlockoutStudio"
@@ -19,6 +25,7 @@ public class ProjectStorageService : IProjectStorageService
     (string ProjectRoot, ProjectManifest Manifest) IProjectStorageService.OpenProject(string projectPathOrDir) => OpenProject(projectPathOrDir);
     void IProjectStorageService.EnsureProjectStructure(string rootDir, ProjectManifest manifest, string? starterSceneJson) => EnsureProjectStructure(rootDir, manifest, starterSceneJson);
 
+    /// <summary>Preconfigured indented JSON serialization options for project files and settings.</summary>
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
     static ProjectStorageService()
@@ -63,6 +70,15 @@ public class ProjectStorageService : IProjectStorageService
         public int flagsEx = 0;
     }
 
+    /// <summary>
+    /// Displays a native Win32/OS save dialog and writes string content to the destination path.
+    /// </summary>
+    /// <param name="content">File content text.</param>
+    /// <param name="defaultFileName">Default suggested file name.</param>
+    /// <param name="filter">Win32 file filter string.</param>
+    /// <param name="defExt">Default file extension.</param>
+    /// <param name="title">Dialog window title.</param>
+    /// <returns>Destination file path if saved, otherwise null.</returns>
     public static string? SaveTextDialog(string content, string defaultFileName, string filter, string defExt, string title)
     {
         try
@@ -99,6 +115,12 @@ public class ProjectStorageService : IProjectStorageService
         return null;
     }
 
+    /// <summary>
+    /// Displays an OS Save File dialog prompting the user to save project scene JSON.
+    /// </summary>
+    /// <param name="jsonContent">Serialized scene JSON string.</param>
+    /// <param name="defaultFileName">Default project file name.</param>
+    /// <returns>Saved file path or null.</returns>
     public static string? SaveProjectDialog(string jsonContent, string defaultFileName = "Level_Blockout.bproject")
     {
         return SaveTextDialog(
@@ -110,6 +132,10 @@ public class ProjectStorageService : IProjectStorageService
         );
     }
 
+    /// <summary>
+    /// Displays an OS Open File dialog and reads project scene JSON from the chosen file.
+    /// </summary>
+    /// <returns>Tuple of loaded file path and content text.</returns>
     public static (string? Path, string? Content) LoadProjectDialog()
     {
         try
@@ -143,6 +169,11 @@ public class ProjectStorageService : IProjectStorageService
         return (null, null);
     }
 
+    /// <summary>
+    /// Displays an OS folder creation/selection dialog to pick the destination of a new project workspace.
+    /// </summary>
+    /// <param name="defaultProjectName">Default name for the proposed project.</param>
+    /// <returns>Root folder path of the scaffolded project, or null if cancelled.</returns>
     public static string? CreateProjectDialog(string defaultProjectName = "NewGameProject")
     {
         try
@@ -181,6 +212,13 @@ public class ProjectStorageService : IProjectStorageService
         return null;
     }
 
+    /// <summary>
+    /// Scaffolds a complete project workspace on disk, including standard directory hierarchy and manifests.
+    /// </summary>
+    /// <param name="rootDir">Target directory on disk.</param>
+    /// <param name="projectName">Name of the project.</param>
+    /// <param name="starterSceneJson">Optional initial scene JSON text.</param>
+    /// <returns>Tuple of project root directory and the created manifest.</returns>
     public static (string ProjectRoot, ProjectManifest Manifest) CreateNewProject(string rootDir, string projectName, string? starterSceneJson = null)
     {
         if (!Directory.Exists(rootDir))
@@ -201,6 +239,11 @@ public class ProjectStorageService : IProjectStorageService
         return (rootDir, manifest);
     }
 
+    /// <summary>
+    /// Opens an existing project folder or manifest path, validating its structure and manifests.
+    /// </summary>
+    /// <param name="projectPathOrDir">Path to the project directory or manifest file.</param>
+    /// <returns>Tuple of project root path and loaded manifest.</returns>
     public static (string ProjectRoot, ProjectManifest Manifest) OpenProject(string projectPathOrDir)
     {
         string rootDir;
@@ -240,6 +283,12 @@ public class ProjectStorageService : IProjectStorageService
         return (rootDir, manifest);
     }
 
+    /// <summary>
+    /// Scaffolds and validates all 18 standard project directories, manifest files, and default configuration JSONs.
+    /// </summary>
+    /// <param name="rootDir">Project root directory path.</param>
+    /// <param name="manifest">Target project manifest to write if missing.</param>
+    /// <param name="starterSceneJson">Optional default scene JSON string.</param>
     public static void EnsureProjectStructure(string rootDir, ProjectManifest manifest, string? starterSceneJson = null)
     {
         // 1. Core directories
@@ -354,6 +403,7 @@ public class ProjectStorageService : IProjectStorageService
         }
     }
 
+    /// <summary>Generates starter Rotator.js ECS script content.</summary>
     private static string DefaultRotatorScriptContent()
     {
         return """
@@ -373,6 +423,7 @@ public class ProjectStorageService : IProjectStorageService
         """;
     }
 
+    /// <summary>Generates starter DoorTrigger.js ECS script content.</summary>
     private static string DefaultDoorTriggerScriptContent()
     {
         return """
@@ -396,6 +447,7 @@ public class ProjectStorageService : IProjectStorageService
         """;
     }
 
+    /// <summary>Generates starter PlayerMovement.js ECS event hooks.</summary>
     private static string DefaultPlayerMovementScriptContent()
     {
         return """
@@ -410,6 +462,7 @@ public class ProjectStorageService : IProjectStorageService
         """;
     }
 
+    /// <summary>Generates default greybox blockout scene JSON (floor, walls, ramp, cover pillar, point light).</summary>
     private static string DefaultStarterSceneJson()
     {
         return """
@@ -481,6 +534,7 @@ public class ProjectStorageService : IProjectStorageService
         """;
     }
 
+    /// <summary>Generates starter PBR prototype grid material JSON.</summary>
     private static string DefaultMaterialJson()
     {
         return """
@@ -495,6 +549,7 @@ public class ProjectStorageService : IProjectStorageService
         """;
     }
 
+    /// <summary>Generates default WebGL 2.0 GLSL ES 3.00 PBR lighting shader.</summary>
     private static string DefaultShaderContent()
     {
         return """

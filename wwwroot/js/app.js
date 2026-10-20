@@ -1,3 +1,8 @@
+/**
+ * @file app.js
+ * @brief Application entry point, tool selection dispatcher, input event orchestrator, and UI modal bindings.
+ */
+
 // ============================================================================
 // APP ENTRY POINT & EVENT ORCHESTRATOR
 // ============================================================================
@@ -40,8 +45,16 @@ import {
   deployToSelectedDevice
 } from './buildManager.js';
 
+/**
+ * @type {string}
+ * @brief Currently active editor creation or manipulation tool ('select', 'rotate', 'draw-rect', 'draw-circle', 'pushpull', 'hole').
+ */
 let currentTool = 'select';
 
+/**
+ * @brief Activates an editor tool, updates toolbar button styles, and adjusts gizmo modes.
+ * @param {string} tool Target tool identifier.
+ */
 export function setTool(tool) {
   currentTool = tool;
 
@@ -118,6 +131,10 @@ window.addEventListener('pointerup', (e) => {
   }
 });
 
+/**
+ * @brief Raycasts against all active scene block meshes.
+ * @returns {Array<THREE.Intersection>} Raycast intersection list.
+ */
 function raycasterHits() {
   return raycaster.intersectObjects(blocks, false);
 }
@@ -184,6 +201,9 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+/**
+ * @brief Prompts for sphere diameter and spawns a new sphere block in the scene.
+ */
 function spawnSpherePrompt() {
   const diam = prompt('Enter Sphere Diameter in cm:', '100');
   if (diam) {
@@ -192,7 +212,9 @@ function spawnSpherePrompt() {
   }
 }
 
-// Viewport & Window Resize Handling (ResizeObserver handles toolbar wrap & drawer docking)
+/**
+ * @brief Synchronizes perspective camera aspect ratio and WebGL renderer dimensions to the viewport size.
+ */
 function syncViewportSize() {
   const w = Math.max(1, viewport.clientWidth);
   const h = Math.max(1, viewport.clientHeight);
@@ -209,7 +231,9 @@ if (typeof ResizeObserver !== 'undefined') {
   viewportResizeObserver.observe(viewport);
 }
 
-// Top Menu Bar Popover Orchestration & Anchor Fallback
+/**
+ * @brief Initializes native HTML popovers for the top menu bar items with CSS Anchor positioning fallback.
+ */
 function initMenuBarPopovers() {
   const supportsAnchorPositioning = 'anchorName' in document.documentElement.style;
   const triggers = document.querySelectorAll('.menubar-trigger[popovertarget]');
@@ -258,6 +282,10 @@ initMenuBarPopovers();
 // ============================================================================
 // RESIZABLE COLUMNS (Left Sidebar & Right Inspector)
 // ============================================================================
+
+/**
+ * @brief Initializes drag splitters for resizing the left hierarchy sidebar and right inspector columns.
+ */
 function initColumnResizers() {
   const leftResizer = document.getElementById('resizer-left');
   const rightResizer = document.getElementById('resizer-right');
@@ -323,34 +351,57 @@ initColumnResizers();
 // ============================================================================
 // WELCOME SCREEN MODAL
 // ============================================================================
+
+/**
+ * @brief Opens the Welcome Screen modal dialog.
+ */
 export function openWelcomeModal() {
   const modal = document.getElementById('welcome-modal');
   if (modal) modal.style.display = 'flex';
 }
 
+/**
+ * @brief Closes the Welcome Screen modal dialog.
+ */
 export function closeWelcomeModal() {
   const modal = document.getElementById('welcome-modal');
   if (modal) modal.style.display = 'none';
 }
 
+/**
+ * @brief Welcome modal action: closes modal and triggers new project creation.
+ */
 export function welcomeNewProject() {
   closeWelcomeModal();
   createProjectDialog();
 }
 
+/**
+ * @brief Welcome modal action: closes modal and triggers open project dialog.
+ */
 export function welcomeOpenProject() {
   closeWelcomeModal();
   openProjectDialog();
 }
 
+/**
+ * @brief Welcome modal action: closes modal to begin quick-start editing immediately.
+ */
 export function welcomeQuickStart() {
   closeWelcomeModal();
 }
 
+/**
+ * @brief Updates local storage preference determining whether to display the welcome modal on startup.
+ * @param {boolean} checked Whether to show the welcome screen on startup.
+ */
 export function toggleWelcomeStartup(checked) {
   localStorage.setItem('blockout_show_welcome', checked ? 'true' : 'false');
 }
 
+/**
+ * @brief Checks startup configuration and conditionally displays the welcome screen.
+ */
 function initWelcomeModal() {
   const show = localStorage.getItem('blockout_show_welcome');
   const checkbox = document.getElementById('welcome-show-startup');
@@ -365,8 +416,12 @@ function initWelcomeModal() {
 initWelcomeModal();
 
 // Render Loop & PIE Runtime
+/** @type {THREE.Clock} Global engine animation frame delta timer. */
 const clock = new THREE.Clock();
 
+/**
+ * @brief Core application animation loop driving rendering, camera orbit, and PIE simulation frames.
+ */
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
@@ -443,7 +498,9 @@ registerHandler('export_usd_response', (msg) => {
   }
 });
 
+/** @type {Object|null} Cached toolchain discovery report received from the backend. */
 let latestToolchainReport = null;
+/** @type {Object|null} Cached native C++ library status received from the backend. */
 let latestNativeStatus = null;
 
 registerHandler('toolchains_response', (msg) => {
@@ -474,6 +531,9 @@ registerHandler('native_status_response', (msg) => {
   }
 });
 
+/**
+ * @brief Renders the visual status diagnostic cards in the Toolchains & Runtimes modal.
+ */
 function renderToolchainsModal() {
   const body = document.getElementById('toolchain-modal-body');
   if (!body) return;
@@ -585,6 +645,9 @@ function renderToolchainsModal() {
   body.innerHTML = html;
 }
 
+/**
+ * @brief Displays the Toolchains & Graphics Runtimes diagnostic modal dialog.
+ */
 export function openToolchainsModal() {
   const modal = document.getElementById('toolchain-modal');
   if (modal) modal.style.display = 'flex';
@@ -593,6 +656,9 @@ export function openToolchainsModal() {
   queryNativeStatus();
 }
 
+/**
+ * @brief Closes the Toolchains & Graphics Runtimes diagnostic modal dialog.
+ */
 export function closeToolchainsModal() {
   const modal = document.getElementById('toolchain-modal');
   if (modal) modal.style.display = 'none';
@@ -711,5 +777,3 @@ window.welcomeNewProject = welcomeNewProject;
 window.welcomeOpenProject = welcomeOpenProject;
 window.welcomeQuickStart = welcomeQuickStart;
 window.toggleWelcomeStartup = toggleWelcomeStartup;
-
-

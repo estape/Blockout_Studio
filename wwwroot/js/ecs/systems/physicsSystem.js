@@ -1,16 +1,37 @@
+/**
+ * @file physicsSystem.js
+ * @brief ECS Physics System handling metric gravity, rigidbodies, drag, and AABB/Sphere collision detection.
+ */
+
 // ============================================================================
 // ECS PHYSICS SYSTEM (Centimeter Units: g = -980 cm/s², AABB / Sphere)
 // ============================================================================
 
 import { getComponent } from '../entity.js';
 
+/**
+ * @class PhysicsSystem
+ * @brief Simulates dynamic rigidbodies and resolves 3D box and sphere collisions.
+ */
 export class PhysicsSystem {
+  /**
+   * @brief Initializes a new instance of the PhysicsSystem class.
+   */
   constructor() {
-    this.gravity = -980.0; // cm/s^2 (Standard metric gravity)
-    this.terminalVelocity = -2500.0; // cm/s
+    /** @type {number} Metric gravitational acceleration in cm/s^2 (-980 cm/s^2). */
+    this.gravity = -980.0;
+    /** @type {number} Terminal falling velocity clamp in cm/s. */
+    this.terminalVelocity = -2500.0;
+    /** @type {Array<{a: THREE.Object3D, b: THREE.Object3D}>} List of active collision pairs detected this frame. */
     this.collisionEvents = [];
   }
 
+  /**
+   * @brief Simulates physics integration and resolves collision penetrations across dynamic entities.
+   * @param {Array<THREE.Object3D>} entities Array of active scene entities.
+   * @param {number} dt Delta time in seconds since the previous frame.
+   * @returns {Array<{a: THREE.Object3D, b: THREE.Object3D}>} List of collision events detected.
+   */
   update(entities, dt) {
     if (dt <= 0 || dt > 0.1) dt = 0.016; // Clamp large delta stalls
     this.collisionEvents.length = 0;
@@ -78,6 +99,12 @@ export class PhysicsSystem {
     return this.collisionEvents;
   }
 
+  /**
+   * @brief Performs collision intersection tests between two collider items.
+   * @param {{entity: THREE.Object3D, collider: Object}} itemA First entity collider wrapper.
+   * @param {{entity: THREE.Object3D, collider: Object}} itemB Second entity collider wrapper.
+   * @returns {{collided: boolean, normal?: {x: number, y: number, z: number}, depth?: number}} Hit test result with penetration normal and depth.
+   */
   checkCollision(itemA, itemB) {
     const colA = itemA.collider;
     const colB = itemB.collider;
@@ -138,4 +165,8 @@ export class PhysicsSystem {
   }
 }
 
+/**
+ * @type {PhysicsSystem}
+ * @brief Singleton instance of the PhysicsSystem.
+ */
 export const physicsSystem = new PhysicsSystem();

@@ -1,22 +1,33 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Photino.NET;
 using BlockoutStudio.Services.Assets;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for updating or querying the active engine scalability tier and quality presets.
+/// </summary>
 public class ScalabilityTierHandler : IIpcActionHandler
 {
+    /// <summary>Asset database service instance.</summary>
     private readonly IAssetDatabaseService _assetDb;
+
+    /// <summary>In-memory cached quality presets.</summary>
     private static QualitySettings _currentQuality = new();
+
+    /// <summary>JSON serialization configuration.</summary>
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
+    /// <inheritdoc/>
     public string Action => "set_scalability_tier";
 
+    /// <summary>Initializes handler with the asset database service.</summary>
     public ScalabilityTierHandler(IAssetDatabaseService assetDb)
     {
         _assetDb = assetDb;
     }
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         string action = root.TryGetProperty("action", out var act) ? act.GetString() ?? "set_scalability_tier" : "set_scalability_tier";
@@ -63,6 +74,7 @@ public class ScalabilityTierHandler : IIpcActionHandler
         return Task.CompletedTask;
     }
 
+    /// <summary>Sends current scalability tier preset definitions over the IPC channel.</summary>
     private static void SendTiersResponse(PhotinoWindow window)
     {
         var activePreset = _currentQuality.Tiers.FirstOrDefault(t => t.TierIndex == _currentQuality.ActiveTierIndex)
@@ -80,17 +92,24 @@ public class ScalabilityTierHandler : IIpcActionHandler
     }
 }
 
+/// <summary>
+/// IPC handler for retrieving the list of available scalability presets and active tier.
+/// </summary>
 public class GetScalabilityTiersHandler : IIpcActionHandler
 {
+    /// <summary>Underlying tier handler.</summary>
     private readonly ScalabilityTierHandler _setter;
 
+    /// <inheritdoc/>
     public string Action => "get_scalability_tiers";
 
+    /// <summary>Initializes handler with the setter handler instance.</summary>
     public GetScalabilityTiersHandler(ScalabilityTierHandler setter)
     {
         _setter = setter;
     }
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         return _setter.HandleAsync(payload, root, window);

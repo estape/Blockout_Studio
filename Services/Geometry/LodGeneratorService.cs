@@ -1,10 +1,14 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Numerics;
 
 namespace BlockoutStudio.Services.Geometry;
 
+/// <summary>
+/// Mesh decimation service generating Level of Detail (LOD) representations using spatial grid clustering.
+/// </summary>
 public class LodGeneratorService : ILodGeneratorService
 {
+    /// <inheritdoc/>
     public LodMeshSet GenerateLods(float[] positions, float[] normals, float[]? uvs, int[] indices)
     {
         var sw = Stopwatch.StartNew();
@@ -38,6 +42,7 @@ public class LodGeneratorService : ILodGeneratorService
         return result;
     }
 
+    /// <inheritdoc/>
     public LodLevelData SimplifyMesh(
         float[] positions,
         float[] normals,
@@ -148,6 +153,19 @@ public class LodGeneratorService : ILodGeneratorService
         return bestResult;
     }
 
+    /// <summary>
+    /// Partitions mesh vertices into a 3D uniform grid and replaces cell clusters with average centroids and normals.
+    /// </summary>
+    /// <param name="positions">Vertex position buffer.</param>
+    /// <param name="normals">Vertex normal buffer.</param>
+    /// <param name="uvs">Optional vertex UV buffer.</param>
+    /// <param name="indices">Triangle indices.</param>
+    /// <param name="min">Mesh AABB minimum boundary.</param>
+    /// <param name="extent">Mesh AABB extent dimension vector.</param>
+    /// <param name="divisions">Number of spatial cell subdivisions per axis.</param>
+    /// <param name="level">Current LOD level being simplified.</param>
+    /// <param name="targetRatio">Target triangle ratio.</param>
+    /// <returns>Cluster-simplified <see cref="LodLevelData"/>.</returns>
     private static LodLevelData ClusterGrid(
         float[] positions,
         float[] normals,
@@ -299,6 +317,14 @@ public class LodGeneratorService : ILodGeneratorService
         };
     }
 
+    /// <summary>
+    /// Compacts the vertex buffer by removing unused/unreferenced clustered vertices and rebinding triangle indices.
+    /// </summary>
+    /// <param name="positions">Flat position buffer.</param>
+    /// <param name="normals">Flat normal buffer.</param>
+    /// <param name="uvs">Optional flat UV buffer.</param>
+    /// <param name="indices">Triangle indices.</param>
+    /// <returns>Compacted position, normal, UV, and index arrays.</returns>
     private static (float[] Pos, float[] Norm, float[]? Uv, int[] Idx) CompactMesh(
         float[] positions,
         float[] normals,
@@ -344,6 +370,11 @@ public class LodGeneratorService : ILodGeneratorService
         );
     }
 
+    /// <summary>
+    /// Generates sequential 0-based indices for an unindexed vertex list.
+    /// </summary>
+    /// <param name="vertexCount">Total number of vertices.</param>
+    /// <returns>Integer array [0, 1, 2, ..., vertexCount - 1].</returns>
     private static int[] GenerateSequentialIndices(int vertexCount)
     {
         var indices = new int[vertexCount];

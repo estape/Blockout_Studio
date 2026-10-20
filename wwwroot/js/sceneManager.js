@@ -1,3 +1,8 @@
+/**
+ * @file sceneManager.js
+ * @brief Scene geometry generation, actor selection, property inspector synchronization, and outliner hierarchy.
+ */
+
 // ============================================================================
 // SCENE MANAGER (Blocks, Geometry Generation, Selection & Outliner)
 // ============================================================================
@@ -12,10 +17,32 @@ import {
 } from './ecs/entity.js';
 import { createComponentByType } from './ecs/components.js';
 
+/**
+ * @type {Array<THREE.Object3D>}
+ * @brief Array of all active user block meshes and actor groups in the current level.
+ */
 export const blocks = [];
+
+/**
+ * @type {THREE.Object3D|null}
+ * @brief Currently selected block mesh or actor group in the scene.
+ */
 export let selectedBlock = null;
+
+/**
+ * @type {number}
+ * @brief Auto-incrementing numerical identifier for generated block actor names.
+ */
 let blockCounter = 1;
 
+/**
+ * @brief Constructs a Three.js BufferGeometry with triplanar box UV mapping for a given shape type.
+ * @param {string} shapeType Shape identifier ('box', 'ramp', 'cylinder', or 'sphere').
+ * @param {number} sizeX Extent along the X-axis in centimeters.
+ * @param {number} sizeY Extent along the Y-axis (depth) in centimeters.
+ * @param {number} sizeZ Extent along the Z-axis (height) in centimeters.
+ * @returns {THREE.BufferGeometry} Generated non-indexed geometry with computed normals and UVs.
+ */
 export function buildBlockGeometry(shapeType, sizeX, sizeY, sizeZ) {
   let geo;
   if (shapeType === 'ramp') {
@@ -72,6 +99,19 @@ export function buildBlockGeometry(shapeType, sizeX, sizeY, sizeZ) {
   return nonIndexed;
 }
 
+/**
+ * @brief Creates and instantiates a new block actor into the scene with standard prototype grid material.
+ * @param {string} name Base name for the block actor.
+ * @param {string} shapeType Geometric shape type ('box', 'ramp', 'cylinder', or 'sphere').
+ * @param {number} sizeX Width in centimeters.
+ * @param {number} sizeY Length in centimeters.
+ * @param {number} sizeZ Height in centimeters.
+ * @param {number} [posX=0] Initial X position in centimeters.
+ * @param {number} [posY=0] Initial Y position in engine coordinates (Three.js Z).
+ * @param {number} [posZ=0] Initial Z position in engine coordinates (Three.js Y).
+ * @param {boolean} [shouldRecord=true] Whether to push an entry to the history manager undo stack.
+ * @returns {THREE.Mesh} The created block mesh.
+ */
 export function createBlock(name, shapeType, sizeX, sizeY, sizeZ, posX = 0, posY = 0, posZ = 0, shouldRecord = true) {
   const geo = buildBlockGeometry(shapeType, sizeX, sizeY, sizeZ);
   const mat = new THREE.MeshStandardMaterial({
@@ -112,6 +152,11 @@ export function createBlock(name, shapeType, sizeX, sizeY, sizeZ, posX = 0, posY
   return mesh;
 }
 
+/**
+ * @brief Restores a block actor from a serialized snapshot state object.
+ * @param {Object} data Serialized block state including transform, geometry bounds, and ECS components.
+ * @returns {THREE.Mesh} The restored block mesh.
+ */
 export function restoreBlockFromData(data) {
   const geo = buildBlockGeometry(data.shapeType, data.sizeX, data.sizeY, data.sizeZ);
   const mat = new THREE.MeshStandardMaterial({
@@ -172,6 +217,9 @@ export function restoreBlockFromData(data) {
   return mesh;
 }
 
+/**
+ * @brief Removes all block actors from the scene, disposes their geometries and materials, and clears selection.
+ */
 export function clearSceneBlocks() {
   transformControl.detach();
   while (blocks.length > 0) {
@@ -195,6 +243,10 @@ export function clearSceneBlocks() {
   selectedBlock = null;
 }
 
+/**
+ * @brief Reconstructs the BufferGeometry and wireframe edges of an existing standard block actor after resizing.
+ * @param {THREE.Mesh} mesh Target block mesh.
+ */
 export function rebuildBlockMesh(mesh) {
   if (mesh.userData.customMesh) return;
   const { shapeType, sizeX, sizeY, sizeZ } = mesh.userData;
@@ -206,6 +258,10 @@ export function rebuildBlockMesh(mesh) {
   }
 }
 
+/**
+ * @brief Selects a block actor in the scene, attaches the transform gizmo, and updates inspector panels.
+ * @param {THREE.Object3D|null} mesh Target object to select, or null to deselect all.
+ */
 export function selectBlock(mesh) {
   if (selectedBlock && selectedBlock !== mannequinGroup && selectedBlock.children[0] && selectedBlock.children[0].isLineSegments) {
     selectedBlock.children[0].material.color.setHex(0x181a20);
@@ -234,6 +290,9 @@ export function selectBlock(mesh) {
   refreshOutliner();
 }
 
+/**
+ * @brief Synchronizes property inspector input values and component stack from the currently selected block.
+ */
 export function syncInspectorFromSelected() {
   if (!selectedBlock) {
     const container = document.getElementById('component-stack');
@@ -275,6 +334,10 @@ export function syncInspectorFromSelected() {
   renderComponentStack(selectedBlock);
 }
 
+/**
+ * @brief Renders the visual list of attached ECS components in the details panel for an entity.
+ * @param {THREE.Object3D} entity Target scene entity.
+ */
 export function renderComponentStack(entity) {
   const container = document.getElementById('component-stack');
   if (!container) return;
@@ -424,6 +487,10 @@ export function renderComponentStack(entity) {
   container.innerHTML = html;
 }
 
+/**
+ * @brief Attaches a new ECS component instance of the specified type to the currently selected actor.
+ * @param {string} type Component type identifier ('Collider', 'Rigidbody', 'Script', etc.).
+ */
 export function addComponentToSelected(type) {
   if (!selectedBlock) return;
   const comp = createComponentByType(type);
@@ -434,6 +501,10 @@ export function addComponentToSelected(type) {
   }
 }
 
+/**
+ * @brief Removes an attached ECS component from the currently selected actor.
+ * @param {string} type Component type identifier to remove.
+ */
 export function removeComponentFromSelected(type) {
   if (!selectedBlock) return;
   if (removeComponent(selectedBlock, type)) {
@@ -442,6 +513,12 @@ export function removeComponentFromSelected(type) {
   }
 }
 
+/**
+ * @brief Modifies a specific property field on an attached component of the selected actor.
+ * @param {string} type Component type name.
+ * @param {string} field Property key name.
+ * @param {*} value New field value.
+ */
 export function updateComponentField(type, field, value) {
   if (!selectedBlock) return;
   const comp = getComponent(selectedBlock, type);
@@ -451,6 +528,11 @@ export function updateComponentField(type, field, value) {
   }
 }
 
+/**
+ * @brief Modifies a user script parameter property on the ScriptComponent of the selected actor.
+ * @param {string} propName Script property key name.
+ * @param {*} value New property value.
+ */
 export function updateScriptProp(propName, value) {
   if (!selectedBlock) return;
   const comp = getComponent(selectedBlock, 'Script');
@@ -461,6 +543,9 @@ export function updateScriptProp(propName, value) {
   }
 }
 
+/**
+ * @brief Applies dimension and name updates entered into the inspector inputs to the selected block.
+ */
 export function applyInspectorChanges() {
   if (!selectedBlock) return;
   const el = (id) => document.getElementById(id);
@@ -473,6 +558,9 @@ export function applyInspectorChanges() {
   recordState('Modify ' + selectedBlock.userData.name);
 }
 
+/**
+ * @brief Applies position and rotation coordinate updates from the inspector to the selected block.
+ */
 export function applyPositionChanges() {
   if (!selectedBlock) return;
   const el = (id) => document.getElementById(id);
@@ -486,6 +574,9 @@ export function applyPositionChanges() {
   }
 }
 
+/**
+ * @brief Clones the currently selected block, offsetting its position by the current snap size.
+ */
 export function duplicateSelected() {
   if (!selectedBlock || selectedBlock === mannequinGroup) return;
   const u = selectedBlock.userData;
@@ -503,6 +594,9 @@ export function duplicateSelected() {
   recordState('Duplicate ' + u.name);
 }
 
+/**
+ * @brief Deletes the currently selected block actor or hides the reference dummy from the scene.
+ */
 export function deleteSelected() {
   if (!selectedBlock) return;
   if (selectedBlock === mannequinGroup) {
@@ -521,6 +615,9 @@ export function deleteSelected() {
   recordState('Delete ' + name);
 }
 
+/**
+ * @brief Rebuilds the visual scene hierarchy outliner list and item count badge.
+ */
 export function refreshOutliner() {
   const container = document.getElementById('outliner');
   if (!container) return;
@@ -553,6 +650,10 @@ window.resetDummyTransform = () => {
   syncInspectorFromSelected();
 };
 
+/**
+ * @brief Spawns a preconfigured level design geometry block preset (wall, floor, pillar, ramp, etc.).
+ * @param {string} type Preset name ('wall', 'floor', 'pillar', 'crate', 'platform', 'ramp', 'cylinder', or 'sphere').
+ */
 export function spawnPreset(type) {
   if (type === 'wall') createBlock('SM_Wall', 'box', 400, 20, 300, 0, 0, 0);
   if (type === 'floor') createBlock('SM_Floor', 'box', 400, 400, 20, 0, 0, 0);
@@ -563,4 +664,3 @@ export function spawnPreset(type) {
   if (type === 'cylinder') createBlock('SM_Cylinder', 'cylinder', 100, 100, 200, 0, 0, 0);
   if (type === 'sphere') createBlock('SM_Sphere', 'sphere', 100, 100, 100, 0, 0, 0);
 }
-

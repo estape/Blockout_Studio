@@ -1,23 +1,32 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Photino.NET;
 using BlockoutStudio.Services.Assets;
 using BlockoutStudio.Services.Geometry;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for loading or compiling binary packed mesh geometry (.mesh.bin / .beng) for viewport rendering.
+/// </summary>
 public class LoadMeshBinaryHandler : IIpcActionHandler
 {
+    /// <summary>Geometry pipeline service.</summary>
     private readonly IObjUsdPipelineService _pipeline;
+
+    /// <summary>Asset database service.</summary>
     private readonly IAssetDatabaseService _assetDb;
 
+    /// <summary>Initializes handler with geometry pipeline and asset database services.</summary>
     public LoadMeshBinaryHandler(IObjUsdPipelineService pipeline, IAssetDatabaseService assetDb)
     {
         _pipeline = pipeline;
         _assetDb = assetDb;
     }
 
+    /// <inheritdoc/>
     public string Action => "load_mesh_binary";
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         var target = payload.TryGetProperty("guid", out var gp) ? gp.GetString() : null;

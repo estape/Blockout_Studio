@@ -7,14 +7,29 @@ using BlockoutStudio.Services.Graphics;
 
 namespace BlockoutStudio.Services.BuildPipeline;
 
+/// <summary>
+/// Service orchestrating multi-platform game packaging, shader/mesh asset cooking, and device deployment.
+/// </summary>
 public class PlatformBuilderService : IPlatformBuilderService
 {
+    /// <summary>JSON serialization configuration.</summary>
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
+    /// <summary>Hardware SDK and toolchain detector service.</summary>
     private readonly ISdkDetectorService _sdkDetector;
+
+    /// <summary>Vulkan shader compilation and compute service.</summary>
     private readonly IVulkanComputeService _vulkanCompute;
+
+    /// <summary>Geometry asset caching and processing service.</summary>
     private readonly IObjUsdPipelineService _geometryPipeline;
 
+    /// <summary>
+    /// Initializes a new platform builder service with injected dependencies.
+    /// </summary>
+    /// <param name="sdkDetector">SDK detector service instance.</param>
+    /// <param name="vulkanCompute">Vulkan compute service instance.</param>
+    /// <param name="geometryPipeline">Geometry pipeline service instance.</param>
     public PlatformBuilderService(
         ISdkDetectorService sdkDetector,
         IVulkanComputeService vulkanCompute,
@@ -25,6 +40,7 @@ public class PlatformBuilderService : IPlatformBuilderService
         _geometryPipeline = geometryPipeline;
     }
 
+    /// <inheritdoc/>
     public async Task<BuildResult> BuildProjectAsync(
         string projectRoot,
         BuildRequest request,
@@ -123,6 +139,9 @@ public class PlatformBuilderService : IPlatformBuilderService
         return new BuildResult(true, request.TargetPlatform, outBase, targetArtifact, totalSw.ElapsedMilliseconds, steps, logs, finalMsg);
     }
 
+    /// <summary>
+    /// Cooks raw assets into runtime formats (transpiling shaders to SPIR-V, caching geometry as binary .BENG).
+    /// </summary>
     private async Task CookAssetsAsync(string projectRoot, BuildRequest request, Action<string> log)
     {
         // 1. Shaders cooking
@@ -210,6 +229,9 @@ public class PlatformBuilderService : IPlatformBuilderService
         log("[COOK] Emitted cooked AssetRegistry.cooked.json.");
     }
 
+    /// <summary>
+    /// Bundles Windows binaries, web assets, and content into the staging output directory.
+    /// </summary>
     private async Task<string> StageWindowsBuildAsync(string projectRoot, string outDir, BuildRequest request, Action<string> log)
     {
         var binDir = Path.Combine(outDir, "Binaries", "Win64");
@@ -291,6 +313,9 @@ public class PlatformBuilderService : IPlatformBuilderService
         return exePath;
     }
 
+    /// <summary>
+    /// Bundles Linux shared libraries, web assets, content, and launch scripts into the output staging folder.
+    /// </summary>
     private async Task<string> StageLinuxBuildAsync(string projectRoot, string outDir, BuildRequest request, Action<string> log)
     {
         var binDir = Path.Combine(outDir, "Binaries", "Linux64");
@@ -327,6 +352,9 @@ public class PlatformBuilderService : IPlatformBuilderService
         return shPath;
     }
 
+    /// <summary>
+    /// Bundles Android APK staging files, manifest templates, and web assets into the output directory.
+    /// </summary>
     private async Task<string> StageAndroidBuildAsync(string projectRoot, string outDir, BuildRequest request, Action<string> log)
     {
         var apkOut = Path.Combine(outDir, "BlockoutGame.apk");
@@ -377,6 +405,7 @@ public class PlatformBuilderService : IPlatformBuilderService
         return apkOut;
     }
 
+    /// <inheritdoc/>
     public async Task<bool> DeployToDeviceAsync(
         string projectRoot,
         string? deviceId = null,
@@ -445,6 +474,9 @@ public class PlatformBuilderService : IPlatformBuilderService
         return false;
     }
 
+    /// <summary>
+    /// Recursively copies directory tree excluding transient build and version-control artifacts.
+    /// </summary>
     private static void CopyDirectory(string sourceDir, string targetDir, Action<string> log)
     {
         if (!Directory.Exists(sourceDir)) return;

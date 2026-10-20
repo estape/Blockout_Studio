@@ -1,20 +1,27 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Photino.NET;
 using BlockoutStudio.Services.Geometry;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for generating multi-level LOD cascades (LOD0, LOD1, LOD2) for mesh assets.
+/// </summary>
 public class GenerateLodsHandler : IIpcActionHandler
 {
+    /// <summary>LOD decimation generator service.</summary>
     private readonly ILodGeneratorService _lodGenerator;
 
+    /// <inheritdoc/>
     public string Action => "generate_lods";
 
+    /// <summary>Initializes handler with the LOD generator service.</summary>
     public GenerateLodsHandler(ILodGeneratorService lodGenerator)
     {
         _lodGenerator = lodGenerator;
     }
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         try

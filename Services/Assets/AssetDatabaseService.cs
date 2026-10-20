@@ -1,24 +1,43 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using Photino.NET;
 
 namespace BlockoutStudio.Services.Assets;
 
+/// <summary>
+/// Service maintaining the asset database registry, dependency graphs, and live filesystem watcher.
+/// </summary>
 public class AssetDatabaseService : IAssetDatabaseService, IDisposable
 {
+    /// <summary>In-memory cache mapping asset GUIDs to registry items.</summary>
     private readonly ConcurrentDictionary<string, AssetRegistryItem> _itemsByGuid = new();
+
+    /// <summary>In-memory cache mapping virtual paths (/Game/...) to registry items.</summary>
     private readonly ConcurrentDictionary<string, AssetRegistryItem> _itemsByVirtualPath = new();
 
+    /// <summary>Active filesystem watcher monitoring the project's Assets/ folder.</summary>
     private FileSystemWatcher? _watcher;
+
+    /// <summary>Debounce timer for aggregating rapid burst filesystem notifications.</summary>
     private System.Threading.Timer? _debounceTimer;
+
+    /// <summary>Synchronization lock for thread safety.</summary>
     private readonly object _lock = new();
+
+    /// <summary>Reference to the native host window for pushing IPC notifications.</summary>
     private PhotinoWindow? _window;
+
+    /// <summary>JSON serialization configuration.</summary>
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
+    /// <inheritdoc/>
     public string? CurrentProjectRoot { get; private set; }
+
+    /// <inheritdoc/>
     public ProjectManifest? CurrentManifest { get; private set; }
 
+    /// <inheritdoc/>
     public void Initialize(string projectRoot, PhotinoWindow? window = null)
     {
         lock (_lock)
@@ -48,6 +67,9 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         }
     }
 
+    /// <summary>
+    /// Configures the filesystem watcher on the Assets folder to track additions, modifications, and renames.
+    /// </summary>
     private void SetupWatcher(string projectRoot)
     {
         _watcher?.Dispose();
@@ -73,18 +95,27 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         _watcher.EnableRaisingEvents = true;
     }
 
+    /// <summary>
+    /// Callback responding to filesystem created/changed/deleted events.
+    /// </summary>
     private void OnFileSystemEvent(object sender, FileSystemEventArgs e)
     {
         if (ShouldIgnoreFile(e.FullPath)) return;
         TriggerDebouncedScan();
     }
 
+    /// <summary>
+    /// Callback responding to filesystem rename events.
+    /// </summary>
     private void OnFileSystemRenamed(object sender, RenamedEventArgs e)
     {
         if (ShouldIgnoreFile(e.FullPath) && ShouldIgnoreFile(e.OldFullPath)) return;
         TriggerDebouncedScan();
     }
 
+    /// <summary>
+    /// Filters out transient files, version control metadata, and intermediate compilation folders.
+    /// </summary>
     private static bool ShouldIgnoreFile(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return true;
@@ -97,6 +128,9 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         return false;
     }
 
+    /// <summary>
+    /// Schedules a debounced asset re-indexing pass 150ms after the last filesystem change.
+    /// </summary>
     private void TriggerDebouncedScan()
     {
         lock (_lock)
@@ -110,6 +144,9 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         }
     }
 
+    /// <summary>
+    /// Pushes an asset_database_updated message over IPC to the Photino webview frontend.
+    /// </summary>
     private void NotifyFrontendOfUpdate()
     {
         if (_window == null) return;
@@ -128,6 +165,7 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         }
     }
 
+    /// <inheritdoc/>
     public void ScanAllAssets()
     {
         if (string.IsNullOrWhiteSpace(CurrentProjectRoot)) return;
@@ -205,6 +243,9 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         }
     }
 
+    /// <summary>
+    /// Analyzes text contents of scenes and materials to construct bidirectional dependency/referencer links.
+    /// </summary>
     private void ResolveDependencies(List<AssetRegistryItem> items)
     {
         if (CurrentProjectRoot == null) return;
@@ -271,6 +312,7 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         }
     }
 
+    /// <inheritdoc/>
     public AssetRegistryData GetRegistryData()
     {
         lock (_lock)
@@ -285,18 +327,21 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         }
     }
 
+    /// <inheritdoc/>
     public AssetRegistryItem? FindByGuid(string guid)
     {
         _itemsByGuid.TryGetValue(guid, out var item);
         return item;
     }
 
+    /// <inheritdoc/>
     public AssetRegistryItem? FindByVirtualPath(string virtualPath)
     {
         _itemsByVirtualPath.TryGetValue(virtualPath, out var item);
         return item;
     }
 
+    /// <inheritdoc/>
     public AssetRegistryItem? ImportAsset(string sourceFilePath, string targetVirtualFolder = "/Game/Meshes")
     {
         if (CurrentProjectRoot == null || !File.Exists(sourceFilePath)) return null;
@@ -317,6 +362,7 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         return FindByGuid(meta.Guid);
     }
 
+    /// <inheritdoc/>
     public bool ReimportAsset(string guid)
     {
         var item = FindByGuid(guid);
@@ -337,6 +383,7 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         return true;
     }
 
+    /// <inheritdoc/>
     public bool DeleteAsset(string guid)
     {
         var item = FindByGuid(guid);
@@ -359,6 +406,7 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         }
     }
 
+    /// <inheritdoc/>
     public bool ShowInExplorer(string guid)
     {
         var item = FindByGuid(guid);
@@ -383,6 +431,7 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         }
     }
 
+    /// <inheritdoc/>
     public (string? Content, bool IsBinary) GetAssetContent(string guid)
     {
         var item = FindByGuid(guid);
@@ -409,6 +458,9 @@ public class AssetDatabaseService : IAssetDatabaseService, IDisposable
         }
     }
 
+    /// <summary>
+    /// Releases unmanaged resources and stops filesystem watchers and timers.
+    /// </summary>
     public void Dispose()
     {
         _watcher?.Dispose();

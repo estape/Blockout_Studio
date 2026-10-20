@@ -3,11 +3,18 @@ using System.Text.Json;
 
 namespace BlockoutStudio.Services.Assets;
 
+/// <summary>
+/// Implementation of asset export workflows and frontend scene tree ingestion.
+/// </summary>
 public class AssetPipelineManager : IAssetPipelineManager
 {
+    /// <summary>Wavefront OBJ serialization pipeline.</summary>
     private readonly ObjPipeline _objPipeline = new();
+
+    /// <summary>OpenUSD stage serialization pipeline.</summary>
     private readonly UsdPipeline _usdPipeline = new();
 
+    /// <inheritdoc/>
     public string? ExportObjDialog(ModelData model, string defaultName = "Blockout_Level.obj")
     {
         var text = _objPipeline.ExportToString(model);
@@ -20,6 +27,7 @@ public class AssetPipelineManager : IAssetPipelineManager
         );
     }
 
+    /// <inheritdoc/>
     public string? ExportUsdDialog(ModelData model, string defaultName = "Blockout_Stage.usda")
     {
         var text = _usdPipeline.ExportToString(model);
@@ -32,6 +40,7 @@ public class AssetPipelineManager : IAssetPipelineManager
         );
     }
 
+    /// <inheritdoc/>
     public ModelData ParseFromFrontendScene(JsonElement sceneElement)
     {
         var model = new ModelData { SceneName = "Blockout_Stage" };

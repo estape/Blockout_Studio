@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Photino.NET;
 using BlockoutStudio.Services;
 using BlockoutStudio.Services.Assets;
@@ -10,8 +10,16 @@ using BlockoutStudio.Services.Ipc;
 
 namespace BlockoutStudio;
 
+/// <summary>
+/// Application entry point configuring ANGLE Vulkan runtime, DI container, and Photino native desktop window.
+/// </summary>
 internal class Program
 {
+    /// <summary>
+    /// Main executable entry point.
+    /// </summary>
+    /// <param name="args">Command-line arguments. Accepts '--test' to run automated unit verification tests.</param>
+    /// <returns>Process exit code (0 for success).</returns>
     [STAThread]
     static int Main(string[] args)
     {

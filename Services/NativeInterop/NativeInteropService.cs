@@ -1,18 +1,46 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace BlockoutStudio.Services.NativeInterop;
 
+/// <summary>
+/// Implements native dynamic library loading, CPU SIMD detection, and hybrid native-to-managed fallbacks.
+/// </summary>
 public class NativeInteropService : INativeInteropService
 {
+    /// <summary>
+    /// Indicates whether the unmanaged EngineNative library is loaded and callable.
+    /// </summary>
     private readonly bool _nativeLoaded;
+
+    /// <summary>
+    /// Cached version number returned from the native binary.
+    /// </summary>
     private readonly int _version;
+
+    /// <summary>
+    /// Bitmask flags encoding supported CPU vector extensions (SSE4.1, AVX2, AVX-512, NEON).
+    /// </summary>
     private readonly int _simdCaps;
 
+    /// <summary>
+    /// Gets a value indicating whether native C++20 acceleration is active.
+    /// </summary>
     public bool IsNativeLoaded => _nativeLoaded;
+
+    /// <summary>
+    /// Gets the native dynamic library version.
+    /// </summary>
     public int NativeVersion => _version;
+
+    /// <summary>
+    /// Gets the raw bitflags representing host CPU vector extensions.
+    /// </summary>
     public int SimdCapabilities => _simdCaps;
 
+    /// <summary>
+    /// Gets a diagnostic description of active CPU SIMD acceleration features.
+    /// </summary>
     public string SimdDescription
     {
         get
@@ -27,6 +55,9 @@ public class NativeInteropService : INativeInteropService
         }
     }
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="NativeInteropService"/>, attempting to load EngineNative dynamically.
+    /// </summary>
     public NativeInteropService()
     {
         try
@@ -52,6 +83,11 @@ public class NativeInteropService : INativeInteropService
         }
     }
 
+    /// <summary>
+    /// Multiplies vertex positions by a 4x4 matrix using native vector intrinsics or managed CPU loops.
+    /// </summary>
+    /// <param name="vertices">Flat array of 3D coordinates [x, y, z, ...].</param>
+    /// <param name="matrix4x4">16-element float span with row-major transform matrix.</param>
     public unsafe void TransformPositions(float[] vertices, ReadOnlySpan<float> matrix4x4)
     {
         if (vertices.Length == 0 || matrix4x4.Length < 16) return;
@@ -85,6 +121,12 @@ public class NativeInteropService : INativeInteropService
         }
     }
 
+    /// <summary>
+    /// Generates smooth, area-weighted normal vectors for meshes, routing to native C++ or managed fallback.
+    /// </summary>
+    /// <param name="positions">Array of mesh vertex positions.</param>
+    /// <param name="indices">Optional triangle face index array.</param>
+    /// <returns>Calculated normal vectors matching position count.</returns>
     public unsafe float[] ComputeNormals(float[] positions, int[]? indices)
     {
         int vCount = positions.Length / 3;
@@ -121,6 +163,15 @@ public class NativeInteropService : INativeInteropService
         return outNormals;
     }
 
+    /// <summary>
+    /// Calculates ray-triangle intersection using the high-performance Möller-Trumbore method.
+    /// </summary>
+    /// <param name="origin">Origin point of the casting ray.</param>
+    /// <param name="dir">Direction vector of the ray.</param>
+    /// <param name="v0">First vertex of target triangle.</param>
+    /// <param name="v1">Second vertex of target triangle.</param>
+    /// <param name="v2">Third vertex of target triangle.</param>
+    /// <returns>Parametric distance t along ray if hit, or -1.0f on miss.</returns>
     public float RayTriangleIntersect(Vector3 origin, Vector3 dir, Vector3 v0, Vector3 v1, Vector3 v2)
     {
         if (_nativeLoaded)

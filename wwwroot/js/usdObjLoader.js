@@ -1,3 +1,8 @@
+/**
+ * @file usdObjLoader.js
+ * @brief Binary IPC mesh loader streaming OBJ/USD meshes directly into Three.js BufferGeometry.
+ */
+
 // ============================================================================
 // NATIVE .OBJ & .USD GEOMETRY STREAMING LOADER (WebGL 2.0 Binary IPC)
 // ============================================================================
@@ -8,8 +13,15 @@ import { transformControl } from './transformGizmo.js';
 import { sendToBackend, registerHandler, showToast } from './ipcBridge.js';
 import { recordState } from './historyManager.js';
 
+/**
+ * @type {Map<string, {targetPosition: THREE.Vector3|null, onLoaded: Function|null}>}
+ * @brief Pending mesh spawn requests keyed by asset GUID or virtual path.
+ */
 let pendingSpawnRequests = new Map();
 
+/**
+ * @brief Registers IPC response handlers for binary mesh payloads, OBJ exports, and USD stage saves.
+ */
 export function initUsdObjLoader() {
   registerHandler('mesh_binary_response', (msg) => {
     if (msg.success && msg.binaryBase64) {
@@ -40,6 +52,12 @@ export function initUsdObjLoader() {
 // BINARY IPC MESH PARSER & THREE.JS INSTANTIATION
 // ============================================================================
 
+/**
+ * @brief Dispatches an IPC request to fetch binary mesh data for a specified asset GUID or virtual path.
+ * @param {string} guidOrVirtualPath Asset GUID or /Game/ virtual path identifier.
+ * @param {THREE.Vector3|null} [targetPosition=null] World coordinates where the mesh should be instantiated.
+ * @param {Function|null} [onLoaded=null] Optional callback invoked once the mesh has been spawned.
+ */
 export function requestMeshBinary(guidOrVirtualPath, targetPosition = null, onLoaded = null) {
   const reqId = guidOrVirtualPath + '_' + Date.now();
   pendingSpawnRequests.set(guidOrVirtualPath, { targetPosition, onLoaded });
@@ -50,6 +68,10 @@ export function requestMeshBinary(guidOrVirtualPath, targetPosition = null, onLo
   });
 }
 
+/**
+ * @brief Decodes and parses base64 binary mesh buffer ("BENG" format) into a Three.js Mesh.
+ * @param {Object} msg IPC message containing binaryBase64, guid, and metadata.
+ */
 function handleMeshBinaryResponse(msg) {
   const req = pendingSpawnRequests.get(msg.guid) || {};
   pendingSpawnRequests.delete(msg.guid);
@@ -174,6 +196,9 @@ function handleMeshBinaryResponse(msg) {
 // EXPORT SCENE / BLOCKOUT TO NATIVE .OBJ & .USD ASSETS
 // ============================================================================
 
+/**
+ * @brief Prompts for an asset name and exports the selected scene mesh as an OBJ asset into /Game/Meshes/.
+ */
 export function saveSelectedAsObj() {
   if (!selectedBlock) {
     alert('Select an object in the scene to save as native .OBJ asset!');
@@ -212,6 +237,9 @@ export function saveSelectedAsObj() {
   showToast(`Saving ${assetName}.obj to Assets/Meshes/...`);
 }
 
+/**
+ * @brief Serializes all scene block objects and exports a non-destructive Universal Scene Description stage (.usda).
+ */
 export function saveLevelAsUsdStage() {
   if (blocks.length === 0) {
     alert('No objects in scene to save as USD stage!');

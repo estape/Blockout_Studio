@@ -3,11 +3,18 @@ using System.Text;
 
 namespace BlockoutStudio.Services.Assets;
 
+/// <summary>
+/// Pipeline for importing and exporting Universal Scene Description ASCII (.usda) files with Z-Up Centimeters metric scale.
+/// </summary>
 public class UsdPipeline : IAssetPipeline
 {
+    /// <inheritdoc/>
     public string FormatExtension => ".usda";
+
+    /// <inheritdoc/>
     public string FormatDescription => "Universal Scene Description ASCII (.usda)";
 
+    /// <inheritdoc/>
     public string ExportToString(ModelData model)
     {
         var sb = new StringBuilder();
@@ -128,6 +135,7 @@ public class UsdPipeline : IAssetPipeline
         return sb.ToString();
     }
 
+    /// <inheritdoc/>
     public ModelData ImportFromString(string content)
     {
         // Basic USDA structural parser for point3f and faceVertexIndices
@@ -200,6 +208,9 @@ public class UsdPipeline : IAssetPipeline
         return model;
     }
 
+    /// <summary>
+    /// Parses a comma-delimited sequence of integer indices from USDA token strings.
+    /// </summary>
     private static void ExtractIndices(string str, List<int> list)
     {
         var tokens = str.Split(',', StringSplitOptions.RemoveEmptyEntries);
@@ -209,6 +220,9 @@ public class UsdPipeline : IAssetPipeline
         }
     }
 
+    /// <summary>
+    /// Normalizes names into valid OpenUSD identifier tokens.
+    /// </summary>
     private static string Sanitize(string name)
     {
         var cleaned = new StringBuilder();

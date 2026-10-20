@@ -1,7 +1,17 @@
+/**
+ * @file ipcBridge.js
+ * @brief Photino.NET C# backend IPC communication bridge and UI toast notification system.
+ */
+
 // ============================================================================
 // PHOTINO.NET C# BACKEND IPC BRIDGE & TOAST SYSTEM
 // ============================================================================
 
+/**
+ * @brief Sends a serialized JSON action payload to the Photino.NET C# backend host.
+ * @param {string} action The action verb identifying the backend handler.
+ * @param {Object} [payload={}] Additional payload parameters to send.
+ */
 export function sendToBackend(action, payload = {}) {
   const json = JSON.stringify({ action, ...payload });
   if (window.external && window.external.sendMessage) {
@@ -11,12 +21,22 @@ export function sendToBackend(action, payload = {}) {
   }
 }
 
+/**
+ * @type {Function}
+ * @brief Alias for sendToBackend.
+ */
 export const sendIpcMessage = sendToBackend;
+
 if (typeof window !== 'undefined') {
   window.sendToBackend = sendToBackend;
   window.sendIpcMessage = sendToBackend;
 }
 
+/**
+ * @brief Displays a floating toast notification in the application interface.
+ * @param {string} message The text content to display in the toast banner.
+ * @param {boolean} [isError=false] Indicates whether the toast indicates an error state.
+ */
 export function showToast(message, isError = false) {
   const toast = document.getElementById('toast-msg');
   if (!toast) return;
@@ -26,8 +46,17 @@ export function showToast(message, isError = false) {
   setTimeout(() => { toast.style.display = 'none'; }, 3500);
 }
 
+/**
+ * @type {Map<string, Function>}
+ * @brief Map of registered IPC message type handlers.
+ */
 const messageHandlers = new Map();
 
+/**
+ * @brief Registers an asynchronous response handler for messages matching a specific type.
+ * @param {string} type The message type identifier returned by the backend.
+ * @param {Function} handler Callback receiving the parsed message payload.
+ */
 export function registerHandler(type, handler) {
   messageHandlers.set(type, handler);
 }
@@ -49,4 +78,3 @@ if (typeof window !== 'undefined' && window.external && window.external.receiveM
     }
   });
 }
-

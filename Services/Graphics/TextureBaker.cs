@@ -2,6 +2,9 @@ using System.Text;
 
 namespace BlockoutStudio.Services.Graphics;
 
+/// <summary>
+/// Utility service providing procedural texture generation and vectorized SVG metric grid rendering.
+/// </summary>
 public static class TextureBaker
 {
     /// <summary>
@@ -9,8 +12,9 @@ public static class TextureBaker
     /// Features:
     /// - 100 cm major grid line (orange accent)
     /// - 50 cm sub-grid subdivisions (subtle grey)
-    /// - Diagonal prototype hatching for CAD / SketchUp feel
+    /// - Center crosshairs and alternating quadrant fills
     /// </summary>
+    /// <returns>A Base64-encoded SVG data URI suitable for Three.js material map bindings.</returns>
     public static string GetGridDataUrl()
     {
         var sb = new StringBuilder();
@@ -34,4 +38,3 @@ public static class TextureBaker
         return $"data:image/svg+xml;base64,{base64}";
     }
 }
-

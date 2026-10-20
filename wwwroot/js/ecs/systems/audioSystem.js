@@ -1,14 +1,33 @@
+/**
+ * @file audioSystem.js
+ * @brief ECS Audio System providing 3D spatial WebAudio API integration and procedural sound synthesis.
+ */
+
 // ============================================================================
 // ECS AUDIO SYSTEM (3D Spatial WebAudio API & Procedural Sound Bank)
 // ============================================================================
 
+/**
+ * @class AudioSystem
+ * @brief Manages WebAudio context, listener spatial coordinates, and procedural audio synthesis.
+ */
 export class AudioSystem {
+  /**
+   * @brief Initializes a new instance of the AudioSystem class.
+   */
   constructor() {
+    /** @type {AudioContext|null} The underlying WebAudio context. */
     this.ctx = null;
+    /** @type {GainNode|null} Master gain node for overall volume control. */
     this.masterGain = null;
+    /** @type {boolean} Indicates whether all engine audio is currently muted. */
     this.isMuted = false;
   }
 
+  /**
+   * @brief Ensures that the WebAudio context is created and resumed.
+   * @returns {AudioContext|null} The active WebAudio context, or null if unsupported.
+   */
   ensureContext() {
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -25,6 +44,10 @@ export class AudioSystem {
     return this.ctx;
   }
 
+  /**
+   * @brief Updates the 3D listener position and orientation to match the active camera.
+   * @param {THREE.Camera} camera The Three.js camera representing the listener's viewpoint.
+   */
   updateListener(camera) {
     if (!this.ctx || !camera) return;
     const l = this.ctx.listener;
@@ -50,6 +73,12 @@ export class AudioSystem {
     }
   }
 
+  /**
+   * @brief Plays a procedural sound clip with optional 3D HRTF spatialization.
+   * @param {string} [clipName='chime'] Name of the sound preset ('jump', 'footstep', 'impact', or 'chime').
+   * @param {THREE.Vector3|null} [position=null] World position of the sound emitter in centimeters.
+   * @param {number} [volume=0.7] Linear gain multiplier for playback volume.
+   */
   playSound(clipName = 'chime', position = null, volume = 0.7) {
     const ctx = this.ensureContext();
     if (!ctx) return;
@@ -136,4 +165,8 @@ export class AudioSystem {
   }
 }
 
+/**
+ * @type {AudioSystem}
+ * @brief Singleton instance of the AudioSystem.
+ */
 export const audioSystem = new AudioSystem();

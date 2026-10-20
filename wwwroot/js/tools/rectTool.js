@@ -1,22 +1,41 @@
-// ============================================================================
-// RECT TOOL (Surface Drawing with 3D Face Reference & Instant Gizmo Positioning)
-// ============================================================================
+/**
+ * @file rectTool.js
+ * @brief Rectangle creation tool supporting surface drawing, face reference snapping, and push-pull extrusion.
+ */
 
 import { scene, groundPlane, raycaster, orbit } from '../engine.js';
 import { createBlock, rebuildBlockMesh, selectBlock, blocks, refreshOutliner } from '../sceneManager.js';
 import { transformControl, snapSize } from '../transformGizmo.js';
 import { recordState } from '../historyManager.js';
 
-let drawStage = 0; // 0: idle, 1: drawing footprint, 2: extruding
+/** @type {number} Current drawing state (0: idle, 1: drawing footprint, 2: extruding). */
+let drawStage = 0;
+
+/** @type {THREE.Vector3} Starting anchor coordinate on the target surface or grid. */
 let drawStartPt = new THREE.Vector3();
+
+/** @type {THREE.Mesh|null} Active block mesh currently being drawn or extruded. */
 let activeDraftMesh = null;
+
+/** @type {number} Starting pointer screen Y position during vertical extrusion. */
 let pushPullStartMouseY = 0;
+
+/** @type {number} Starting height dimension prior to extrusion drag. */
 let pushPullStartHeight = 0;
 
+/**
+ * Snaps a scalar distance value to the active grid step.
+ * @param {number} val - Raw floating point value.
+ * @returns {number} Snapped coordinate value.
+ */
 function snapVal(val) {
   return Math.round(val / snapSize) * snapSize;
 }
 
+/**
+ * Handles pointer down events for starting a rectangle footprint or locking extrusion.
+ * @param {PointerEvent|MouseEvent} e - Pointer event.
+ */
 export function handleRectPointerDown(e) {
   // If user clicked directly on the TransformControls gizmo, let the gizmo handle it!
   if (transformControl.axis !== null) return;
@@ -81,6 +100,10 @@ export function handleRectPointerDown(e) {
   }
 }
 
+/**
+ * Handles pointer move events for updating the 2D base footprint or extruding 3D height.
+ * @param {PointerEvent|MouseEvent} e - Pointer event.
+ */
 export function handleRectPointerMove(e) {
   if (!activeDraftMesh) return;
 
@@ -118,6 +141,10 @@ export function handleRectPointerMove(e) {
   }
 }
 
+/**
+ * Handles pointer up events to transition from footprint drawing to vertical height extrusion.
+ * @param {PointerEvent|MouseEvent} e - Pointer event.
+ */
 export function handleRectPointerUp(e) {
   if (drawStage === 1 && activeDraftMesh) {
     drawStage = 2;
@@ -126,6 +153,9 @@ export function handleRectPointerUp(e) {
   }
 }
 
+/**
+ * Resets the rectangle tool to idle state and removes incomplete draft meshes.
+ */
 export function resetRectTool() {
   if (activeDraftMesh && drawStage !== 0) {
     scene.remove(activeDraftMesh);

@@ -1,21 +1,28 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Photino.NET;
 using BlockoutStudio.Services.Assets;
 using BlockoutStudio.Services.BuildPipeline;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for querying overall SDK and toolchain environment status.
+/// </summary>
 public class GetSdkStatusHandler : IIpcActionHandler
 {
+    /// <summary>SDK detector service.</summary>
     private readonly ISdkDetectorService _sdkDetector;
 
+    /// <summary>Initializes handler with the SDK detector service.</summary>
     public GetSdkStatusHandler(ISdkDetectorService sdkDetector)
     {
         _sdkDetector = sdkDetector;
     }
 
+    /// <inheritdoc/>
     public string Action => "get_sdk_status";
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         string? projectRoot = null;
@@ -34,17 +41,24 @@ public class GetSdkStatusHandler : IIpcActionHandler
     }
 }
 
+/// <summary>
+/// IPC handler for configuring custom toolchain and SDK directory paths.
+/// </summary>
 public class SetSdkPathsHandler : IIpcActionHandler
 {
+    /// <summary>SDK detector service.</summary>
     private readonly ISdkDetectorService _sdkDetector;
 
+    /// <summary>Initializes handler with the SDK detector service.</summary>
     public SetSdkPathsHandler(ISdkDetectorService sdkDetector)
     {
         _sdkDetector = sdkDetector;
     }
 
+    /// <inheritdoc/>
     public string Action => "set_sdk_paths";
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         string? projectRoot = null;
@@ -78,17 +92,24 @@ public class SetSdkPathsHandler : IIpcActionHandler
     }
 }
 
+/// <summary>
+/// IPC handler for triggering compilation of C++ native plugins with live log streaming.
+/// </summary>
 public class CompileNativeModuleHandler : IIpcActionHandler
 {
+    /// <summary>Native compiler service.</summary>
     private readonly INativeCompilerService _compiler;
 
+    /// <summary>Initializes handler with the native compiler service.</summary>
     public CompileNativeModuleHandler(INativeCompilerService compiler)
     {
         _compiler = compiler;
     }
 
+    /// <inheritdoc/>
     public string Action => "compile_native_module";
 
+    /// <inheritdoc/>
     public async Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         string projectRoot = "";
@@ -125,17 +146,24 @@ public class CompileNativeModuleHandler : IIpcActionHandler
     }
 }
 
+/// <summary>
+/// IPC handler for packaging projects into platform builds with asset cooking and live logs.
+/// </summary>
 public class BuildProjectHandler : IIpcActionHandler
 {
+    /// <summary>Platform builder service.</summary>
     private readonly IPlatformBuilderService _builder;
 
+    /// <summary>Initializes handler with the platform builder service.</summary>
     public BuildProjectHandler(IPlatformBuilderService builder)
     {
         _builder = builder;
     }
 
+    /// <inheritdoc/>
     public string Action => "build_project";
 
+    /// <inheritdoc/>
     public async Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         string projectRoot = "";
@@ -172,17 +200,24 @@ public class BuildProjectHandler : IIpcActionHandler
     }
 }
 
+/// <summary>
+/// IPC handler for listing connected Android devices via ADB.
+/// </summary>
 public class GetAdbDevicesHandler : IIpcActionHandler
 {
+    /// <summary>SDK detector service.</summary>
     private readonly ISdkDetectorService _sdkDetector;
 
+    /// <summary>Initializes handler with the SDK detector service.</summary>
     public GetAdbDevicesHandler(ISdkDetectorService sdkDetector)
     {
         _sdkDetector = sdkDetector;
     }
 
+    /// <inheritdoc/>
     public string Action => "get_adb_devices";
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         string? customAdb = null;
@@ -201,17 +236,24 @@ public class GetAdbDevicesHandler : IIpcActionHandler
     }
 }
 
+/// <summary>
+/// IPC handler for deploying and launching built APK packages on an Android device via ADB.
+/// </summary>
 public class DeployToDeviceHandler : IIpcActionHandler
 {
+    /// <summary>Platform builder service.</summary>
     private readonly IPlatformBuilderService _builder;
 
+    /// <summary>Initializes handler with the platform builder service.</summary>
     public DeployToDeviceHandler(IPlatformBuilderService builder)
     {
         _builder = builder;
     }
 
+    /// <inheritdoc/>
     public string Action => "deploy_to_device";
 
+    /// <inheritdoc/>
     public async Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         string projectRoot = "";

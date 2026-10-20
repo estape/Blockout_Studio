@@ -1,10 +1,14 @@
-// ============================================================================
-// HOLE CUTTER TOOL (C# CSG Boolean Subtraction Engine)
-// ============================================================================
+/**
+ * @file holeTool.js
+ * @brief CSG hole punch and door/window cutter tool delegating boolean subtraction to the C# backend.
+ */
 
 import { selectedBlock } from '../sceneManager.js';
 import { sendToBackend, showToast } from '../ipcBridge.js';
 
+/**
+ * Updates dimension input fields in the UI based on selected opening presets (door, window, circle).
+ */
 export function updateHoleUi() {
   const shape = document.getElementById('hole-shape')?.value;
   const w = document.getElementById('hole-w');
@@ -23,6 +27,9 @@ export function updateHoleUi() {
   }
 }
 
+/**
+ * Constructs a cutter geometry and dispatches a CSG boolean subtraction IPC command to the backend.
+ */
 export function punchHoleOnSelected() {
   if (!selectedBlock) {
     alert('Please select a block to punch a hole through.');
@@ -67,6 +74,14 @@ export function punchHoleOnSelected() {
   });
 }
 
+/**
+ * Replaces a mesh's geometry buffers with the resulting CSG boolean subtraction vertex stream.
+ * @param {THREE.Mesh} mesh - Target mesh to update.
+ * @param {number[]} positions - Flat array of 3D positions.
+ * @param {number[]} normals - Flat array of normal vectors.
+ * @param {number[]} uvs - Flat array of UV coordinates.
+ * @param {number[]|null} indices - Optional triangle index buffer.
+ */
 export function applyCsgGeometry(mesh, positions, normals, uvs, indices) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));

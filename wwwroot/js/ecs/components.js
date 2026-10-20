@@ -1,8 +1,15 @@
-// ============================================================================
-// ECS COMPONENTS DEFINITIONS & FACTORIES
-// ============================================================================
+/**
+ * @file components.js
+ * @brief Component definitions and factory constructor for the Entity Component System.
+ */
 
+/**
+ * Component defining spatial position, rotation, and scale in engine coordinates (Z-Up Centimeters).
+ */
 export class TransformComponent {
+  /**
+   * @param {Object} [data={}] - Initial component data.
+   */
   constructor(data = {}) {
     this.type = 'Transform';
     this.posX = data.posX ?? 0;
@@ -16,6 +23,10 @@ export class TransformComponent {
     this.scaleZ = data.scaleZ ?? 1;
   }
 
+  /**
+   * Serializes component properties.
+   * @returns {Object} Plain JavaScript object representation.
+   */
   serialize() {
     return {
       type: this.type,
@@ -26,7 +37,13 @@ export class TransformComponent {
   }
 }
 
+/**
+ * Component binding an entity to 3D mesh geometry, PBR material properties, or external assets.
+ */
 export class MeshComponent {
+  /**
+   * @param {Object} [data={}] - Initial component data.
+   */
   constructor(data = {}) {
     this.type = 'Mesh';
     this.shapeType = data.shapeType || 'box';
@@ -41,6 +58,10 @@ export class MeshComponent {
     this.metallic = data.metallic ?? 0.1;
   }
 
+  /**
+   * Serializes component properties.
+   * @returns {Object} Plain JavaScript object representation.
+   */
   serialize() {
     return {
       type: this.type,
@@ -56,7 +77,13 @@ export class MeshComponent {
   }
 }
 
+/**
+ * Component providing collision bounds (Box, Sphere, Capsule) or trigger event zones.
+ */
 export class ColliderComponent {
+  /**
+   * @param {Object} [data={}] - Initial component data.
+   */
   constructor(data = {}) {
     this.type = 'Collider';
     this.colliderType = data.colliderType || 'box'; // 'box', 'sphere', 'capsule', 'mesh'
@@ -71,6 +98,10 @@ export class ColliderComponent {
     this.isTrigger = !!data.isTrigger;
   }
 
+  /**
+   * Serializes component properties.
+   * @returns {Object} Plain JavaScript object representation.
+   */
   serialize() {
     return {
       type: this.type,
@@ -83,7 +114,13 @@ export class ColliderComponent {
   }
 }
 
+/**
+ * Component defining physical mass, gravity response, and linear velocity.
+ */
 export class RigidbodyComponent {
+  /**
+   * @param {Object} [data={}] - Initial component data.
+   */
   constructor(data = {}) {
     this.type = 'Rigidbody';
     this.mobility = data.mobility || 'Static'; // 'Static', 'Kinematic', 'Dynamic'
@@ -95,6 +132,10 @@ export class RigidbodyComponent {
     this.velocityZ = data.velocityZ ?? 0;
   }
 
+  /**
+   * Serializes component properties.
+   * @returns {Object} Plain JavaScript object representation.
+   */
   serialize() {
     return {
       type: this.type,
@@ -107,7 +148,13 @@ export class RigidbodyComponent {
   }
 }
 
+/**
+ * Component providing first-person kinematic movement, collision sliding, and mouse-look.
+ */
 export class CharacterControllerComponent {
+  /**
+   * @param {Object} [data={}] - Initial component data.
+   */
   constructor(data = {}) {
     this.type = 'CharacterController';
     this.height = data.height ?? 180; // 180 cm (180cm Dummy reference height)
@@ -125,6 +172,10 @@ export class CharacterControllerComponent {
     this.velocityZ = 0;
   }
 
+  /**
+   * Serializes component properties.
+   * @returns {Object} Plain JavaScript object representation.
+   */
   serialize() {
     return {
       type: this.type,
@@ -142,7 +193,13 @@ export class CharacterControllerComponent {
   }
 }
 
+/**
+ * Component attaching custom behavioral scripts with lifecycle hooks (onStart, onUpdate).
+ */
 export class ScriptComponent {
+  /**
+   * @param {Object} [data={}] - Initial component data.
+   */
   constructor(data = {}) {
     this.type = 'Script';
     this.scriptPath = data.scriptPath || 'Rotator.js';
@@ -152,6 +209,10 @@ export class ScriptComponent {
     this.instance = null;
   }
 
+  /**
+   * Serializes component properties.
+   * @returns {Object} Plain JavaScript object representation.
+   */
   serialize() {
     return {
       type: this.type,
@@ -163,7 +224,13 @@ export class ScriptComponent {
   }
 }
 
+/**
+ * Component providing 3D spatialized or ambient audio playback.
+ */
 export class AudioSourceComponent {
+  /**
+   * @param {Object} [data={}] - Initial component data.
+   */
   constructor(data = {}) {
     this.type = 'AudioSource';
     this.clipPath = data.clipPath || 'footstep'; // preset or audio asset path
@@ -174,6 +241,10 @@ export class AudioSourceComponent {
     this.maxDistance = data.maxDistance ?? 3000; // 3000 cm = 30m
   }
 
+  /**
+   * Serializes component properties.
+   * @returns {Object} Plain JavaScript object representation.
+   */
   serialize() {
     return {
       type: this.type,
@@ -187,6 +258,12 @@ export class AudioSourceComponent {
   }
 }
 
+/**
+ * Instantiates an ECS component by type identifier.
+ * @param {string} type - Component type name.
+ * @param {Object} [data={}] - Component property data.
+ * @returns {Object|null} Created component instance or null.
+ */
 export function createComponentByType(type, data = {}) {
   switch (type) {
     case 'Transform': return new TransformComponent(data);

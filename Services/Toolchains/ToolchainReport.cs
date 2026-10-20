@@ -1,5 +1,8 @@
-﻿namespace BlockoutStudio.Services.Toolchains;
+namespace BlockoutStudio.Services.Toolchains;
 
+/// <summary>
+/// Status and metadata for a specific compiler or graphics development toolchain.
+/// </summary>
 public record ToolchainInfo(
     string Name,
     bool IsAvailable,
@@ -9,6 +12,9 @@ public record ToolchainInfo(
     string Details
 );
 
+/// <summary>
+/// System-wide summary report of all detected developer toolchains and runtime translation layers.
+/// </summary>
 public record ToolchainReport(
     ToolchainInfo Vulkan,
     ToolchainInfo Msvc,

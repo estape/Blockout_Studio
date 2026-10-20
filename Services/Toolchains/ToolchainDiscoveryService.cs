@@ -1,11 +1,15 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using BlockoutStudio.Services.Hosting;
 
 namespace BlockoutStudio.Services.Toolchains;
 
+/// <summary>
+/// Service implementation for discovering platform toolchains and compilers on the host system.
+/// </summary>
 public class ToolchainDiscoveryService : IToolchainDiscoveryService
 {
+    /// <inheritdoc/>
     public ToolchainReport DiscoverToolchains()
     {
         var vulkan = ProbeVulkan();
@@ -19,6 +23,7 @@ public class ToolchainDiscoveryService : IToolchainDiscoveryService
         return new ToolchainReport(vulkan, msvc, gcc, android, hostOs, angleStatus);
     }
 
+    /// <summary>Probes for the Vulkan SDK and runtime libraries.</summary>
     private static ToolchainInfo ProbeVulkan()
     {
         var tools = new List<string>();
@@ -64,6 +69,7 @@ public class ToolchainDiscoveryService : IToolchainDiscoveryService
         );
     }
 
+    /// <summary>Probes for Microsoft Visual C++ compiler and linker toolsets.</summary>
     private static ToolchainInfo ProbeMsvc()
     {
         var tools = new List<string>();
@@ -133,6 +139,7 @@ public class ToolchainDiscoveryService : IToolchainDiscoveryService
         );
     }
 
+    /// <summary>Probes for the Android SDK, CLI tools, and ADB.</summary>
     private static ToolchainInfo ProbeAndroid()
     {
         var tools = new List<string>();
@@ -191,6 +198,7 @@ public class ToolchainDiscoveryService : IToolchainDiscoveryService
         );
     }
 
+    /// <summary>Probes for Linux GCC/G++ compiler presence.</summary>
     private static ToolchainInfo ProbeGcc()
     {
         var tools = new List<string>();

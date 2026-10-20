@@ -4,36 +4,81 @@ using System.Text;
 
 namespace BlockoutStudio.Services.Geometry;
 
+/// <summary>
+/// Universal Scene Description primitive node (e.g. def Xform, over Xform, Mesh).
+/// </summary>
 public class UsdPrim
 {
+    /// <summary>Primitive identifier name.</summary>
     public string Name { get; set; } = "Prim";
-    public string Specifier { get; set; } = "def"; // "def", "over", "class"
-    public string TypeName { get; set; } = "Xform"; // "Xform", "Mesh", "Scope"
+
+    /// <summary>USD specifier keyword ("def", "over", or "class").</summary>
+    public string Specifier { get; set; } = "def";
+
+    /// <summary>USD schema type name (e.g. "Xform", "Mesh", "Scope").</summary>
+    public string TypeName { get; set; } = "Xform";
+
+    /// <summary>Optional asset path for external file reference composition.</summary>
     public string? ReferencePath { get; set; }
+
+    /// <summary>Optional deferred payload path.</summary>
     public string? PayloadPath { get; set; }
+
+    /// <summary>List of sublayer asset paths.</summary>
     public List<string> Sublayers { get; set; } = new();
-    public Dictionary<string, string> VariantSets { get; set; } = new(); // VariantSetName -> ActiveVariant
+
+    /// <summary>Active variant set map (VariantSetName -> SelectedVariantName).</summary>
+    public Dictionary<string, string> VariantSets { get; set; } = new();
+
+    /// <summary>Spatial translation in world/parent coordinate units.</summary>
     public Vector3 Translation { get; set; } = Vector3.Zero;
+
+    /// <summary>Euler rotation angles in degrees (XYZ order).</summary>
     public Vector3 RotationDegrees { get; set; } = Vector3.Zero;
+
+    /// <summary>Local scale vector multiplier.</summary>
     public Vector3 Scale { get; set; } = Vector3.One;
+
+    /// <summary>Target USD material path relationship.</summary>
     public string? MaterialBinding { get; set; }
+
+    /// <summary>Custom primitive attributes dictionary.</summary>
     public Dictionary<string, string> Attributes { get; set; } = new();
+
+    /// <summary>Nested child primitives.</summary>
     public List<UsdPrim> Children { get; set; } = new();
 }
 
+/// <summary>
+/// Universal Scene Description root Stage document holding scene metadata and root primitives.
+/// </summary>
 public class UsdStage
 {
+    /// <summary>Stage name identifier.</summary>
     public string StageName { get; set; } = "SceneStage";
-    public float MetersPerUnit { get; set; } = 0.01f; // 1 unit = 1 cm (Metric standard)
+
+    /// <summary>Meters per unit scale factor (0.01 for centimeter precision).</summary>
+    public float MetersPerUnit { get; set; } = 0.01f;
+
+    /// <summary>Up axis definition ("Z" or "Y").</summary>
     public string UpAxis { get; set; } = "Z";
+
+    /// <summary>List of referenced sublayer asset paths.</summary>
     public List<string> Sublayers { get; set; } = new();
+
+    /// <summary>Top-level root primitives composed in the stage.</summary>
     public List<UsdPrim> RootPrims { get; set; } = new();
 }
 
+/// <summary>
+/// Service implementation for managing and writing Universal Scene Description (USD/USDA) stages.
+/// </summary>
 public class UsdStageService : IUsdStageService
 {
+    /// <summary>Invariant culture instance for formatting floating-point coordinates.</summary>
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
+    /// <inheritdoc/>
     public UsdStage CreateStage(string stageName = "Level_Stage", float metersPerUnit = 0.01f, string upAxis = "Z")
     {
         return new UsdStage
@@ -44,6 +89,7 @@ public class UsdStageService : IUsdStageService
         };
     }
 
+    /// <inheritdoc/>
     public UsdPrim AddReference(
         UsdStage stage,
         string primName,
@@ -69,6 +115,7 @@ public class UsdStageService : IUsdStageService
         return prim;
     }
 
+    /// <inheritdoc/>
     public UsdPrim AddPayload(
         UsdStage stage,
         string primName,
@@ -91,6 +138,7 @@ public class UsdStageService : IUsdStageService
         return prim;
     }
 
+    /// <inheritdoc/>
     public void AddVariantSet(
         UsdPrim prim,
         string variantSetName,
@@ -103,6 +151,7 @@ public class UsdStageService : IUsdStageService
         }
     }
 
+    /// <inheritdoc/>
     public void AddOverOpinion(
         UsdStage stage,
         string primName,
@@ -114,6 +163,7 @@ public class UsdStageService : IUsdStageService
         ApplyOverOpinion(stage, primName, translation, rotationDeg, scale, materialOverride);
     }
 
+    /// <inheritdoc/>
     public UsdPrim ApplyOverOpinion(
         UsdStage stage,
         string primName,
@@ -144,8 +194,10 @@ public class UsdStageService : IUsdStageService
         return existing;
     }
 
+    /// <inheritdoc/>
     public string ExportToUsda(UsdStage stage) => ExportToUsdaString(stage);
 
+    /// <inheritdoc/>
     public string ExportToUsdaString(UsdStage stage)
     {
         var sb = new StringBuilder();
@@ -180,6 +232,12 @@ public class UsdStageService : IUsdStageService
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Recursively formats and serializes a <see cref="UsdPrim"/> and its child hierarchy into USDA format.
+    /// </summary>
+    /// <param name="sb">Target string builder.</param>
+    /// <param name="prim">Primitive node to write.</param>
+    /// <param name="indent">Current indentation level string.</param>
     private void WritePrim(StringBuilder sb, UsdPrim prim, string indent)
     {
         var typeDecl = string.IsNullOrWhiteSpace(prim.TypeName) ? "" : $" {prim.TypeName}";
@@ -223,6 +281,7 @@ public class UsdStageService : IUsdStageService
         sb.AppendLine($"{indent}}}");
     }
 
+    /// <inheritdoc/>
     public UsdStage ParseUsda(string usdaText)
     {
         var stage = new UsdStage();
@@ -287,6 +346,9 @@ public class UsdStageService : IUsdStageService
         return stage;
     }
 
+    /// <summary>
+    /// Normalizes names into valid C-like identifiers required by OpenUSD prim specs.
+    /// </summary>
     private static string SanitizeIdentifier(string name)
     {
         var sb = new StringBuilder();
@@ -298,12 +360,18 @@ public class UsdStageService : IUsdStageService
         return sb.Length > 0 ? sb.ToString() : "Prim";
     }
 
+    /// <summary>
+    /// Extracts scalar text value following an assignment delimiter.
+    /// </summary>
     private static string ExtractValue(string line, char separator)
     {
         int idx = line.IndexOf(separator);
         return idx >= 0 ? line[(idx + 1)..].Trim().TrimEnd(';') : "";
     }
 
+    /// <summary>
+    /// Extracts content enclosed within double quotes.
+    /// </summary>
     private static string ExtractQuotedString(string line)
     {
         int first = line.IndexOf('"');
@@ -312,6 +380,9 @@ public class UsdStageService : IUsdStageService
         return second > first ? line.Substring(first + 1, second - first - 1) : "";
     }
 
+    /// <summary>
+    /// Extracts text between opening and closing delimiter characters.
+    /// </summary>
     private static string ExtractBetween(string line, char start, char end)
     {
         int s = line.IndexOf(start);
@@ -320,6 +391,9 @@ public class UsdStageService : IUsdStageService
         return e > s ? line.Substring(s + 1, e - s - 1) : "";
     }
 
+    /// <summary>
+    /// Parses a tuple of three floats formatted as "(X, Y, Z)".
+    /// </summary>
     private static Vector3 ParseVec3(string line)
     {
         int s = line.IndexOf('(');

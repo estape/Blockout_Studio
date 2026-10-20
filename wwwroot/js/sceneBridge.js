@@ -1,3 +1,8 @@
+/**
+ * @file sceneBridge.js
+ * @brief Coordinates project serialization, OBJ/USD exports, raytraced AO baking, and toolchain queries.
+ */
+
 // ============================================================================
 // SCENE BRIDGE (Clipboard Export, Save/Load, OBJ Export, USD Stage, AO)
 // ============================================================================
@@ -7,6 +12,9 @@ import { scene } from './engine.js';
 import { sendToBackend, showToast } from './ipcBridge.js';
 import { initHistory } from './historyManager.js';
 
+/**
+ * @brief Serializes selected or all scene blocks to the system clipboard via backend IPC.
+ */
 export function copyToClipboard() {
   if (blocks.length === 0) {
     alert('No blocks in scene to copy!');
@@ -33,6 +41,9 @@ export function copyToClipboard() {
   sendToBackend('copy_clipboard', { data: payload });
 }
 
+/**
+ * @brief Saves the active project layout to disk as a JSON manifest via backend IPC.
+ */
 export function saveProject() {
   const data = {
     version: '1.0',
@@ -55,10 +66,17 @@ export function saveProject() {
   sendToBackend('save_project', { projectData: JSON.stringify(data, null, 2) });
 }
 
+/**
+ * @brief Sends an IPC request to prompt the user to load a saved project from disk.
+ */
 export function loadProject() {
   sendToBackend('load_project');
 }
 
+/**
+ * @brief Clears existing blocks and restores scene geometry from a loaded project manifest.
+ * @param {Object} data Parsed project data object containing the block list.
+ */
 export function loadProjectFromData(data) {
   if (!data.blocks) return;
   while (blocks.length > 0) {
@@ -79,6 +97,9 @@ export function loadProjectFromData(data) {
   initHistory();
 }
 
+/**
+ * @brief Collects world triangles and vertex normals and submits an AO bake job to the C# SIMD worker.
+ */
 export function requestBakeAo() {
   if (blocks.length === 0) return;
   showToast('Baking Raytraced AO in C# (.NET 10 SIMD)...');
@@ -134,6 +155,11 @@ export function requestBakeAo() {
   });
 }
 
+/**
+ * @brief Applies baked per-vertex ambient occlusion color data to a named target block mesh.
+ * @param {string} targetName Unique identifier name of the target block.
+ * @param {Array<number>} colors Array of RGB floating-point vertex colors.
+ */
 export function applyAoColors(targetName, colors) {
   const mesh = blocks.find((b) => b.userData.name === targetName);
   if (!mesh || !mesh.geometry) return;
@@ -144,6 +170,9 @@ export function applyAoColors(targetName, colors) {
   }
 }
 
+/**
+ * @brief Exports selected or all scene blocks as a Wavefront .OBJ file in metric Z-Up coordinates.
+ */
 export function exportToObj() {
   const scope = document.getElementById('export-scope')?.value || 'all';
   const pivotMode = document.getElementById('export-pivot')?.value || 'world';
@@ -219,6 +248,9 @@ export function exportToObj() {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * @brief Exports selected or all scene blocks to a Universal Scene Description (.usda) ASCII stage.
+ */
 export function exportToUsd() {
   const scope = document.getElementById('export-scope')?.value || 'all';
   const targetList = (scope === 'selected' && selectedBlock) ? [selectedBlock] : blocks;
@@ -273,11 +305,16 @@ export function exportToUsd() {
   sendToBackend('export_usd', { blocks: payload });
 }
 
+/**
+ * @brief Requests toolchain discovery status from the C# backend.
+ */
 export function queryToolchains() {
   sendToBackend('get_toolchains');
 }
 
+/**
+ * @brief Requests native C++ SIMD library linkage and capability status from the C# backend.
+ */
 export function queryNativeStatus() {
   sendToBackend('get_native_status');
 }
-

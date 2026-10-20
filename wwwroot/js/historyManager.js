@@ -1,3 +1,8 @@
+/**
+ * @file historyManager.js
+ * @brief Manages undo/redo state stacks and scene snapshot serialization for user interactions.
+ */
+
 // ============================================================================
 // HISTORY MANAGER (Undo / Redo Stack & Scene State Management)
 // ============================================================================
@@ -10,17 +15,48 @@ import {
 import { restoreLightFromData } from './lights.js';
 import { showToast } from './ipcBridge.js';
 
+/**
+ * @type {number}
+ * @brief Maximum number of undo states retained in the history stack.
+ */
 const MAX_HISTORY = 50;
 
+/**
+ * @type {Array<{label: string, state: Object}>}
+ * @brief Stack of past scene states available for undo operations.
+ */
 let undoStack = [];
+
+/**
+ * @type {Array<{label: string, state: Object}>}
+ * @brief Stack of future scene states available for redo operations.
+ */
 let redoStack = [];
+
+/**
+ * @type {Object|null}
+ * @brief Cached snapshot of the current scene state.
+ */
 let currentState = null;
+
+/**
+ * @type {boolean}
+ * @brief Flag indicating whether a scene state restoration is actively in progress.
+ */
 let isRestoring = false;
 
+/**
+ * @brief Checks if a scene state deserialization/restoration is currently active.
+ * @returns {boolean} True if the history manager is restoring state; otherwise false.
+ */
 export function isHistoryRestoring() {
   return isRestoring;
 }
 
+/**
+ * @brief Serializes the current active scene blocks and selection into an in-memory snapshot object.
+ * @returns {Object} Plain JavaScript object containing serialized scene state and components.
+ */
 export function serializeScene() {
   return {
     selectedName: selectedBlock ? selectedBlock.userData.name : null,
@@ -53,6 +89,10 @@ export function serializeScene() {
   };
 }
 
+/**
+ * @brief Deserializes and restores the scene from a snapshot state.
+ * @param {Object} state The snapshot object containing serialized scene state.
+ */
 export function deserializeScene(state) {
   isRestoring = true;
   try {
@@ -79,6 +119,9 @@ export function deserializeScene(state) {
   }
 }
 
+/**
+ * @brief Initializes the history manager with the current initial scene snapshot.
+ */
 export function initHistory() {
   currentState = serializeScene();
   undoStack = [];
@@ -86,6 +129,10 @@ export function initHistory() {
   updateHistoryButtons();
 }
 
+/**
+ * @brief Records the current scene state onto the undo stack with an action description.
+ * @param {string} [label='Action'] Human-readable label for the action being recorded.
+ */
 export function recordState(label = 'Action') {
   if (isRestoring) return;
   if (!currentState) {
@@ -100,6 +147,9 @@ export function recordState(label = 'Action') {
   updateHistoryButtons();
 }
 
+/**
+ * @brief Reverts the scene to the previous state on the undo stack.
+ */
 export function undo() {
   if (undoStack.length === 0) {
     showToast('Nothing to undo');
@@ -114,6 +164,9 @@ export function undo() {
   showToast(`Undo: ${prev.label}`);
 }
 
+/**
+ * @brief Reapplies the most recently reverted state from the redo stack.
+ */
 export function redo() {
   if (redoStack.length === 0) {
     showToast('Nothing to redo');
@@ -128,6 +181,9 @@ export function redo() {
   showToast(`Redo: ${next.label}`);
 }
 
+/**
+ * @brief Updates the disabled state and tooltip titles of the toolbar Undo and Redo buttons.
+ */
 export function updateHistoryButtons() {
   const undoBtn = document.getElementById('btn-undo');
   const redoBtn = document.getElementById('btn-redo');
@@ -152,4 +208,3 @@ export function updateHistoryButtons() {
     }
   }
 }
-

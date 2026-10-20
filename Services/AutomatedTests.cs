@@ -9,8 +9,15 @@ using BlockoutStudio.Services.Ipc;
 
 namespace BlockoutStudio.Services;
 
+/// <summary>
+/// Comprehensive automated test suite verifying all 25 core engine subsystems, CSG, USD/OBJ pipelines, Vulkan, and native C++ SIMD.
+/// </summary>
 public static class AutomatedTests
 {
+    /// <summary>
+    /// Executes all automated unit and integration tests, printing results to the console.
+    /// </summary>
+    /// <returns>0 if all tests pass, or non-zero count of failed tests.</returns>
     public static int Run()
     {
         Console.WriteLine("=================================================");

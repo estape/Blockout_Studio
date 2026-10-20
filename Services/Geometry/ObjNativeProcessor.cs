@@ -6,37 +6,81 @@ using BlockoutStudio.Services.Graphics;
 
 namespace BlockoutStudio.Services.Geometry;
 
+/// <summary>
+/// Coordinate system convention conversion modes for Wavefront OBJ import/export.
+/// </summary>
 public enum ObjCoordinateConversion
 {
+    /// <summary>No conversion; preserve raw coordinates unmodified.</summary>
     Raw,
-    ThreeJsToZUp, // Three.js Y-Up -> Z-Up Centimeters
-    ZUpToThreeJs  // Z-Up Centimeters -> Three.js Y-Up
+    /// <summary>Convert from Three.js Y-Up coordinate system to Z-Up Centimeters.</summary>
+    ThreeJsToZUp,
+    /// <summary>Convert from Z-Up Centimeters to Three.js Y-Up coordinate system.</summary>
+    ZUpToThreeJs
 }
 
+/// <summary>
+/// Pivot alignment modes applied during OBJ import/export.
+/// </summary>
 public enum ObjPivotMode
 {
+    /// <summary>Maintain global world origin as pivot (0,0,0).</summary>
     WorldOrigin,
+    /// <summary>Offset vertices so the bottom center of the bounding box is at the origin.</summary>
     BottomCenter
 }
 
+/// <summary>
+/// Structured mesh representation extracted from a parsed Wavefront OBJ payload.
+/// </summary>
 public class ObjMeshResult
 {
+    /// <summary>Name identifier of the parsed mesh group or object.</summary>
     public string Name { get; set; } = "SM_Mesh";
+
+    /// <summary>Assigned material library name.</summary>
     public string MaterialName { get; set; } = "M_Default";
-    public float[] Positions { get; set; } = []; // [X, Y, Z, ...]
-    public float[] Normals { get; set; } = [];   // [NX, NY, NZ, ...]
-    public float[] UVs { get; set; } = [];       // [U, V, ...]
-    public float[] Colors { get; set; } = [];    // [R, G, B, ...] Vertex AO
-    public uint[] Indices { get; set; } = [];    // Triangles
+
+    /// <summary>Flat vertex position array [X0, Y0, Z0, X1, Y1, Z1, ...].</summary>
+    public float[] Positions { get; set; } = [];
+
+    /// <summary>Flat vertex normal array [NX0, NY0, NZ0, ...].</summary>
+    public float[] Normals { get; set; } = [];
+
+    /// <summary>Flat texture coordinate array [U0, V0, U1, V1, ...].</summary>
+    public float[] UVs { get; set; } = [];
+
+    /// <summary>Flat per-vertex color/AO array [R0, G0, B0, ...].</summary>
+    public float[] Colors { get; set; } = [];
+
+    /// <summary>Triangle index buffer.</summary>
+    public uint[] Indices { get; set; } = [];
+
+    /// <summary>Axis-aligned bounding box minimum corner.</summary>
     public Vector3 BoundingMin { get; set; }
+
+    /// <summary>Axis-aligned bounding box maximum corner.</summary>
     public Vector3 BoundingMax { get; set; }
+
+    /// <summary>Axis-aligned bounding box center position.</summary>
     public Vector3 Center { get; set; }
 }
 
+/// <summary>
+/// High-performance zero-allocation Wavefront OBJ parser and exporter utilizing memory spans.
+/// </summary>
 public class ObjNativeProcessor
 {
+    /// <summary>Cached invariant culture instance for float string parsing.</summary>
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
+    /// <summary>
+    /// Parses Wavefront OBJ text with coordinate conversion and pivot alignment.
+    /// </summary>
+    /// <param name="objText">Raw Wavefront OBJ text content.</param>
+    /// <param name="conversion">Coordinate transformation to apply.</param>
+    /// <param name="pivot">Pivot re-centering mode.</param>
+    /// <returns>Populated <see cref="ObjMeshResult"/> containing unified vertex and index buffers.</returns>
     public ObjMeshResult Parse(string objText, ObjCoordinateConversion conversion = ObjCoordinateConversion.ThreeJsToZUp, ObjPivotMode pivot = ObjPivotMode.WorldOrigin)
     {
         var rawPositions = new List<Vector3>(1024);
@@ -178,6 +222,9 @@ public class ObjNativeProcessor
         };
     }
 
+    /// <summary>
+    /// Parses a 'v' line defining vertex coordinates and optional vertex colors.
+    /// </summary>
     private static void ParseVertex(ReadOnlySpan<char> span, List<Vector3> positions, List<Vector3> colors)
     {
         Span<Range> ranges = stackalloc Range[8];
@@ -202,6 +249,9 @@ public class ObjNativeProcessor
         }
     }
 
+    /// <summary>
+    /// Parses a 'vt' line defining texture coordinates (UV).
+    /// </summary>
     private static void ParseUV(ReadOnlySpan<char> span, List<Vector2> uvs)
     {
         Span<Range> ranges = stackalloc Range[4];
@@ -216,6 +266,9 @@ public class ObjNativeProcessor
         }
     }
 
+    /// <summary>
+    /// Parses a 'vn' line defining vertex surface normals.
+    /// </summary>
     private static void ParseNormal(ReadOnlySpan<char> span, List<Vector3> normals)
     {
         Span<Range> ranges = stackalloc Range[4];
@@ -231,6 +284,9 @@ public class ObjNativeProcessor
         }
     }
 
+    /// <summary>
+    /// Parses an 'f' face line and triangulates polygon fans into final unified index buffers.
+    /// </summary>
     private static void ParseFace(
         ReadOnlySpan<char> span,
         List<Vector3> rawPositions,
@@ -266,6 +322,9 @@ public class ObjNativeProcessor
         }
     }
 
+    /// <summary>
+    /// Resolves unique compound vertex tokens (v/vt/vn) into a unified single vertex index, de-duplicating shared attributes.
+    /// </summary>
     private static uint ResolveVertexIndex(
         ReadOnlySpan<char> token,
         List<Vector3> rawPositions,
@@ -357,6 +416,13 @@ public class ObjNativeProcessor
         return newIndex;
     }
 
+    /// <summary>
+    /// Serializes a <see cref="ModelData"/> instance into a standard Wavefront OBJ ASCII string in Z-Up centimeters.
+    /// </summary>
+    /// <param name="model">Model data containing mesh parts and geometry buffers.</param>
+    /// <param name="includeAoColors">Whether to export vertex ambient occlusion colors.</param>
+    /// <param name="pivot">Pivot re-centering mode.</param>
+    /// <returns>Formatted Wavefront OBJ text representation.</returns>
     public string ExportToObjString(ModelData model, bool includeAoColors = true, ObjPivotMode pivot = ObjPivotMode.WorldOrigin)
     {
         var sb = new StringBuilder();

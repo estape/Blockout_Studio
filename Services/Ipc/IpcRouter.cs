@@ -1,12 +1,20 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Photino.NET;
 
 namespace BlockoutStudio.Services.Ipc;
 
+/// <summary>
+/// Dispatcher routing JSON action messages received over the Photino webview bridge to registered action handlers.
+/// </summary>
 public class IpcRouter : IIpcRouter
 {
+    /// <summary>Dictionary mapping action strings to their registered handlers.</summary>
     private readonly Dictionary<string, IIpcActionHandler> _handlers;
 
+    /// <summary>
+    /// Initializes an IPC router with an enumerable of registered action handlers.
+    /// </summary>
+    /// <param name="handlers">Collection of action handlers.</param>
     public IpcRouter(IEnumerable<IIpcActionHandler> handlers)
     {
         _handlers = new Dictionary<string, IIpcActionHandler>(StringComparer.OrdinalIgnoreCase);
@@ -16,6 +24,7 @@ public class IpcRouter : IIpcRouter
         }
     }
 
+    /// <inheritdoc/>
     public async Task DispatchAsync(string message, PhotinoWindow window)
     {
         try

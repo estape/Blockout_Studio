@@ -1,3 +1,8 @@
+/**
+ * @file transformGizmo.js
+ * @brief Three.js TransformControls integration, translation/rotation grid snapping, and on-screen measurement badge.
+ */
+
 // ============================================================================
 // TRANSFORM GIZMO & 3D IN-SCENE MEASUREMENT BADGE
 // ============================================================================
@@ -5,19 +10,50 @@
 import { scene, camera, renderer, orbit, viewport } from './engine.js';
 import { recordState } from './historyManager.js';
 
+/**
+ * @type {number}
+ * @brief Current grid translation snap distance in centimeters.
+ */
 export let snapSize = 50;
+
+/**
+ * @type {THREE.TransformControls}
+ * @brief Three.js transform controls gizmo attached to selected objects.
+ */
 export const transformControl = new THREE.TransformControls(camera, renderer.domElement);
 transformControl.setSpace('world');
 transformControl.setTranslationSnap(snapSize);
 transformControl.setRotationSnap(THREE.MathUtils.degToRad(15));
 scene.add(transformControl);
 
+/**
+ * @type {HTMLElement|null}
+ * @brief Floating HUD badge displaying transform offsets and distance deltas.
+ */
 const badge = document.getElementById('gizmo-measure-badge');
 
+/**
+ * @type {THREE.Vector3}
+ * @brief Cached object position before initiating a gizmo drag operation.
+ */
 let startPos = new THREE.Vector3();
+
+/**
+ * @type {number}
+ * @brief Cached object Y-rotation angle in radians before initiating a gizmo drag operation.
+ */
 let startRotY = 0;
+
+/**
+ * @type {boolean}
+ * @brief Indicates whether the user is actively dragging the transform gizmo.
+ */
 let isDraggingGizmo = false;
 
+/**
+ * @brief Updates the active grid translation snap distance on the transform gizmo.
+ * @param {number} newSnap New translation snap step in centimeters (e.g. 10, 50, 100).
+ */
 export function updateSnapSize(newSnap) {
   snapSize = newSnap;
   transformControl.setTranslationSnap(snapSize);
@@ -103,4 +139,3 @@ transformControl.addEventListener('change', () => {
   badge.style.left = `${x}px`;
   badge.style.top = `${y}px`;
 });
-

@@ -1,21 +1,38 @@
-// ============================================================================
-// PUSH / PULL TOOL (Extrusion along face normal)
-// ============================================================================
+/**
+ * @file pushPullTool.js
+ * @brief Push/Pull face extrusion tool for dynamically resizing mesh dimensions along face normals.
+ */
 
 import { raycaster, orbit } from '../engine.js';
 import { selectedBlock, selectBlock, rebuildBlockMesh, syncInspectorFromSelected, blocks } from '../sceneManager.js';
 import { snapSize } from '../transformGizmo.js';
 import { recordState } from '../historyManager.js';
 
+/** @type {boolean} Flag indicating whether an active drag operation is in progress. */
 let isPushPulling = false;
+
+/** @type {THREE.Vector3} World-space surface normal of the intersected face. */
 let pushPullFaceNormal = new THREE.Vector3(0, 1, 0);
+
+/** @type {{x: number, y: number}} Initial mouse screen coordinates at pointer down. */
 let pushPullStartMouse = { x: 0, y: 0 };
+
+/** @type {{x: number, y: number, z: number}} Block dimensions prior to extrusion drag. */
 let pushPullInitialSizes = { x: 100, y: 100, z: 100 };
 
+/**
+ * Snaps scalar values to the active grid step.
+ * @param {number} val - Input distance scalar.
+ * @returns {number} Grid-aligned distance scalar.
+ */
 function snapVal(val) {
   return Math.round(val / snapSize) * snapSize;
 }
 
+/**
+ * Initiates face extrusion upon clicking an existing block surface.
+ * @param {PointerEvent|MouseEvent} e - Pointer event.
+ */
 export function handlePushPullPointerDown(e) {
   if (e.button !== 0) return;
 
@@ -40,6 +57,10 @@ export function handlePushPullPointerDown(e) {
   }
 }
 
+/**
+ * Updates selected block dimensions based on pointer delta projected onto the face normal.
+ * @param {PointerEvent|MouseEvent} e - Pointer event.
+ */
 export function handlePushPullPointerMove(e) {
   if (!isPushPulling || !selectedBlock) return;
 
@@ -66,6 +87,9 @@ export function handlePushPullPointerMove(e) {
   syncInspectorFromSelected();
 }
 
+/**
+ * Commits the extrusion operation and registers an undo/redo history snapshot.
+ */
 export function handlePushPullPointerUp() {
   if (isPushPulling) {
     isPushPulling = false;

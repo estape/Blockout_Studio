@@ -1,20 +1,27 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Photino.NET;
 using BlockoutStudio.Services.Graphics;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for compiling GLSL shader code to SPIR-V and transpiling to WebGL ES.
+/// </summary>
 public class CompileShaderHandler : IIpcActionHandler
 {
+    /// <summary>Vulkan compute service instance.</summary>
     private readonly IVulkanComputeService _vulkanCompute;
 
+    /// <inheritdoc/>
     public string Action => "compile_shader";
 
+    /// <summary>Initializes handler with the Vulkan compute service.</summary>
     public CompileShaderHandler(IVulkanComputeService vulkanCompute)
     {
         _vulkanCompute = vulkanCompute;
     }
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         string source = payload.TryGetProperty("source", out var sp) ? sp.GetString() ?? "" : "";

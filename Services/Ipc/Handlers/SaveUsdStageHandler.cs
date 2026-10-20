@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Text.Json;
 using Photino.NET;
 using BlockoutStudio.Services.Assets;
@@ -6,19 +6,28 @@ using BlockoutStudio.Services.Geometry;
 
 namespace BlockoutStudio.Services.Ipc.Handlers;
 
+/// <summary>
+/// IPC handler for serializing stage prims and layer hierarchy into a USDA scene file under Assets/Scenes/.
+/// </summary>
 public class SaveUsdStageHandler : IIpcActionHandler
 {
+    /// <summary>Geometry pipeline service.</summary>
     private readonly IObjUsdPipelineService _pipeline;
+
+    /// <summary>Asset database service.</summary>
     private readonly IAssetDatabaseService _assetDb;
 
+    /// <summary>Initializes handler with geometry pipeline and asset database services.</summary>
     public SaveUsdStageHandler(IObjUsdPipelineService pipeline, IAssetDatabaseService assetDb)
     {
         _pipeline = pipeline;
         _assetDb = assetDb;
     }
 
+    /// <inheritdoc/>
     public string Action => "save_usd_stage";
 
+    /// <inheritdoc/>
     public Task HandleAsync(JsonElement payload, JsonElement root, PhotinoWindow window)
     {
         var projectRoot = _assetDb.CurrentProjectRoot;

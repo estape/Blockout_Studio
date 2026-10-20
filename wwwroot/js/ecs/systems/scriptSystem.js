@@ -1,3 +1,8 @@
+/**
+ * @file scriptSystem.js
+ * @brief ECS Script System managing entity script lifecycles (onStart, onUpdate, onCollisionEnter).
+ */
+
 // ============================================================================
 // ECS SCRIPT SYSTEM (Lifecycle Hooks: onStart, onUpdate, onCollisionEnter)
 // ============================================================================
@@ -5,7 +10,10 @@
 import { getComponent } from '../entity.js';
 import { audioSystem } from './audioSystem.js';
 
-// Pre-registered starter script definitions
+/**
+ * @brief Registry of built-in script definitions providing gameplay behavior presets.
+ * @type {Object.<string, {onStart?: Function, onUpdate?: Function, onCollisionEnter?: Function}>}
+ */
 export const BuiltinScripts = {
   'Rotator.js': {
     onStart(entity, ctx) {
@@ -45,12 +53,25 @@ export const BuiltinScripts = {
   }
 };
 
+/**
+ * @class ScriptSystem
+ * @brief Coordinates script lifecycle execution across scene entities attached with a ScriptComponent.
+ */
 export class ScriptSystem {
+  /**
+   * @brief Initializes a new instance of the ScriptSystem class.
+   */
   constructor() {
+    /** @type {number} Total elapsed play simulation time in seconds. */
     this.elapsedTime = 0;
+    /** @type {Map<THREE.Object3D, {instance: Object, scriptComp: Object}>} Map of active entity script instances. */
     this.activeInstances = new Map();
   }
 
+  /**
+   * @brief Discovers and initializes all active entity scripts at the start of Play Mode.
+   * @param {Array<THREE.Object3D>} entities Array of scene entities.
+   */
   start(entities) {
     this.elapsedTime = 0;
     this.activeInstances.clear();
@@ -78,6 +99,11 @@ export class ScriptSystem {
     }
   }
 
+  /**
+   * @brief Advances script logic each frame, calling onUpdate on all active script instances.
+   * @param {number} dt Delta time in seconds since the last simulation step.
+   * @param {Set<string>|null} [keyboardState=null] Active set of pressed keyboard key codes.
+   */
   update(dt, keyboardState = null) {
     this.elapsedTime += dt;
 
@@ -95,11 +121,21 @@ export class ScriptSystem {
     }
   }
 
+  /**
+   * @brief Dispatches collision notifications symmetrically to both interacting entities.
+   * @param {THREE.Object3D} entityA First interacting entity.
+   * @param {THREE.Object3D} entityB Second interacting entity.
+   */
   handleCollision(entityA, entityB) {
     this.invokeCollision(entityA, entityB);
     this.invokeCollision(entityB, entityA);
   }
 
+  /**
+   * @brief Dispatches onCollisionEnter callback to an entity's attached script.
+   * @param {THREE.Object3D} entity Target entity whose script will receive the event.
+   * @param {THREE.Object3D} other The other colliding entity.
+   */
   invokeCollision(entity, other) {
     const entry = this.activeInstances.get(entity);
     if (!entry) return;
@@ -114,11 +150,22 @@ export class ScriptSystem {
     }
   }
 
+  /**
+   * @brief Stops all running scripts and clears active script instances when exiting Play Mode.
+   */
   stop() {
     this.activeInstances.clear();
     this.elapsedTime = 0;
   }
 
+  /**
+   * @brief Constructs an isolated execution context exposed to script lifecycle hooks.
+   * @param {THREE.Object3D} entity The host entity.
+   * @param {Object} [properties={}] User-defined inspector properties.
+   * @param {Set<string>|null} [keyboardState=null] Active keyboard keys.
+   * @param {number} [dt=0.016] Current delta time in seconds.
+   * @returns {Object} Execution context object containing runtime utilities and helpers.
+   */
   createContext(entity, properties = {}, keyboardState = null, dt = 0.016) {
     return {
       entity,
@@ -136,4 +183,8 @@ export class ScriptSystem {
   }
 }
 
+/**
+ * @type {ScriptSystem}
+ * @brief Singleton instance of the ScriptSystem.
+ */
 export const scriptSystem = new ScriptSystem();
