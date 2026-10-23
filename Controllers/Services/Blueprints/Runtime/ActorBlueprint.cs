@@ -117,6 +117,64 @@ public abstract class ActorBlueprint
 }
 
 /// <summary>
+/// Base class for modular gameplay components attached to actors.
+/// </summary>
+public abstract class ActorComponent
+{
+    public Actor Owner { get; set; } = new();
+    public Action<string, float>? OnPlaySound { get; set; }
+    public Action<string>? OnPrintString { get; set; }
+
+    public virtual void OnBeginPlay() { }
+    public virtual void OnTick(float deltaSeconds) { }
+    public virtual void OnCollisionEnter(Actor other) { }
+    public virtual void OnTriggerEnter(Actor other) { }
+    public virtual void OnCustomEvent(string eventName) { }
+
+    [BlueprintNode("Actor", "Get Actor Location", isPure: true)]
+    public Vector3 GetActorLocation() => Owner.Location;
+
+    [BlueprintNode("Actor", "Set Actor Location", isPure: false)]
+    public void SetActorLocation(Vector3 newLocation) => Owner.Location = newLocation;
+
+    [BlueprintNode("Actor", "Get Actor Rotation", isPure: true)]
+    public Vector3 GetActorRotation() => Owner.Rotation;
+
+    [BlueprintNode("Actor", "Set Actor Rotation", isPure: false)]
+    public void SetActorRotation(Vector3 newRotation) => Owner.Rotation = newRotation;
+
+    [BlueprintNode("Actor", "Get Actor Scale", isPure: true)]
+    public Vector3 GetActorScale() => Owner.Scale;
+
+    [BlueprintNode("Actor", "Set Actor Scale", isPure: false)]
+    public void SetActorScale(Vector3 newScale) => Owner.Scale = newScale;
+
+    [BlueprintNode("Actor", "Add Actor World Offset", isPure: false)]
+    public void AddActorWorldOffset(Vector3 deltaLocation)
+    {
+        Owner.Location += deltaLocation;
+    }
+
+    [BlueprintNode("Actor", "Add Actor World Rotation", isPure: false)]
+    public void AddActorWorldRotation(Vector3 deltaRotation)
+    {
+        Owner.Rotation += deltaRotation;
+    }
+
+    [BlueprintNode("Audio", "Play Sound 2D", isPure: false)]
+    public void PlaySound2D(string soundName, float volume = 1.0f)
+    {
+        OnPlaySound?.Invoke(soundName, volume);
+    }
+
+    [BlueprintNode("Debug", "Print String", isPure: false)]
+    public void PrintString(string message)
+    {
+        OnPrintString?.Invoke(message);
+    }
+}
+
+/// <summary>
 /// Base class for Level-wide orchestrator Blueprints.
 /// </summary>
 public abstract class LevelBlueprint

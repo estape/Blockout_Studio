@@ -1,4 +1,8 @@
 using System.Text.Json;
+using BlockoutStudio.Controllers.Services.Blueprints.Converters;
+using BlockoutStudio.Controllers.Services.Blueprints.Serialization;
+using BlockoutStudio.Controllers.Services.Blueprints.Validation;
+using BlockoutStudio.Models.Blueprints.Format;
 using BlockoutStudio.Services.Assets;
 using BlockoutStudio.Services.Blueprints.Models;
 using BlockoutStudio.Services.Blueprints.Transpiler;
@@ -7,7 +11,7 @@ namespace BlockoutStudio.Services.Blueprints.Storage;
 
 /// <summary>
 /// Service managing filesystem storage, asset tracking, and C# source file emission
-/// for visual Blueprint assets.
+/// for visual Blueprint assets (.bprint and .bgraph).
 /// </summary>
 public class BlueprintStorageService : IBlueprintStorageService
 {
@@ -18,10 +22,17 @@ public class BlueprintStorageService : IBlueprintStorageService
     };
 
     private readonly IBlueprintTranspiler _transpiler;
+    private readonly IGraphSerializer _graphSerializer;
+    private readonly IGraphValidator _graphValidator;
 
-    public BlueprintStorageService(IBlueprintTranspiler transpiler)
+    public BlueprintStorageService(
+        IBlueprintTranspiler transpiler,
+        IGraphSerializer? graphSerializer = null,
+        IGraphValidator? graphValidator = null)
     {
         _transpiler = transpiler;
+        _graphSerializer = graphSerializer ?? new GraphSerializer();
+        _graphValidator = graphValidator ?? new GraphValidator();
     }
 
     public Task<List<BlueprintAssetInfo>> ListBlueprintsAsync(string projectRoot)
@@ -35,8 +46,12 @@ public class BlueprintStorageService : IBlueprintStorageService
             return Task.FromResult(results);
         }
 
-        var files = Directory.GetFiles(bpDir, "*.bprint", SearchOption.AllDirectories);
-        foreach (var file in files)
+        // Search for both .bprint and .bgraph files
+        var bprintFiles = Directory.GetFiles(bpDir, "*.bprint", SearchOption.AllDirectories);
+        var bgraphFiles = Directory.GetFiles(bpDir, "*.bgraph", SearchOption.AllDirectories);
+        var allFiles = bprintFiles.Concat(bgraphFiles);
+
+        foreach (var file in allFiles)
         {
             try
             {
@@ -53,6 +68,10 @@ public class BlueprintStorageService : IBlueprintStorageService
                     if (doc.RootElement.TryGetProperty("Type", out var typeEl))
                     {
                         graphType = typeEl.GetString() ?? "Actor";
+                    }
+                    else if (doc.RootElement.TryGetProperty("targetActorClass", out var targetActorEl))
+                    {
+                        graphType = targetActorEl.GetString() ?? "Actor";
                     }
                 }
                 catch { }
@@ -90,6 +109,12 @@ public class BlueprintStorageService : IBlueprintStorageService
             {
                 targetFile = direct + ".bprint";
             }
+            else if (File.Exists(direct + ".bgraph"))
+            {
+                // Load .bgraph and convert to BlueprintGraph
+                var doc = await LoadGraphAsync(projectRoot, blueprintNameOrRelativePath);
+                return doc != null ? GraphFormatConverter.ToBlueprintGraph(doc) : null;
+            }
             else
             {
                 var match = Directory.GetFiles(bpDir, $"{blueprintNameOrRelativePath}.bprint", SearchOption.AllDirectories)
@@ -101,6 +126,12 @@ public class BlueprintStorageService : IBlueprintStorageService
         if (!File.Exists(targetFile))
         {
             return null;
+        }
+
+        if (targetFile.EndsWith(".bgraph", StringComparison.OrdinalIgnoreCase))
+        {
+            var doc = await LoadGraphAsync(projectRoot, targetFile);
+            return doc != null ? GraphFormatConverter.ToBlueprintGraph(doc) : null;
         }
 
         var json = await File.ReadAllTextAsync(targetFile);
@@ -145,18 +176,108 @@ public class BlueprintStorageService : IBlueprintStorageService
         }
     }
 
+    public async Task<GraphDocument?> LoadGraphAsync(string projectRoot, string graphNameOrRelativePath)
+    {
+        var targetFile = graphNameOrRelativePath;
+        if (!File.Exists(targetFile))
+        {
+            var bpDir = Path.Combine(projectRoot, "Assets", "Blueprints");
+            var direct = Path.Combine(bpDir, graphNameOrRelativePath);
+            if (File.Exists(direct))
+            {
+                targetFile = direct;
+            }
+            else if (File.Exists(direct + ".bgraph"))
+            {
+                targetFile = direct + ".bgraph";
+            }
+            else if (File.Exists(direct + ".bprint"))
+            {
+                var bp = await LoadBlueprintAsync(projectRoot, graphNameOrRelativePath);
+                return bp != null ? GraphFormatConverter.ToGraphDocument(bp) : null;
+            }
+            else
+            {
+                var match = Directory.GetFiles(bpDir, $"{graphNameOrRelativePath}.bgraph", SearchOption.AllDirectories)
+                    .FirstOrDefault();
+                if (match != null) targetFile = match;
+            }
+        }
+
+        if (!File.Exists(targetFile))
+        {
+            return null;
+        }
+
+        var json = await File.ReadAllTextAsync(targetFile);
+        return _graphSerializer.Deserialize(json);
+    }
+
+    public async Task<SaveBlueprintResult> SaveGraphAsync(string projectRoot, GraphDocument document)
+    {
+        try
+        {
+            // 1. Validate Document first
+            var validation = _graphValidator.Validate(document);
+            if (!validation.IsValid)
+            {
+                var firstErr = validation.Errors[0];
+                return new SaveBlueprintResult(false, string.Empty, string.Empty, $"Validation failed [{firstErr.Code}]: {firstErr.Message}");
+            }
+
+            var bpDir = Path.Combine(projectRoot, "Assets", "Blueprints");
+            var genDir = Path.Combine(projectRoot, "Assets", "Scripts", "Generated");
+
+            if (!Directory.Exists(bpDir)) Directory.CreateDirectory(bpDir);
+            if (!Directory.Exists(genDir)) Directory.CreateDirectory(genDir);
+
+            var fileName = $"{document.Name}.bgraph";
+            var bpPath = Path.Combine(bpDir, fileName);
+
+            // 2. Serialize using AOT compile-time source generator
+            var json = _graphSerializer.Serialize(document);
+            await File.WriteAllTextAsync(bpPath, json);
+
+            // 3. Manage .meta sidecar
+            var meta = AssetMeta.LoadOrCreate(bpPath);
+            meta.AssetType = "BlueprintGraph";
+            meta.SourceHash = AssetMeta.ComputeFileSha256(bpPath);
+            meta.LastModifiedUtc = DateTime.UtcNow.ToString("o");
+            var metaPath = bpPath + ".meta";
+            await File.WriteAllTextAsync(metaPath, JsonSerializer.Serialize(meta, JsonOpts));
+
+            // 4. Transpile and emit C# Source
+            var legacyGraph = GraphFormatConverter.ToBlueprintGraph(document);
+            var csCode = _transpiler.TranspileToCSharp(legacyGraph);
+            var csPath = Path.Combine(genDir, $"{document.Name}.g.cs");
+            await File.WriteAllTextAsync(csPath, csCode);
+
+            return new SaveBlueprintResult(true, bpPath, csPath);
+        }
+        catch (Exception ex)
+        {
+            return new SaveBlueprintResult(false, string.Empty, string.Empty, ex.Message);
+        }
+    }
+
     public Task<bool> DeleteBlueprintAsync(string projectRoot, string blueprintName)
     {
         try
         {
             var bpDir = Path.Combine(projectRoot, "Assets", "Blueprints");
             var bpPath = Path.Combine(bpDir, $"{blueprintName}.bprint");
+            var bgraphPath = Path.Combine(bpDir, $"{blueprintName}.bgraph");
             var metaPath = bpPath + ".meta";
+            var metaGraphPath = bgraphPath + ".meta";
             var csPath = Path.Combine(projectRoot, "Assets", "Scripts", "Generated", $"{blueprintName}.cs");
+            var gcsPath = Path.Combine(projectRoot, "Assets", "Scripts", "Generated", $"{blueprintName}.g.cs");
 
             if (File.Exists(bpPath)) File.Delete(bpPath);
+            if (File.Exists(bgraphPath)) File.Delete(bgraphPath);
             if (File.Exists(metaPath)) File.Delete(metaPath);
+            if (File.Exists(metaGraphPath)) File.Delete(metaGraphPath);
             if (File.Exists(csPath)) File.Delete(csPath);
+            if (File.Exists(gcsPath)) File.Delete(gcsPath);
 
             return Task.FromResult(true);
         }

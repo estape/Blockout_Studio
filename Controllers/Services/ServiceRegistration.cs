@@ -12,6 +12,9 @@ using BlockoutStudio.Services.Blueprints.Transpiler;
 using BlockoutStudio.Services.Blueprints.Compiler;
 using BlockoutStudio.Services.Blueprints.Storage;
 using BlockoutStudio.Services.Blueprints.Runtime;
+using BlockoutStudio.Controllers.Services.Blueprints.Serialization;
+using BlockoutStudio.Controllers.Services.Blueprints.Validation;
+using BlockoutStudio.Controllers.Services.Blueprints.Transpiler;
 
 namespace BlockoutStudio.Services;
 
@@ -91,16 +94,25 @@ public static class ServiceRegistration
         services.AddSingleton<NativeCompilerService>(sp => (NativeCompilerService)sp.GetRequiredService<INativeCompilerService>());
         services.AddSingleton<IPlatformBuilderService, PlatformBuilderService>();
         services.AddSingleton<PlatformBuilderService>(sp => (PlatformBuilderService)sp.GetRequiredService<IPlatformBuilderService>());
+        services.AddSingleton<IStandalonePackagingService, StandalonePackagingService>();
+        services.AddSingleton<StandalonePackagingService>(sp => (StandalonePackagingService)sp.GetRequiredService<IStandalonePackagingService>());
         services.AddSingleton<IIpcActionHandler, GetSdkStatusHandler>();
         services.AddSingleton<IIpcActionHandler, SetSdkPathsHandler>();
         services.AddSingleton<IIpcActionHandler, CompileNativeModuleHandler>();
         services.AddSingleton<IIpcActionHandler, BuildProjectHandler>();
+        services.AddSingleton<IIpcActionHandler, PackageStandaloneGameHandler>();
         services.AddSingleton<IIpcActionHandler, GetAdbDevicesHandler>();
         services.AddSingleton<IIpcActionHandler, DeployToDeviceHandler>();
 
         // Blueprint Visual Scripting Subsystem
         services.AddSingleton<INodeRegistryScanner, NodeRegistryScanner>();
         services.AddSingleton<NodeRegistryScanner>(sp => (NodeRegistryScanner)sp.GetRequiredService<INodeRegistryScanner>());
+        services.AddSingleton<IGraphSerializer, GraphSerializer>();
+        services.AddSingleton<GraphSerializer>(sp => (GraphSerializer)sp.GetRequiredService<IGraphSerializer>());
+        services.AddSingleton<IGraphValidator, GraphValidator>();
+        services.AddSingleton<GraphValidator>(sp => (GraphValidator)sp.GetRequiredService<IGraphValidator>());
+        services.AddSingleton<IGraphCodeGeneratorService, RoslynGraphCodeGeneratorService>();
+        services.AddSingleton<RoslynGraphCodeGeneratorService>(sp => (RoslynGraphCodeGeneratorService)sp.GetRequiredService<IGraphCodeGeneratorService>());
         services.AddSingleton<IBlueprintTranspiler, BlueprintTranspiler>();
         services.AddSingleton<BlueprintTranspiler>(sp => (BlueprintTranspiler)sp.GetRequiredService<IBlueprintTranspiler>());
         services.AddSingleton<IBlueprintCompilerService, BlueprintCompilerService>();

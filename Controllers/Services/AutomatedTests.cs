@@ -15,6 +15,12 @@ using BlockoutStudio.Services.Blueprints.Transpiler;
 using BlockoutStudio.Services.Blueprints.Compiler;
 using BlockoutStudio.Services.Blueprints.Runtime;
 using BlockoutStudio.Services.Blueprints.Storage;
+using BlockoutStudio.Models.Blueprints.Format;
+using BlockoutStudio.Models.Blueprints.Validation;
+using BlockoutStudio.Controllers.Services.Blueprints.Serialization;
+using BlockoutStudio.Controllers.Services.Blueprints.Validation;
+using BlockoutStudio.Controllers.Services.Blueprints.Converters;
+using BlockoutStudio.Controllers.Services.Blueprints.Transpiler;
 
 namespace BlockoutStudio.Services;
 
@@ -1710,6 +1716,398 @@ public static class AutomatedTests
             else
             {
                 Console.WriteLine($"FAILED (hasNodes:{hasNodes}, getLocOk:{getLocOk}, setLocOk:{setLocOk}, vecDistOk:{vecDistOk}, categoriesOk:{categoriesOk}, jsonOk:{jsonOk}, diOk:{diOk})");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"FAILED: {ex.Message}");
+            failed++;
+        }
+
+        // Test 31: .bgraph Format, NativeAOT SourceGen Serialization & Graph Validation Pass
+        try
+        {
+            Console.Write("Test 31: .bgraph NativeAOT Serialization & Graph Validation Pass... ");
+
+            var serializer = new GraphSerializer();
+            var validator = new GraphValidator();
+
+            // 1. Valid Graph Setup (Tick -> SetActorLocation with Vector3Add pure node)
+            var validDoc = new GraphDocument("graph-001", "BP_PlayerController", "Actor");
+            
+            var tickNode = new GraphNode("node-tick", "Event.OnTick", 0, 0, GraphNodeKind.Event);
+            var tickExecOut = new GraphPin("tick-exec-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec);
+            var tickDeltaTime = new GraphPin("tick-dt", "DeltaSeconds", GraphPinDirection.Output, GraphPinType.Float);
+            tickNode.Pins.AddRange([tickExecOut, tickDeltaTime]);
+
+            var addNode = new GraphNode("node-add", "MathLibrary.VectorAdd", 200, 100, GraphNodeKind.PureFunction);
+            var addInA = new GraphPin("add-in-a", "a", GraphPinDirection.Input, GraphPinType.Vector3);
+            var addInB = new GraphPin("add-in-b", "b", GraphPinDirection.Input, GraphPinType.Vector3);
+            var addOut = new GraphPin("add-out", "ReturnValue", GraphPinDirection.Output, GraphPinType.Vector3);
+            addNode.Pins.AddRange([addInA, addInB, addOut]);
+            addNode.DefaultPinValues["b"] = "(0, 100, 0)";
+
+            var setLocNode = new GraphNode("node-setloc", "ActorBlueprint.SetActorLocation", 450, 0, GraphNodeKind.ImpureFunction);
+            var setLocExecIn = new GraphPin("setloc-exec-in", "ExecIn", GraphPinDirection.Input, GraphPinType.Exec);
+            var setLocExecOut = new GraphPin("setloc-exec-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec);
+            var setLocTarget = new GraphPin("setloc-target", "newLocation", GraphPinDirection.Input, GraphPinType.Vector3);
+            setLocNode.Pins.AddRange([setLocExecIn, setLocExecOut, setLocTarget]);
+
+            validDoc.Nodes.AddRange([tickNode, addNode, setLocNode]);
+
+            // Link 1: Exec Tick -> SetActorLocation
+            validDoc.Links.Add(new GraphLink(tickNode.Id, tickExecOut.Id, setLocNode.Id, setLocExecIn.Id));
+            // Link 2: Data VectorAdd -> SetActorLocation
+            validDoc.Links.Add(new GraphLink(addNode.Id, addOut.Id, setLocNode.Id, setLocTarget.Id));
+
+            // Validate valid graph
+            var validResult = validator.Validate(validDoc);
+            bool validOk = validResult.IsValid && validResult.Errors.Count == 0 && tickExecOut.IsConnected && setLocExecIn.IsConnected;
+
+            // Roundtrip serialization via AOT Source Generator (zero reflection)
+            var json = serializer.Serialize(validDoc);
+            var deserializedDoc = serializer.Deserialize(json);
+            bool roundtripOk = deserializedDoc != null &&
+                               deserializedDoc.GraphId == "graph-001" &&
+                               deserializedDoc.Nodes.Count == 3 &&
+                               deserializedDoc.Links.Count == 2 &&
+                               deserializedDoc.Nodes[1].DefaultPinValues["b"] == "(0, 100, 0)";
+
+            // 2. Type Mismatch Check: Float -> Struct/Object connection
+            var mismatchDoc = new GraphDocument("graph-mismatch", "BP_Mismatch", "Actor");
+            var n1 = new GraphNode("n1", "TestFunc1", 0, 0, GraphNodeKind.PureFunction);
+            var floatOut = new GraphPin("p-float-out", "Val", GraphPinDirection.Output, GraphPinType.Float);
+            n1.Pins.Add(floatOut);
+
+            var n2 = new GraphNode("n2", "TestFunc2", 200, 0, GraphNodeKind.ImpureFunction);
+            var structIn = new GraphPin("p-struct-in", "TargetStruct", GraphPinDirection.Input, GraphPinType.Struct);
+            n2.Pins.Add(structIn);
+
+            mismatchDoc.Nodes.AddRange([n1, n2]);
+            mismatchDoc.Links.Add(new GraphLink(n1.Id, floatOut.Id, n2.Id, structIn.Id));
+
+            var mismatchResult = validator.Validate(mismatchDoc);
+            bool mismatchOk = !mismatchResult.IsValid &&
+                              mismatchResult.Errors.Any(e => e.Code == GraphValidationErrors.TypeMismatch);
+
+            // 3. Execution Cycle Check: A -> B -> C -> A
+            var cycleDoc = new GraphDocument("graph-cycle", "BP_Cycle", "Actor");
+            var cA = new GraphNode("nodeA", "FuncA", 0, 0, GraphNodeKind.ImpureFunction);
+            cA.Pins.AddRange([new GraphPin("a-in", "ExecIn", GraphPinDirection.Input, GraphPinType.Exec), new GraphPin("a-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec)]);
+            
+            var cB = new GraphNode("nodeB", "FuncB", 100, 0, GraphNodeKind.ImpureFunction);
+            cB.Pins.AddRange([new GraphPin("b-in", "ExecIn", GraphPinDirection.Input, GraphPinType.Exec), new GraphPin("b-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec)]);
+
+            var cC = new GraphNode("nodeC", "FuncC", 200, 0, GraphNodeKind.ImpureFunction);
+            cC.Pins.AddRange([new GraphPin("c-in", "ExecIn", GraphPinDirection.Input, GraphPinType.Exec), new GraphPin("c-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec)]);
+
+            cycleDoc.Nodes.AddRange([cA, cB, cC]);
+            cycleDoc.Links.Add(new GraphLink("nodeA", "a-out", "nodeB", "b-in"));
+            cycleDoc.Links.Add(new GraphLink("nodeB", "b-out", "nodeC", "c-in"));
+            cycleDoc.Links.Add(new GraphLink("nodeC", "c-out", "nodeA", "a-in")); // Cycle!
+
+            var cycleResult = validator.Validate(cycleDoc);
+            bool cycleOk = !cycleResult.IsValid &&
+                           cycleResult.Errors.Any(e => e.Code == GraphValidationErrors.CircularExecutionCycle);
+
+            // 4. Pure Function Data Dependency Cycle: Pure1 <-> Pure2
+            var dataCycleDoc = new GraphDocument("graph-datacycle", "BP_DataCycle", "Actor");
+            var p1 = new GraphNode("pure1", "PureOp1", 0, 0, GraphNodeKind.PureFunction);
+            p1.Pins.AddRange([new GraphPin("p1-in", "in", GraphPinDirection.Input, GraphPinType.Float), new GraphPin("p1-out", "out", GraphPinDirection.Output, GraphPinType.Float)]);
+
+            var p2 = new GraphNode("pure2", "PureOp2", 100, 0, GraphNodeKind.PureFunction);
+            p2.Pins.AddRange([new GraphPin("p2-in", "in", GraphPinDirection.Input, GraphPinType.Float), new GraphPin("p2-out", "out", GraphPinDirection.Output, GraphPinType.Float)]);
+
+            dataCycleDoc.Nodes.AddRange([p1, p2]);
+            dataCycleDoc.Links.Add(new GraphLink("pure1", "p1-out", "pure2", "p2-in"));
+            dataCycleDoc.Links.Add(new GraphLink("pure2", "p2-out", "pure1", "p1-in")); // Data Cycle!
+
+            var dataCycleResult = validator.Validate(dataCycleDoc);
+            bool dataCycleOk = !dataCycleResult.IsValid &&
+                               dataCycleResult.Errors.Any(e => e.Code == GraphValidationErrors.CircularDataDependency);
+
+            // 5. Multiple Connections on Data Input Pin
+            var multiInDoc = new GraphDocument("graph-multi-in", "BP_MultiIn", "Actor");
+            var src1 = new GraphNode("s1", "Src1", 0, 0, GraphNodeKind.PureFunction);
+            src1.Pins.Add(new GraphPin("s1-out", "out", GraphPinDirection.Output, GraphPinType.Float));
+            var src2 = new GraphNode("s2", "Src2", 0, 50, GraphNodeKind.PureFunction);
+            src2.Pins.Add(new GraphPin("s2-out", "out", GraphPinDirection.Output, GraphPinType.Float));
+            var dst = new GraphNode("dst", "Dst", 100, 0, GraphNodeKind.ImpureFunction);
+            dst.Pins.Add(new GraphPin("dst-in", "in", GraphPinDirection.Input, GraphPinType.Float));
+
+            multiInDoc.Nodes.AddRange([src1, src2, dst]);
+            multiInDoc.Links.Add(new GraphLink("s1", "s1-out", "dst", "dst-in"));
+            multiInDoc.Links.Add(new GraphLink("s2", "s2-out", "dst", "dst-in")); // Forbidden fan-in
+
+            var multiInResult = validator.Validate(multiInDoc);
+            bool multiInOk = !multiInResult.IsValid &&
+                             multiInResult.Errors.Any(e => e.Code == GraphValidationErrors.MultipleInputConnections);
+
+            // 6. Converter Bridge
+            var convertedBp = GraphFormatConverter.ToBlueprintGraph(validDoc);
+            var reConvertedDoc = GraphFormatConverter.ToGraphDocument(convertedBp);
+            bool converterOk = reConvertedDoc.Nodes.Count == 3 && reConvertedDoc.Links.Count == 2;
+
+            // 7. DI resolution
+            var serviceProvider = ServiceRegistration.BuildEngineServiceProvider();
+            var diSerializer = serviceProvider.GetService<IGraphSerializer>();
+            var diValidator = serviceProvider.GetService<IGraphValidator>();
+            bool diOk = diSerializer != null && diValidator != null;
+
+            if (validOk && roundtripOk && mismatchOk && cycleOk && dataCycleOk && multiInOk && converterOk && diOk)
+            {
+                Console.WriteLine("PASSED (NativeAOT SourceGen roundtrip, type mismatch rejection, exec & pure cycle detection, fan-in verification)");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"FAILED (validOk:{validOk}, roundtripOk:{roundtripOk}, mismatchOk:{mismatchOk}, cycleOk:{cycleOk}, dataCycleOk:{dataCycleOk}, multiInOk:{multiInOk}, converterOk:{converterOk}, diOk:{diOk})");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"FAILED: {ex.Message}");
+            failed++;
+        }
+
+        // Test 32: Roslyn SyntaxFactory C# Code Generator & In-Memory Dynamic Compilation
+        try
+        {
+            Console.Write("Test 32: Roslyn SyntaxFactory C# Code Generator (.g.cs) & Compilation... ");
+
+            var codeGen = new RoslynGraphCodeGeneratorService();
+            var compiler = new BlueprintCompilerService();
+
+            var doc = new GraphDocument("graph-mover", "BP_TestMover", "ActorComponent");
+
+            // Event 1: OnBeginPlay -> PrintString("Game Started")
+            var beginPlayNode = new GraphNode("node-beginplay", "Event.OnBeginPlay", 0, 0, GraphNodeKind.Event);
+            var bpExecOut = new GraphPin("bp-exec-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec);
+            beginPlayNode.Pins.Add(bpExecOut);
+
+            var printNode = new GraphNode("node-print", "ActorBlueprint.PrintString", 200, 0, GraphNodeKind.ImpureFunction);
+            var printExecIn = new GraphPin("print-exec-in", "ExecIn", GraphPinDirection.Input, GraphPinType.Exec);
+            var printMsg = new GraphPin("print-msg", "message", GraphPinDirection.Input, GraphPinType.String);
+            printNode.Pins.AddRange([printExecIn, printMsg]);
+            printNode.DefaultPinValues["message"] = "Game Started";
+
+            doc.Nodes.AddRange([beginPlayNode, printNode]);
+            doc.Links.Add(new GraphLink(beginPlayNode.Id, bpExecOut.Id, printNode.Id, printExecIn.Id));
+
+            // Event 2: OnTick(deltaTime) -> newLocation = VectorAdd(GetActorLocation(), VectorMultiplyScalar(vector=(0, 0, 100), scalar=deltaTime)) -> SetActorLocation(newLocation)
+            var tickNode = new GraphNode("node-tick", "Event.OnTick", 0, 200, GraphNodeKind.Event);
+            var tickExecOut = new GraphPin("tick-exec-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec);
+            var tickDt = new GraphPin("tick-dt", "DeltaSeconds", GraphPinDirection.Output, GraphPinType.Float);
+            tickNode.Pins.AddRange([tickExecOut, tickDt]);
+
+            var getLocNode = new GraphNode("node-getloc", "ActorBlueprint.GetActorLocation", 200, 250, GraphNodeKind.PureFunction);
+            var getLocOut = new GraphPin("getloc-out", "ReturnValue", GraphPinDirection.Output, GraphPinType.Vector3);
+            getLocNode.Pins.Add(getLocOut);
+
+            var multNode = new GraphNode("node-mult", "MathLibrary.VectorMultiplyScalar", 200, 350, GraphNodeKind.PureFunction);
+            var multVecIn = new GraphPin("mult-vec", "vector", GraphPinDirection.Input, GraphPinType.Vector3);
+            var multScalarIn = new GraphPin("mult-scalar", "scalar", GraphPinDirection.Input, GraphPinType.Float);
+            var multOut = new GraphPin("mult-out", "ReturnValue", GraphPinDirection.Output, GraphPinType.Vector3);
+            multNode.Pins.AddRange([multVecIn, multScalarIn, multOut]);
+            multNode.DefaultPinValues["vector"] = "(0, 0, 100)";
+
+            var addNode = new GraphNode("node-add", "MathLibrary.VectorAdd", 450, 300, GraphNodeKind.PureFunction);
+            var addInA = new GraphPin("add-in-a", "a", GraphPinDirection.Input, GraphPinType.Vector3);
+            var addInB = new GraphPin("add-in-b", "b", GraphPinDirection.Input, GraphPinType.Vector3);
+            var addOut = new GraphPin("add-out", "ReturnValue", GraphPinDirection.Output, GraphPinType.Vector3);
+            addNode.Pins.AddRange([addInA, addInB, addOut]);
+
+            var setLocNode = new GraphNode("node-setloc", "ActorBlueprint.SetActorLocation", 700, 200, GraphNodeKind.ImpureFunction);
+            var setLocExecIn = new GraphPin("setloc-exec-in", "ExecIn", GraphPinDirection.Input, GraphPinType.Exec);
+            var setLocExecOut = new GraphPin("setloc-exec-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec);
+            var setLocNewLoc = new GraphPin("setloc-newloc", "newLocation", GraphPinDirection.Input, GraphPinType.Vector3);
+            setLocNode.Pins.AddRange([setLocExecIn, setLocExecOut, setLocNewLoc]);
+
+            // Branch Node: if condition is true -> PrintString("Moving Up")
+            var branchNode = new GraphNode("node-branch", "FlowControl.Branch", 950, 200, GraphNodeKind.ImpureFunction);
+            var branchExecIn = new GraphPin("branch-in", "ExecIn", GraphPinDirection.Input, GraphPinType.Exec);
+            var branchCond = new GraphPin("branch-cond", "Condition", GraphPinDirection.Input, GraphPinType.Boolean);
+            var branchTrue = new GraphPin("branch-true", "True", GraphPinDirection.Output, GraphPinType.Exec);
+            var branchFalse = new GraphPin("branch-false", "False", GraphPinDirection.Output, GraphPinType.Exec);
+            branchNode.Pins.AddRange([branchExecIn, branchCond, branchTrue, branchFalse]);
+            branchNode.DefaultPinValues["Condition"] = "true";
+
+            var branchPrintNode = new GraphNode("node-branch-print", "ActorBlueprint.PrintString", 1200, 150, GraphNodeKind.ImpureFunction);
+            var branchPrintIn = new GraphPin("bprint-in", "ExecIn", GraphPinDirection.Input, GraphPinType.Exec);
+            var branchPrintMsg = new GraphPin("bprint-msg", "message", GraphPinDirection.Input, GraphPinType.String);
+            branchPrintNode.Pins.AddRange([branchPrintIn, branchPrintMsg]);
+            branchPrintNode.DefaultPinValues["message"] = "Moving Up";
+
+            doc.Nodes.AddRange([tickNode, getLocNode, multNode, addNode, setLocNode, branchNode, branchPrintNode]);
+
+            // Wire up Tick execution
+            doc.Links.Add(new GraphLink(tickNode.Id, tickExecOut.Id, setLocNode.Id, setLocExecIn.Id));
+            doc.Links.Add(new GraphLink(setLocNode.Id, setLocExecOut.Id, branchNode.Id, branchExecIn.Id));
+            doc.Links.Add(new GraphLink(branchNode.Id, branchTrue.Id, branchPrintNode.Id, branchPrintIn.Id));
+
+            // Wire up pure data expressions
+            doc.Links.Add(new GraphLink(tickNode.Id, tickDt.Id, multNode.Id, multScalarIn.Id)); // deltaTime -> scalar
+            doc.Links.Add(new GraphLink(getLocNode.Id, getLocOut.Id, addNode.Id, addInA.Id));   // GetActorLocation() -> a
+            doc.Links.Add(new GraphLink(multNode.Id, multOut.Id, addNode.Id, addInB.Id));       // (0,0,100)*deltaTime -> b
+            doc.Links.Add(new GraphLink(addNode.Id, addOut.Id, setLocNode.Id, setLocNewLoc.Id)); // newLocation -> SetActorLocation
+
+            // 1. Generate Syntax Tree & C# Source
+            var syntaxTree = codeGen.GenerateSyntaxTree(doc);
+            var sourceCode = codeGen.GenerateSourceCode(doc);
+
+            bool hasGeneratedCodeAttr = sourceCode.Contains("[GeneratedCode(\"BlockoutStudio.GraphCodeGenerator\", \"1.0.0\")]");
+            bool hasClassDecl = sourceCode.Contains("public partial class BP_TestMover : ActorComponent");
+            bool hasBeginPlay = sourceCode.Contains("public override void OnBeginPlay()");
+            bool hasBaseBeginPlay = sourceCode.Contains("base.OnBeginPlay();");
+            bool hasTick = sourceCode.Contains("public override void OnTick(float deltaTime)");
+            bool hasBaseTick = sourceCode.Contains("base.OnTick(deltaTime);");
+            bool hasPureExpr = sourceCode.Contains("GetActorLocation()") && sourceCode.Contains("deltaTime");
+            bool hasIfBranch = sourceCode.Contains("if (true)");
+            bool hasPrint = sourceCode.Contains("PrintString(\"Game Started\")") && sourceCode.Contains("PrintString(\"Moving Up\")");
+
+            // 2. Roslyn Dynamic Compilation
+            var compileResult = compiler.CompileSource(sourceCode, "TestMoverAssembly");
+            bool compileSuccess = compileResult.Success && compileResult.CompiledAssembly != null;
+
+            // 3. Simulation & Runtime Execution
+            bool runtimeExecOk = false;
+            string? capturedPrint = null;
+            if (compileSuccess && compileResult.CompiledAssembly != null)
+            {
+                var type = compileResult.CompiledAssembly.GetType("BlockoutStudio.Generated.BP_TestMover");
+                if (type != null)
+                {
+                    var instance = (ActorComponent)Activator.CreateInstance(type)!;
+                    instance.Owner = new Actor("test-actor", "TestActor", new Vector3(0, 0, 50), Vector3.Zero, Vector3.One);
+                    instance.OnPrintString = msg => capturedPrint = msg;
+
+                    // Execute lifecycle
+                    instance.OnBeginPlay();
+                    bool beginPlayExecuted = capturedPrint == "Game Started";
+
+                    // Execute tick with 0.5s deltaTime: Z should move from 50 to 50 + (100 * 0.5) = 100
+                    instance.OnTick(0.5f);
+                    bool tickExecuted = MathF.Abs(instance.Owner.Location.Z - 100f) < 0.001f;
+                    bool branchExecuted = capturedPrint == "Moving Up";
+
+                    runtimeExecOk = beginPlayExecuted && tickExecuted && branchExecuted;
+                }
+            }
+
+            // 4. DI Verification
+            var sp = ServiceRegistration.BuildEngineServiceProvider();
+            var diGen = sp.GetService<IGraphCodeGeneratorService>();
+            bool diOk = diGen != null;
+
+            if (hasGeneratedCodeAttr && hasClassDecl && hasBeginPlay && hasBaseBeginPlay &&
+                hasTick && hasBaseTick && hasPureExpr && hasIfBranch && hasPrint &&
+                compileSuccess && runtimeExecOk && diOk)
+            {
+                Console.WriteLine($"PASSED (Roslyn SyntaxFactory generated 100% valid AST, compiled in {compileResult.CompilationTimeMs}ms, ActorComponent simulated: Z 50 -> 100)");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"FAILED (attr:{hasGeneratedCodeAttr}, class:{hasClassDecl}, begin:{hasBeginPlay}, tick:{hasTick}, pure:{hasPureExpr}, if:{hasIfBranch}, print:{hasPrint}, compile:{compileSuccess}, exec:{runtimeExecOk}, di:{diOk})");
+                if (!compileSuccess)
+                {
+                    foreach (var diag in compileResult.Diagnostics)
+                    {
+                        Console.WriteLine($"  Compilation Error: {diag.Message} (Line {diag.Line}:{diag.Column})");
+                    }
+                }
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"FAILED: {ex.Message}");
+            failed++;
+        }
+
+        // Test 33: Standalone Game Packaging Pipeline & Scene Binary Roundtrip (NativeAOT)
+        try
+        {
+            Console.Write("Test 33: Standalone Game Packaging Pipeline & Scene Binary (NativeAOT)... ");
+
+            // 1. Test Scene.bin binary serialization and deserialization
+            var origActors = new List<Actor>
+            {
+                new("act-1", "HeroCharacter", new Vector3(100f, 200f, 50f), new Vector3(0f, 90f, 0f), new Vector3(1f, 1f, 1f)),
+                new("act-2", "StaticSunLight", new Vector3(0f, 0f, 500f), new Vector3(-45f, 45f, 0f), new Vector3(1f, 1f, 1f))
+            };
+
+            var props = new Dictionary<string, string> { { "Speed", "600" }, { "JumpZ", "420" } };
+            origActors[0].Properties["Component_Movement"] = props;
+
+            var sceneBytes = CompactSceneBinaryWriter.WriteSceneToBytes(origActors);
+            using var ms = new MemoryStream(sceneBytes);
+            var loadedActors = CompactSceneBinaryReader.ReadScene(ms);
+
+            bool binaryOk = loadedActors.Count == 2 &&
+                            loadedActors[0].Name == "HeroCharacter" &&
+                            MathF.Abs(loadedActors[0].Location.X - 100f) < 0.001f &&
+                            MathF.Abs(loadedActors[0].Rotation.Y - 90f) < 0.001f &&
+                            loadedActors[0].Properties.ContainsKey("Component_Movement");
+
+            // 2. Test Standalone Packaging Coordinator
+            var sp = ServiceRegistration.BuildEngineServiceProvider();
+            var packagingService = sp.GetRequiredService<IStandalonePackagingService>();
+
+            var projectRoot = Directory.GetCurrentDirectory();
+            var testOutDir = Path.Combine(projectRoot, "Saved", "TestStagedStandalone");
+            if (Directory.Exists(testOutDir)) Directory.Delete(testOutDir, recursive: true);
+
+            var req = new StandalonePackageRequest(
+                OutputDirectory: testOutDir,
+                Configuration: "Release",
+                RuntimeIdentifier: "win-x64",
+                SkipNativeAotPublish: true, // Test Fast Mode
+                SceneActors: origActors);
+
+            var buildLogs = new List<string>();
+            var packageResult = packagingService.PackageStandaloneGameAsync(projectRoot, req, log => buildLogs.Add(log)).GetAwaiter().GetResult();
+
+            bool resultOk = packageResult.Success && packageResult.TranspiledScriptCount >= 1 && packageResult.StagedAssetCount >= 3;
+
+            // 3. Verify Staged Assets
+            var exePath = Path.Combine(testOutDir, "BlockoutGame.exe");
+            var nativeDllPath = Path.Combine(testOutDir, "EngineNative.dll");
+            var scenePath = Path.Combine(testOutDir, "Assets", "Scenes", "Scene.bin");
+            var shaderPath = Path.Combine(testOutDir, "Assets", "Shaders", "AoCompute.spv");
+            var manifestPath = Path.Combine(testOutDir, "PackageManifest.json");
+
+            bool filesOk = File.Exists(exePath) &&
+                           File.Exists(nativeDllPath) &&
+                           File.Exists(scenePath) &&
+                           File.Exists(shaderPath) &&
+                           File.Exists(manifestPath);
+
+            // Verify manifest JSON
+            bool manifestOk = false;
+            if (File.Exists(manifestPath))
+            {
+                var manifestText = File.ReadAllText(manifestPath);
+                manifestOk = manifestText.Contains("NativeAOT-Isolated") && manifestText.Contains("EngineNative.dll");
+            }
+
+            // Clean up test output directory
+            try
+            {
+                if (Directory.Exists(testOutDir)) Directory.Delete(testOutDir, recursive: true);
+            }
+            catch { }
+
+            if (binaryOk && resultOk && filesOk && manifestOk)
+            {
+                Console.WriteLine($"PASSED (Compact Scene.bin baked {sceneBytes.Length}B, 4 stages orchestrated, EngineNative.dll & Vulkan shaders staged)");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"FAILED (binaryOk:{binaryOk}, resultOk:{resultOk}, filesOk:{filesOk}, manifestOk:{manifestOk}, err:{packageResult.ErrorMessage})");
                 failed++;
             }
         }
