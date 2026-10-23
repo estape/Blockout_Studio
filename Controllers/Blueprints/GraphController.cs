@@ -73,7 +73,7 @@ public sealed class GraphController : IGraphController
         return new(true, saveRes.BlueprintPath);
     }
 
-    public GraphOperationResult<GraphNode> AddNode(string targetMethodIdentifier, GraphNodeKind kind, float x, float y)
+    public GraphOperationResult<GraphNode> AddNode(string targetMethodIdentifier, GraphNodeType nodeType, float x, float y)
     {
         if (ActiveDocument == null)
         {
@@ -83,7 +83,7 @@ public sealed class GraphController : IGraphController
         var node = new GraphNode(
             Guid.NewGuid().ToString("N"),
             targetMethodIdentifier,
-            kind,
+            nodeType,
             new NodeSpatialMetadata(x, y));
 
         ActiveDocument.Nodes.Add(node);
@@ -240,6 +240,42 @@ public sealed class GraphController : IGraphController
 
         // Fast-path spatial update: no semantic re-validation or AST invalidation
         node.Spatial = node.Spatial with { X = x, Y = y };
+        IsDirty = true;
+        return new(true, true);
+    }
+
+    public GraphOperationResult<GraphVariable> AddVariable(string name, GraphPinType type, string defaultValue = "0", bool isPublic = true)
+    {
+        if (ActiveDocument == null)
+        {
+            return new(false, null, "No active graph document.");
+        }
+
+        if (ActiveDocument.Variables.Any(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            return new(false, null, $"Variable '{name}' already exists in graph.");
+        }
+
+        var variable = new GraphVariable(name, type, defaultValue, isPublic);
+        ActiveDocument.Variables.Add(variable);
+        IsDirty = true;
+        return new(true, variable);
+    }
+
+    public GraphOperationResult<bool> RemoveVariable(string variableId)
+    {
+        if (ActiveDocument == null)
+        {
+            return new(false, false, "No active graph document.");
+        }
+
+        var variable = ActiveDocument.FindVariable(variableId);
+        if (variable == null)
+        {
+            return new(false, false, $"Variable '{variableId}' not found.");
+        }
+
+        ActiveDocument.Variables.Remove(variable);
         IsDirty = true;
         return new(true, true);
     }

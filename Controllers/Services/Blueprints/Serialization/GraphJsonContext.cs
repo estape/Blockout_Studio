@@ -20,8 +20,9 @@ namespace BlockoutStudio.Controllers.Services.Blueprints.Serialization;
 [JsonSerializable(typeof(GraphNode))]
 [JsonSerializable(typeof(GraphPin))]
 [JsonSerializable(typeof(GraphLink))]
+[JsonSerializable(typeof(GraphVariable))]
 [JsonSerializable(typeof(NodeSpatialMetadata))]
-[JsonSerializable(typeof(GraphNodeKind))]
+[JsonSerializable(typeof(GraphNodeType))]
 [JsonSerializable(typeof(GraphPinDirection))]
 [JsonSerializable(typeof(GraphPinType))]
 
@@ -29,6 +30,7 @@ namespace BlockoutStudio.Controllers.Services.Blueprints.Serialization;
 [JsonSerializable(typeof(List<GraphNode>))]
 [JsonSerializable(typeof(List<GraphPin>))]
 [JsonSerializable(typeof(List<GraphLink>))]
+[JsonSerializable(typeof(List<GraphVariable>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 
 // Validation DTOs

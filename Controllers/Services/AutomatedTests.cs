@@ -1954,12 +1954,15 @@ public static class AutomatedTests
             doc.Links.Add(new GraphLink(multNode.Id, multOut.Id, addNode.Id, addInB.Id));       // (0,0,100)*deltaTime -> b
             doc.Links.Add(new GraphLink(addNode.Id, addOut.Id, setLocNode.Id, setLocNewLoc.Id)); // newLocation -> SetActorLocation
 
+            // Add Model State Variable
+            doc.Variables.Add(new GraphVariable("MovementSpeed", GraphPinType.Float, "300", true));
+
             // 1. Generate Syntax Tree & C# Source
             var syntaxTree = codeGen.GenerateSyntaxTree(doc);
             var sourceCode = codeGen.GenerateSourceCode(doc);
 
             bool hasGeneratedCodeAttr = sourceCode.Contains("[GeneratedCode(\"BlockoutStudio.GraphCodeGenerator\", \"1.0.0\")]");
-            bool hasClassDecl = sourceCode.Contains("public partial class BP_TestMover : ActorComponent");
+            bool hasClassDecl = sourceCode.Contains("public sealed partial class BP_TestMover : ActorComponent");
             bool hasBeginPlay = sourceCode.Contains("public override void OnBeginPlay()");
             bool hasBaseBeginPlay = sourceCode.Contains("base.OnBeginPlay();");
             bool hasTick = sourceCode.Contains("public override void OnTick(float deltaTime)");
@@ -2002,7 +2005,8 @@ public static class AutomatedTests
             var diGen = sp.GetService<IGraphCodeGeneratorService>();
             bool diOk = diGen != null;
 
-            if (hasGeneratedCodeAttr && hasClassDecl && hasBeginPlay && hasBaseBeginPlay &&
+            bool hasModelProp = sourceCode.Contains("MovementSpeed");
+            if (hasGeneratedCodeAttr && hasClassDecl && hasModelProp && hasBeginPlay && hasBaseBeginPlay &&
                 hasTick && hasBaseTick && hasPureExpr && hasIfBranch && hasPrint &&
                 compileSuccess && runtimeExecOk && diOk)
             {

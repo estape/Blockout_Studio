@@ -15,3 +15,4 @@ public interface IGraphValidationService : IGraphValidator
     /// </summary>
     GraphValidationResult CanConnectPins(GraphDocument document, string sourceNodeId, string sourcePinId, string targetNodeId, string targetPinId);
 }
+

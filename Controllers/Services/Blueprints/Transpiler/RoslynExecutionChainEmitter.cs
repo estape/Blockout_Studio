@@ -98,6 +98,38 @@ public class RoslynExecutionChainEmitter
     {
         var methodId = node.TargetMethodIdentifier;
 
+        // VariableSet: this.VariableName = <valueExpr>;
+        if (node.NodeType == GraphNodeType.VariableSet || methodId.StartsWith("Variable.Set", StringComparison.OrdinalIgnoreCase))
+        {
+            var varName = methodId;
+            if (varName.StartsWith("Variable.Set.", StringComparison.OrdinalIgnoreCase))
+                varName = varName["Variable.Set.".Length..];
+            else if (varName.StartsWith("Set.", StringComparison.OrdinalIgnoreCase))
+                varName = varName["Set.".Length..];
+
+            if (string.IsNullOrWhiteSpace(varName) && node.DefaultPinValues.TryGetValue("VariableName", out var vn))
+                varName = vn;
+
+            if (string.IsNullOrWhiteSpace(varName))
+                varName = "Variable";
+
+            var valPin = node.Pins.FirstOrDefault(p => p.Direction == GraphPinDirection.Input && p.ValueType != GraphPinType.Exec);
+            var valExpr = valPin != null
+                ? _pureEmitter.ResolveExpression(node, valPin)
+                : SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(0f));
+
+            var leftSide = SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                SyntaxFactory.ThisExpression(),
+                SyntaxFactory.IdentifierName(RoslynPureExpressionEmitter.SanitizeIdentifier(varName)));
+
+            return SyntaxFactory.ExpressionStatement(
+                SyntaxFactory.AssignmentExpression(
+                    SyntaxKind.SimpleAssignmentExpression,
+                    leftSide,
+                    valExpr));
+        }
+
         // SetActorLocation
         if (methodId.EndsWith("SetActorLocation", StringComparison.OrdinalIgnoreCase))
         {

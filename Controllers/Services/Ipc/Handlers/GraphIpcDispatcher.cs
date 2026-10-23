@@ -59,15 +59,16 @@ public sealed class GraphIpcDispatcher : IIpcActionHandler
             case "graph_add_node":
             {
                 var methodId = payload.TryGetProperty("targetMethodIdentifier", out var mp) ? mp.GetString() ?? "" : "";
-                var kind = GraphNodeKind.ImpureFunction;
-                if (payload.TryGetProperty("nodeKind", out var kp) && Enum.TryParse<GraphNodeKind>(kp.GetString(), ignoreCase: true, out var parsedKind))
+                var nodeType = GraphNodeType.ImpureFunction;
+                if ((payload.TryGetProperty("nodeType", out var ntp) && Enum.TryParse<GraphNodeType>(ntp.GetString(), ignoreCase: true, out var parsedType)) ||
+                    (payload.TryGetProperty("nodeKind", out var kp) && Enum.TryParse<GraphNodeType>(kp.GetString(), ignoreCase: true, out parsedType)))
                 {
-                    kind = parsedKind;
+                    nodeType = parsedType;
                 }
                 var x = payload.TryGetProperty("x", out var xp) ? xp.GetSingle() : 0f;
                 var y = payload.TryGetProperty("y", out var yp) ? yp.GetSingle() : 0f;
 
-                var res = _controller.AddNode(methodId, kind, x, y);
+                var res = _controller.AddNode(methodId, nodeType, x, y);
                 Reply(window, "graph_add_node_response", res, GraphJsonContext.Default.GraphOperationResultGraphNode);
                 break;
             }

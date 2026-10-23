@@ -7,8 +7,8 @@ using BlockoutStudio.Models.Blueprints.Format;
 namespace BlockoutStudio.Controllers.Services.Blueprints.Transpiler;
 
 /// <summary>
-/// Recursively resolves input pins connected to pure function nodes and default values
-/// into nested Roslyn ExpressionSyntax trees.
+/// Recursively resolves input pins connected to pure function nodes, variable getters, and default values
+/// into nested Roslyn ExpressionSyntax trees with zero runtime reflection or boxing.
 /// </summary>
 public class RoslynPureExpressionEmitter
 {
@@ -47,7 +47,7 @@ public class RoslynPureExpressionEmitter
 
         if (recursionGuard.Contains(guardKey))
         {
-            // Circular dependency fallback
+            // Circular dependency fallback: return default literal to prevent stack overflow
             return EmitDefaultLiteral(inputPin, null);
         }
 
@@ -68,7 +68,8 @@ public class RoslynPureExpressionEmitter
 
             // 2. No wire connected: emit default value literal
             string? defVal = null;
-            if (node.DefaultPinValues.TryGetValue(inputPin.Name, out var v))
+            if (node.DefaultPinValues.TryGetValue(inputPin.Name, out var v) ||
+                node.DefaultPinValues.TryGetValue(inputPin.Id, out v))
             {
                 defVal = v;
             }
@@ -83,8 +84,14 @@ public class RoslynPureExpressionEmitter
 
     private ExpressionSyntax ResolveSourceOutputExpression(GraphNode srcNode, GraphPin srcPin, HashSet<string> recursionGuard)
     {
-        // Event output pin (e.g. OnTick -> DeltaSeconds)
-        if (srcNode.NodeKind == GraphNodeKind.Event)
+        // VariableGet: resolves to this.VariableName (Model property access)
+        if (srcNode.NodeType == GraphNodeType.VariableGet)
+        {
+            return ResolveVariableGetNode(srcNode);
+        }
+
+        // Event output pin (e.g. OnTick -> DeltaSeconds / deltaTime)
+        if (srcNode.NodeType == GraphNodeType.Event)
         {
             if (srcPin.Name.Equals("DeltaSeconds", StringComparison.OrdinalIgnoreCase) ||
                 srcPin.Name.Equals("deltaTime", StringComparison.OrdinalIgnoreCase) ||
@@ -103,7 +110,7 @@ public class RoslynPureExpressionEmitter
         }
 
         // Pure function node
-        if (srcNode.NodeKind == GraphNodeKind.PureFunction)
+        if (srcNode.NodeType == GraphNodeType.PureFunction)
         {
             return ResolvePureFunctionNode(srcNode, srcPin, recursionGuard);
         }
@@ -113,11 +120,56 @@ public class RoslynPureExpressionEmitter
         return SyntaxFactory.IdentifierName(varName);
     }
 
+    public ExpressionSyntax ResolveVariableGetNode(GraphNode varGetNode)
+    {
+        // Extract variable identifier from TargetMethodIdentifier or default pin
+        var varName = varGetNode.TargetMethodIdentifier;
+        if (varName.StartsWith("Variable.Get.", StringComparison.OrdinalIgnoreCase))
+        {
+            varName = varName["Variable.Get.".Length..];
+        }
+        else if (varName.StartsWith("Get.", StringComparison.OrdinalIgnoreCase))
+        {
+            varName = varName["Get.".Length..];
+        }
+
+        if (string.IsNullOrWhiteSpace(varName) && varGetNode.DefaultPinValues.TryGetValue("VariableName", out var nameVal))
+        {
+            varName = nameVal;
+        }
+
+        if (string.IsNullOrWhiteSpace(varName))
+        {
+            varName = "Variable";
+        }
+
+        return SyntaxFactory.MemberAccessExpression(
+            SyntaxKind.SimpleMemberAccessExpression,
+            SyntaxFactory.ThisExpression(),
+            SyntaxFactory.IdentifierName(SanitizeIdentifier(varName)));
+    }
+
     private ExpressionSyntax ResolvePureFunctionNode(GraphNode pureNode, GraphPin outPin, HashSet<string> recursionGuard)
     {
         var methodId = pureNode.TargetMethodIdentifier;
 
-        // Vector Arithmetic
+        // Constant literal nodes (e.g. MathLibrary.FloatConstant)
+        if (methodId.EndsWith("Constant", StringComparison.OrdinalIgnoreCase))
+        {
+            var valPin = pureNode.Pins.FirstOrDefault(p => p.Direction == GraphPinDirection.Output && p.ValueType != GraphPinType.Exec);
+            string? litVal = null;
+            if (pureNode.DefaultPinValues.TryGetValue("Value", out var dv) ||
+                pureNode.DefaultPinValues.TryGetValue("val", out dv))
+            {
+                litVal = dv;
+            }
+            if (valPin != null)
+            {
+                return EmitDefaultLiteral(valPin, litVal);
+            }
+        }
+
+        // Vector Arithmetic & Math
         if (methodId.EndsWith("VectorAdd", StringComparison.OrdinalIgnoreCase) || methodId == "Vector3.Add")
         {
             var exprA = ResolveNamedPinOrIndex(pureNode, "a", 0, recursionGuard);
@@ -155,33 +207,73 @@ public class RoslynPureExpressionEmitter
                 })));
         }
 
+        if (methodId.EndsWith("VectorNormalize", StringComparison.OrdinalIgnoreCase) || methodId == "Vector3.Normalize")
+        {
+            var exprVec = ResolveNamedPinOrIndex(pureNode, "value", 0, recursionGuard);
+            return SyntaxFactory.InvocationExpression(
+                SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    SyntaxFactory.IdentifierName("Vector3"),
+                    SyntaxFactory.IdentifierName("Normalize")),
+                SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(exprVec))));
+        }
+
         // Scalar Math
-        if (methodId.EndsWith(".Add", StringComparison.OrdinalIgnoreCase) || methodId == "Add")
+        if (methodId.EndsWith(".Add", StringComparison.OrdinalIgnoreCase) || methodId == "Add" || methodId.EndsWith("FloatAdd", StringComparison.OrdinalIgnoreCase))
         {
             var exprA = ResolveNamedPinOrIndex(pureNode, "a", 0, recursionGuard);
             var exprB = ResolveNamedPinOrIndex(pureNode, "b", 1, recursionGuard);
             return SyntaxFactory.ParenthesizedExpression(SyntaxFactory.BinaryExpression(SyntaxKind.AddExpression, exprA, exprB));
         }
 
-        if (methodId.EndsWith(".Subtract", StringComparison.OrdinalIgnoreCase) || methodId == "Subtract")
+        if (methodId.EndsWith(".Subtract", StringComparison.OrdinalIgnoreCase) || methodId == "Subtract" || methodId.EndsWith("FloatSubtract", StringComparison.OrdinalIgnoreCase))
         {
             var exprA = ResolveNamedPinOrIndex(pureNode, "a", 0, recursionGuard);
             var exprB = ResolveNamedPinOrIndex(pureNode, "b", 1, recursionGuard);
             return SyntaxFactory.ParenthesizedExpression(SyntaxFactory.BinaryExpression(SyntaxKind.SubtractExpression, exprA, exprB));
         }
 
-        if (methodId.EndsWith(".Multiply", StringComparison.OrdinalIgnoreCase) || methodId == "Multiply")
+        if (methodId.EndsWith(".Multiply", StringComparison.OrdinalIgnoreCase) || methodId == "Multiply" || methodId.EndsWith("FloatMultiply", StringComparison.OrdinalIgnoreCase))
         {
             var exprA = ResolveNamedPinOrIndex(pureNode, "a", 0, recursionGuard);
             var exprB = ResolveNamedPinOrIndex(pureNode, "b", 1, recursionGuard);
             return SyntaxFactory.ParenthesizedExpression(SyntaxFactory.BinaryExpression(SyntaxKind.MultiplyExpression, exprA, exprB));
         }
 
-        if (methodId.EndsWith(".Divide", StringComparison.OrdinalIgnoreCase) || methodId == "Divide")
+        if (methodId.EndsWith(".Divide", StringComparison.OrdinalIgnoreCase) || methodId == "Divide" || methodId.EndsWith("FloatDivide", StringComparison.OrdinalIgnoreCase))
         {
             var exprA = ResolveNamedPinOrIndex(pureNode, "a", 0, recursionGuard);
             var exprB = ResolveNamedPinOrIndex(pureNode, "b", 1, recursionGuard);
             return SyntaxFactory.ParenthesizedExpression(SyntaxFactory.BinaryExpression(SyntaxKind.DivideExpression, exprA, exprB));
+        }
+
+        if (methodId.EndsWith("Clamp", StringComparison.OrdinalIgnoreCase))
+        {
+            var exprVal = ResolveNamedPinOrIndex(pureNode, "value", 0, recursionGuard);
+            var exprMin = ResolveNamedPinOrIndex(pureNode, "min", 1, recursionGuard);
+            var exprMax = ResolveNamedPinOrIndex(pureNode, "max", 2, recursionGuard);
+            return SyntaxFactory.InvocationExpression(
+                SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    SyntaxFactory.IdentifierName("MathF"),
+                    SyntaxFactory.IdentifierName("Clamp")),
+                SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[]
+                {
+                    SyntaxFactory.Argument(exprVal),
+                    SyntaxFactory.Argument(exprMin),
+                    SyntaxFactory.Argument(exprMax)
+                })));
+        }
+
+        if (methodId.EndsWith("Abs", StringComparison.OrdinalIgnoreCase))
+        {
+            var exprVal = ResolveNamedPinOrIndex(pureNode, "value", 0, recursionGuard);
+            return SyntaxFactory.InvocationExpression(
+                SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    SyntaxFactory.IdentifierName("MathF"),
+                    SyntaxFactory.IdentifierName("Abs")),
+                SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(exprVal))));
         }
 
         // Actor Getters
@@ -206,6 +298,13 @@ public class RoslynPureExpressionEmitter
             var exprA = ResolveNamedPinOrIndex(pureNode, "a", 0, recursionGuard);
             var exprB = ResolveNamedPinOrIndex(pureNode, "b", 1, recursionGuard);
             return SyntaxFactory.ParenthesizedExpression(SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, exprA, exprB));
+        }
+
+        if (methodId.EndsWith("NotEqual", StringComparison.OrdinalIgnoreCase))
+        {
+            var exprA = ResolveNamedPinOrIndex(pureNode, "a", 0, recursionGuard);
+            var exprB = ResolveNamedPinOrIndex(pureNode, "b", 1, recursionGuard);
+            return SyntaxFactory.ParenthesizedExpression(SyntaxFactory.BinaryExpression(SyntaxKind.NotEqualsExpression, exprA, exprB));
         }
 
         if (methodId.EndsWith("GreaterThan", StringComparison.OrdinalIgnoreCase))
@@ -301,7 +400,7 @@ public class RoslynPureExpressionEmitter
         }
     }
 
-    private static ExpressionSyntax ParseVector3Literal(string? text)
+    public static ExpressionSyntax ParseVector3Literal(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -339,9 +438,19 @@ public class RoslynPureExpressionEmitter
             null);
     }
 
-    private static string SanitizeIdentifier(string name)
+    public static string SanitizeIdentifier(string name)
     {
-        var cleaned = new string(name.Where(char.IsLetterOrDigit).ToArray());
-        return string.IsNullOrEmpty(cleaned) ? "var" : cleaned;
+        var cleaned = new string(name.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
+        if (string.IsNullOrEmpty(cleaned)) cleaned = "var";
+        if (char.IsDigit(cleaned[0])) cleaned = "_" + cleaned;
+        return cleaned;
     }
+}
+
+/// <summary>
+/// Alias class for RoslynPureExpressionEmitter as requested by user architectural conventions.
+/// </summary>
+public class RPE : RoslynPureExpressionEmitter
+{
+    public RPE(GraphDocument document) : base(document) { }
 }

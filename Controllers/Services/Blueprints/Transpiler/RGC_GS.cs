@@ -8,7 +8,8 @@ namespace BlockoutStudio.Controllers.Services.Blueprints.Transpiler;
 
 /// <summary>
 /// Roslyn SyntaxFactory transpiler service emitting strongly-typed, formatted C# source code (.g.cs)
-/// from visual script GraphDocuments.
+/// from visual script GraphDocuments within the MVC architecture.
+/// Partitions generated classes into Model state (properties) and Controller behaviors (event methods).
 /// </summary>
 public class RoslynGraphCodeGeneratorService : IGraphCodeGeneratorService
 {
@@ -43,37 +44,49 @@ public class RoslynGraphCodeGeneratorService : IGraphCodeGeneratorService
 
         var attributeList = SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(generatedCodeAttribute));
 
-        // 3. Class Declaration
+        // 3. Class Declaration: public sealed partial class <Name> : <BaseClass>
         var classDeclaration = SyntaxFactory.ClassDeclaration(className)
             .WithAttributeLists(SyntaxFactory.SingletonList(attributeList))
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                SyntaxFactory.Token(SyntaxKind.SealedKeyword),
                 SyntaxFactory.Token(SyntaxKind.PartialKeyword)))
             .WithBaseList(SyntaxFactory.BaseList(
                 SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
                     SyntaxFactory.SimpleBaseType(SyntaxFactory.ParseTypeName(baseClassName)))));
 
-        // 4. Discover Event Nodes & Generate Methods
-        var eventNodes = document.Nodes.Where(n => n.NodeKind == GraphNodeKind.Event).ToList();
-        var memberMethods = new List<MemberDeclarationSyntax>();
+        var members = new List<MemberDeclarationSyntax>();
+
+        // 4. [MODEL STATE] Generate Strongly Typed Auto-Properties from Graph Variables
+        foreach (var variable in document.Variables)
+        {
+            var prop = GenerateVariableProperty(variable);
+            if (prop != null)
+            {
+                members.Add(prop);
+            }
+        }
+
+        // 5. [CONTROLLER LOGIC] Discover Event Nodes & Generate Lifecycle Methods
+        var eventNodes = document.Nodes.Where(n => n.NodeType == GraphNodeType.Event).ToList();
 
         foreach (var evt in eventNodes)
         {
             var method = GenerateEventMethod(evt, execEmitter);
             if (method != null)
             {
-                memberMethods.Add(method);
+                members.Add(method);
             }
         }
 
-        classDeclaration = classDeclaration.WithMembers(SyntaxFactory.List(memberMethods));
+        classDeclaration = classDeclaration.WithMembers(SyntaxFactory.List(members));
 
-        // 5. File-scoped Namespace: namespace BlockoutStudio.Generated;
+        // 6. File-scoped Namespace: namespace BlockoutStudio.Generated;
         var namespaceDeclaration = SyntaxFactory.FileScopedNamespaceDeclaration(
             SyntaxFactory.ParseName("BlockoutStudio.Generated"))
             .WithMembers(SyntaxFactory.SingletonList<MemberDeclarationSyntax>(classDeclaration));
 
-        // 6. Compilation Unit
+        // 7. Compilation Unit
         var compilationUnit = SyntaxFactory.CompilationUnit()
             .WithUsings(SyntaxFactory.List(usings))
             .WithMembers(SyntaxFactory.SingletonList<MemberDeclarationSyntax>(namespaceDeclaration));
@@ -84,7 +97,7 @@ public class RoslynGraphCodeGeneratorService : IGraphCodeGeneratorService
     public string GenerateSourceCode(GraphDocument document)
     {
         var syntaxTree = GenerateSyntaxTree(document);
-        return syntaxTree.ToFullString();
+        return RoslynCodeFormatter.FormatCompilationUnit(syntaxTree);
     }
 
     public async Task<string> GenerateAndSaveAsync(string projectRoot, GraphDocument document)
@@ -100,6 +113,30 @@ public class RoslynGraphCodeGeneratorService : IGraphCodeGeneratorService
         var fullPath = Path.Combine(genDir, fileName);
         await File.WriteAllTextAsync(fullPath, code);
         return fullPath;
+    }
+
+    private static PropertyDeclarationSyntax? GenerateVariableProperty(GraphVariable variable)
+    {
+        var typeName = GetTypeNameForPinType(variable.Type);
+        var propName = RoslynPureExpressionEmitter.SanitizeIdentifier(variable.Name);
+
+        var dummyPin = new GraphPin("vp", variable.Name, GraphPinDirection.Input, variable.Type);
+        var initExpr = RoslynPureExpressionEmitter.EmitDefaultLiteral(dummyPin, variable.DefaultValue);
+
+        var accessors = SyntaxFactory.AccessorList(SyntaxFactory.List(new[]
+        {
+            SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+            SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
+                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
+        }));
+
+        return SyntaxFactory.PropertyDeclaration(SyntaxFactory.ParseTypeName(typeName), propName)
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(variable.IsPublic ? SyntaxKind.PublicKeyword : SyntaxKind.InternalKeyword)))
+            .WithAccessorList(accessors)
+            .WithInitializer(SyntaxFactory.EqualsValueClause(initExpr))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
     }
 
     private static MethodDeclarationSyntax? GenerateEventMethod(GraphNode evtNode, RoslynExecutionChainEmitter execEmitter)
@@ -198,6 +235,17 @@ public class RoslynGraphCodeGeneratorService : IGraphCodeGeneratorService
             .WithBody(SyntaxFactory.Block(statements));
     }
 
+    private static string GetTypeNameForPinType(GraphPinType type) => type switch
+    {
+        GraphPinType.Float => "float",
+        GraphPinType.Integer => "int",
+        GraphPinType.Boolean => "bool",
+        GraphPinType.String => "string",
+        GraphPinType.Vector3 => "Vector3",
+        GraphPinType.ActorRef => "Actor",
+        _ => "object"
+    };
+
     private static string DetermineBaseClass(string? targetActorClass)
     {
         if (string.IsNullOrWhiteSpace(targetActorClass) ||
@@ -221,11 +269,18 @@ public class RoslynGraphCodeGeneratorService : IGraphCodeGeneratorService
         return targetActorClass;
     }
 
-    private static string SanitizeClassName(string name)
+    public static string SanitizeClassName(string name)
     {
         var cleaned = new string(name.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
         if (string.IsNullOrEmpty(cleaned)) cleaned = "GeneratedBlueprintClass";
         if (char.IsDigit(cleaned[0])) cleaned = "_" + cleaned;
         return cleaned;
     }
+}
+
+/// <summary>
+/// Architectural class alias for RoslynGraphCodeGeneratorService as requested by user conventions.
+/// </summary>
+public class RGC_GS : RoslynGraphCodeGeneratorService
+{
 }

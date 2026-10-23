@@ -12,6 +12,7 @@ public class GraphDocument
     public int FormatVersion { get; set; } = 2;
     public List<GraphNode> Nodes { get; set; } = [];
     public List<GraphLink> Links { get; set; } = [];
+    public List<GraphVariable> Variables { get; set; } = [];
 
     public GraphDocument() { }
 
@@ -25,6 +26,9 @@ public class GraphDocument
     public GraphNode? FindNode(string nodeId) => Nodes.FirstOrDefault(n => n.Id == nodeId);
 
     public GraphLink? FindLink(string linkId) => Links.FirstOrDefault(l => l.Id == linkId);
+
+    public GraphVariable? FindVariable(string variableIdOrName) =>
+        Variables.FirstOrDefault(v => v.Id == variableIdOrName || string.Equals(v.Name, variableIdOrName, StringComparison.OrdinalIgnoreCase));
 
     public (GraphNode Node, GraphPin Pin)? FindPin(string pinId)
     {

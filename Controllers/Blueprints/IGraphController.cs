@@ -34,11 +34,14 @@ public interface IGraphController
     Task<GraphOperationResult<GraphDocument>> LoadGraphAsync(string projectRoot, string graphName);
     Task<GraphOperationResult<string>> SaveGraphAsync(string projectRoot);
 
-    GraphOperationResult<GraphNode> AddNode(string targetMethodIdentifier, GraphNodeKind kind, float x, float y);
+    GraphOperationResult<GraphNode> AddNode(string targetMethodIdentifier, GraphNodeType nodeType, float x, float y);
     GraphOperationResult<bool> RemoveNode(string nodeId);
     GraphOperationResult<ConnectPinsResponse> ConnectPins(string sourceNodeId, string sourcePinId, string targetNodeId, string targetPinId);
     GraphOperationResult<bool> DisconnectPins(string linkId);
     GraphOperationResult<bool> SetPinValue(string nodeId, string pinId, string value);
     GraphOperationResult<bool> MoveNode(string nodeId, float x, float y);
+    GraphOperationResult<GraphVariable> AddVariable(string name, GraphPinType type, string defaultValue = "0", bool isPublic = true);
+    GraphOperationResult<bool> RemoveVariable(string variableId);
     GraphValidationResult ValidateGraph();
 }
+

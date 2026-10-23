@@ -23,14 +23,14 @@ public static class GraphFormatConverter
 
         foreach (var node in graph.Nodes)
         {
-            var kind = GraphNodeKind.ImpureFunction;
+            var kind = GraphNodeType.ImpureFunction;
             if (node.NodeType.StartsWith("Event", StringComparison.OrdinalIgnoreCase))
             {
-                kind = GraphNodeKind.Event;
+                kind = GraphNodeType.Event;
             }
             else if (node.Category == BlueprintNodeCategory.Math)
             {
-                kind = GraphNodeKind.PureFunction;
+                kind = GraphNodeType.PureFunction;
             }
 
             var gNode = new GraphNode
@@ -39,7 +39,7 @@ public static class GraphFormatConverter
                 TargetMethodIdentifier = node.NodeType,
                 X = node.PosX,
                 Y = node.PosY,
-                NodeKind = kind
+                NodeType = kind
             };
 
             foreach (var prop in node.Properties)
@@ -98,8 +98,8 @@ public static class GraphFormatConverter
         foreach (var gNode in doc.Nodes)
         {
             var nodeCat = BlueprintNodeCategory.Actor;
-            if (gNode.NodeKind == GraphNodeKind.Event) nodeCat = BlueprintNodeCategory.Event;
-            else if (gNode.NodeKind == GraphNodeKind.PureFunction) nodeCat = BlueprintNodeCategory.Math;
+            if (gNode.NodeType == GraphNodeType.Event) nodeCat = BlueprintNodeCategory.Event;
+            else if (gNode.NodeType == GraphNodeType.PureFunction) nodeCat = BlueprintNodeCategory.Math;
 
             var bpNode = new BlueprintNode
             {

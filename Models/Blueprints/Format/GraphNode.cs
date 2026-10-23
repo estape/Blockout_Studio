@@ -20,7 +20,17 @@ public class GraphNode
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string TargetMethodIdentifier { get; set; } = string.Empty;
-    public GraphNodeKind NodeKind { get; set; } = GraphNodeKind.ImpureFunction;
+    public GraphNodeType NodeType { get; set; } = GraphNodeType.ImpureFunction;
+
+    /// <summary>
+    /// Backward-compatibility accessor forwarding to NodeType.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public GraphNodeType NodeKind
+    {
+        get => NodeType;
+        set => NodeType = value;
+    }
 
     /// <summary>
     /// Explicit spatial metadata sub-component.
@@ -57,19 +67,19 @@ public class GraphNode
 
     public GraphNode() { }
 
-    public GraphNode(string id, string targetMethodIdentifier, float x, float y, GraphNodeKind nodeKind)
+    public GraphNode(string id, string targetMethodIdentifier, float x, float y, GraphNodeType nodeType)
     {
         Id = id;
         TargetMethodIdentifier = targetMethodIdentifier;
         Spatial = new NodeSpatialMetadata(x, y);
-        NodeKind = nodeKind;
+        NodeType = nodeType;
     }
 
-    public GraphNode(string id, string targetMethodIdentifier, GraphNodeKind nodeKind, NodeSpatialMetadata? spatial = null)
+    public GraphNode(string id, string targetMethodIdentifier, GraphNodeType nodeType, NodeSpatialMetadata? spatial = null)
     {
         Id = id;
         TargetMethodIdentifier = targetMethodIdentifier;
-        NodeKind = nodeKind;
+        NodeType = nodeType;
         Spatial = spatial ?? new NodeSpatialMetadata();
     }
 
