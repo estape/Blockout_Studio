@@ -82,11 +82,11 @@ public class StandalonePackagingService : IStandalonePackagingService
             {
                 // Generate a default startup game mode script so the standalone runtime has gameplay code
                 var defaultDoc = new GraphDocument("default-gamemode", "BP_GameMode", "ActorComponent");
-                var beginPlay = new GraphNode("node-bp", "Event.OnBeginPlay", 0, 0, GraphNodeKind.Event);
+                var beginPlay = new GraphNode("node-bp", "Event.OnBeginPlay", 0, 0, GraphNodeType.Event);
                 var execOut = new GraphPin("bp-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec);
                 beginPlay.Pins.Add(execOut);
 
-                var print = new GraphNode("node-pr", "ActorBlueprint.PrintString", 200, 0, GraphNodeKind.ImpureFunction);
+                var print = new GraphNode("node-pr", "ActorBlueprint.PrintString", 200, 0, GraphNodeType.ImpureFunction);
                 var execIn = new GraphPin("pr-in", "ExecIn", GraphPinDirection.Input, GraphPinType.Exec);
                 var msgPin = new GraphPin("pr-msg", "message", GraphPinDirection.Input, GraphPinType.String);
                 print.Pins.AddRange([execIn, msgPin]);
@@ -320,5 +320,20 @@ public class StandalonePackagingService : IStandalonePackagingService
                 ElapsedSeconds: sw.Elapsed.TotalSeconds,
                 ErrorMessage: ex.Message);
         }
+    }
+}
+
+/// <summary>
+/// Class alias for StandalonePackagingService as requested by user architectural conventions.
+/// </summary>
+public class SPS : StandalonePackagingService
+{
+    public SPS(
+        IGraphCodeGeneratorService codeGenService,
+        IBlueprintStorageService storageService,
+        IGraphSerializer graphSerializer,
+        IVulkanComputeService? vulkanService = null)
+        : base(codeGenService, storageService, graphSerializer, vulkanService)
+    {
     }
 }

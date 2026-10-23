@@ -454,3 +454,4 @@ public class RPE : RoslynPureExpressionEmitter
 {
     public RPE(GraphDocument document) : base(document) { }
 }
+

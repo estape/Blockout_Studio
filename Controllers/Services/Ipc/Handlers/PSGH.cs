@@ -69,3 +69,14 @@ public class PackageStandaloneGameHandler : IIpcActionHandler
         }));
     }
 }
+
+/// <summary>
+/// Class alias for PackageStandaloneGameHandler as requested by user architectural conventions.
+/// </summary>
+public class PSGH : PackageStandaloneGameHandler
+{
+    public PSGH(IStandalonePackagingService packagingService, IProjectStorageService projectStorage)
+        : base(packagingService, projectStorage)
+    {
+    }
+}
