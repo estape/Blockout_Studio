@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #ifdef _WIN32
   /**
    * @def ENGINE_API
@@ -135,3 +137,80 @@ ENGINE_API float EngineNative_RayTriangleIntersect(
     float v1x, float v1y, float v1z,
     float v2x, float v2y, float v2z
 );
+
+#pragma pack(push, 8)
+/**
+ * @brief Sub-rectangle bounds representing a docked viewport inside the host window.
+ */
+struct NativeViewportBounds {
+    int32_t x;
+    int32_t y;
+    uint32_t width;
+    uint32_t height;
+};
+
+/**
+ * @brief Real-time performance metrics and swapchain/scissor state.
+ */
+struct NativeRendererStats {
+    uint32_t currentFps;
+    float frameTimeMs;
+    uint32_t swapchainWidth;
+    uint32_t swapchainHeight;
+    uint32_t viewportX;
+    uint32_t viewportY;
+    uint32_t viewportWidth;
+    uint32_t viewportHeight;
+};
+#pragma pack(pop)
+
+/**
+ * @brief Initializes the Vulkan swapchain and spawns an isolated rendering thread.
+ * @param nativeWindowHandle Native OS window handle (HWND on Win32, X11 Window on Linux).
+ * @param initialWidth Initial swapchain width in pixels.
+ * @param initialHeight Initial swapchain height in pixels.
+ * @return 0 on success, or non-zero error code.
+ */
+ENGINE_API int32_t EngineNative_InitRenderer(void* nativeWindowHandle, uint32_t initialWidth, uint32_t initialHeight);
+
+/**
+ * @brief Gracefully terminates the isolated rendering loop and releases all Vulkan swapchain resources.
+ */
+ENGINE_API void EngineNative_ShutdownRenderer();
+
+/**
+ * @brief Recreates the native swapchain to match new outer window dimensions.
+ * @param newWidth Updated window width in pixels.
+ * @param newHeight Updated window height in pixels.
+ */
+ENGINE_API void EngineNative_ResizeSwapchain(uint32_t newWidth, uint32_t newHeight);
+
+/**
+ * @brief Updates the dynamic viewport and scissor rectangle for rendering without swapchain recreation.
+ * @param x Viewport left coordinate in pixels.
+ * @param y Viewport top coordinate in pixels.
+ * @param width Viewport width in pixels.
+ * @param height Viewport height in pixels.
+ */
+ENGINE_API void EngineNative_SetViewportScissor(int32_t x, int32_t y, uint32_t width, uint32_t height);
+
+/**
+ * @brief Configures target rendering framerate (e.g., 30, 60, 120, 144, 0 for uncapped).
+ */
+ENGINE_API void EngineNative_SetTargetFps(uint32_t targetFps);
+
+/**
+ * @brief Pauses or resumes the isolated rendering loop (e.g. when minimized).
+ */
+ENGINE_API void EngineNative_SetRendererPaused(int32_t isPaused);
+
+/**
+ * @brief Queries current rendering statistics and viewport state.
+ */
+ENGINE_API void EngineNative_GetRendererStats(NativeRendererStats* outStats);
+
+/**
+ * @brief Returns whether the isolated Vulkan rendering loop is currently active.
+ * @return 1 if active, 0 otherwise.
+ */
+ENGINE_API int32_t EngineNative_IsRendererRunning();

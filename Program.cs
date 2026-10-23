@@ -49,6 +49,7 @@ internal class Program
         var platformBuilder = serviceProvider.GetRequiredService<IPlatformBuilderService>();
         var projectStorage = serviceProvider.GetRequiredService<IProjectStorageService>();
         var csgEngine = serviceProvider.GetRequiredService<ICsgEngine>();
+        var nativeVulkanService = serviceProvider.GetRequiredService<INativeVulkanViewportService>();
 
         string backendTitleSuffix = angleStatus == VulkanBackendStatus.VulkanAngleActive
             ? " [Vulkan ANGLE WebGL 2.0]"
@@ -62,6 +63,9 @@ internal class Program
             .SetMinSize(1024, 640)
             .Center()
             .SetResizable(true);
+
+        // Attach native Vulkan interop bridge to hook window creation, resize, and close
+        nativeVulkanService.AttachToPhotino(window);
 
         if (!string.IsNullOrEmpty(VulkanAngleConfigurator.ActiveBrowserArguments))
         {

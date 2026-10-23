@@ -44,11 +44,14 @@ public static class ServiceRegistration
         services.AddSingleton<VulkanComputeService>(sp => (VulkanComputeService)sp.GetRequiredService<IVulkanComputeService>());
         services.AddSingleton<ILodGeneratorService, LodGeneratorService>();
         services.AddSingleton<LodGeneratorService>(sp => (LodGeneratorService)sp.GetRequiredService<ILodGeneratorService>());
+        services.AddSingleton<INativeVulkanViewportService, NativeVulkanViewportService>();
+        services.AddSingleton<NativeVulkanViewportService>(sp => (NativeVulkanViewportService)sp.GetRequiredService<INativeVulkanViewportService>());
 
         // IPC Handlers
         services.AddSingleton<IIpcActionHandler, CopyClipboardHandler>();
         services.AddSingleton<IIpcActionHandler, CsgCutHandler>();
         services.AddSingleton<IIpcActionHandler, BakeAoHandler>();
+        services.AddSingleton<IIpcActionHandler, SyncViewportBoundsHandler>();
         services.AddSingleton<IIpcActionHandler, GetGridTextureHandler>();
         services.AddSingleton<IIpcActionHandler, SaveProjectHandler>();
         services.AddSingleton<IIpcActionHandler, LoadProjectHandler>();

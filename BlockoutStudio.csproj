@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.9.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
     <PackageReference Include="Photino.NET" Version="4.0.16" />
     <PackageReference Include="TextCopy" Version="6.2.1" />

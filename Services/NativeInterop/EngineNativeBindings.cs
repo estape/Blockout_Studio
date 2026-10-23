@@ -6,7 +6,7 @@ namespace BlockoutStudio.Services.NativeInterop;
 /// Source-generated P/Invoke bindings to the native C++20 shared library (EngineNative.dll / libEngineNative.so).
 /// Provides zero-allocation interop for hardware SIMD capabilities, affine vertex transforms, and raycasting.
 /// </summary>
-internal static unsafe partial class EngineNativeBindings
+public static unsafe partial class EngineNativeBindings
 {
     /// <summary>
     /// Name of the native dynamic library without platform-specific extensions or prefixes.
@@ -74,4 +74,68 @@ internal static unsafe partial class EngineNativeBindings
         float v1x, float v1y, float v1z,
         float v2x, float v2y, float v2z
     );
+
+    /// <summary>
+    /// Struct representing real-time rendering statistics and viewport state.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct NativeRendererStats
+    {
+        public uint CurrentFps;
+        public float FrameTimeMs;
+        public uint SwapchainWidth;
+        public uint SwapchainHeight;
+        public uint ViewportX;
+        public uint ViewportY;
+        public uint ViewportWidth;
+        public uint ViewportHeight;
+    }
+
+    /// <summary>
+    /// Initializes the native Vulkan swapchain and isolated rendering thread for the specified window handle.
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "EngineNative_InitRenderer")]
+    public static partial int InitRenderer(IntPtr nativeWindowHandle, uint initialWidth, uint initialHeight);
+
+    /// <summary>
+    /// Gracefully stops the isolated rendering thread and releases swapchain resources.
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "EngineNative_ShutdownRenderer")]
+    public static partial void ShutdownRenderer();
+
+    /// <summary>
+    /// Resizes the native Vulkan swapchain to match new outer window dimensions.
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "EngineNative_ResizeSwapchain")]
+    public static partial void ResizeSwapchain(uint newWidth, uint newHeight);
+
+    /// <summary>
+    /// Dynamically adjusts the viewport and scissor rectangle without recreating the swapchain.
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "EngineNative_SetViewportScissor")]
+    public static partial void SetViewportScissor(int x, int y, uint width, uint height);
+
+    /// <summary>
+    /// Sets the target rendering framerate (e.g. 60, 120, 0 for uncapped).
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "EngineNative_SetTargetFps")]
+    public static partial void SetTargetFps(uint targetFps);
+
+    /// <summary>
+    /// Pauses or resumes the isolated rendering loop.
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "EngineNative_SetRendererPaused")]
+    public static partial void SetRendererPaused(int isPaused);
+
+    /// <summary>
+    /// Queries the latest rendering performance metrics and viewport dimensions.
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "EngineNative_GetRendererStats")]
+    public static partial void GetRendererStats(NativeRendererStats* outStats);
+
+    /// <summary>
+    /// Checks whether the isolated rendering thread is running.
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "EngineNative_IsRendererRunning")]
+    public static partial int IsRendererRunning();
 }

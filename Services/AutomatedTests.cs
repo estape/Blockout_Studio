@@ -6,6 +6,7 @@ using BlockoutStudio.Services.BuildPipeline;
 using BlockoutStudio.Services.Geometry;
 using BlockoutStudio.Services.Graphics;
 using BlockoutStudio.Services.Ipc;
+using BlockoutStudio.Services.NativeInterop;
 
 using BlockoutStudio.Services.Blueprints.Models;
 using BlockoutStudio.Services.Blueprints.Transpiler;
@@ -1563,6 +1564,83 @@ public static class AutomatedTests
             else
             {
                 Console.WriteLine($"FAILED: header:{hasHeader}, subd:{hasSubdNone}, extent:{hasExtent}, normals:{hasNormals}, uvs:{hasUVs}, apiSchema:{hasApiSchema}");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"FAILED: {ex.Message}");
+            failed++;
+        }
+
+        // Test 29: Native Vulkan Window Interop & Isolated Render Thread
+        try
+        {
+            Console.Write("Test 29: Native Vulkan Window Interop & Isolated Render Thread... ");
+
+            // 1. Initially renderer should not be running
+            bool initNotRunning = EngineNativeBindings.IsRendererRunning() == 0;
+
+            // 2. Initialize renderer with test window handle
+            int initResult = EngineNativeBindings.InitRenderer((IntPtr)0x1000, 1920, 1080);
+            bool isRunning = EngineNativeBindings.IsRendererRunning() == 1;
+
+            // 3. Test dynamic viewport & scissor without swapchain recreation
+            EngineNativeBindings.SetViewportScissor(240, 60, 1440, 960);
+            EngineNativeBindings.SetTargetFps(120);
+
+            // Let render thread tick at least once
+            Thread.Sleep(50);
+
+            // 4. Query stats
+            EngineNativeBindings.NativeRendererStats stats;
+            unsafe
+            {
+                EngineNativeBindings.GetRendererStats(&stats);
+            }
+
+            bool boundsOk = stats.SwapchainWidth == 1920 &&
+                            stats.SwapchainHeight == 1080 &&
+                            stats.ViewportX == 240 &&
+                            stats.ViewportY == 60 &&
+                            stats.ViewportWidth == 1440 &&
+                            stats.ViewportHeight == 960;
+
+            // 5. Test outer swapchain resize
+            EngineNativeBindings.ResizeSwapchain(2560, 1440);
+            Thread.Sleep(30);
+
+            unsafe
+            {
+                EngineNativeBindings.GetRendererStats(&stats);
+            }
+            bool resizeOk = stats.SwapchainWidth == 2560 && stats.SwapchainHeight == 1440;
+
+            // 6. Test pause / resume
+            EngineNativeBindings.SetRendererPaused(1);
+            EngineNativeBindings.SetRendererPaused(0);
+
+            // 7. Test service layer abstraction
+            var service = new NativeVulkanViewportService();
+            service.SetViewportBounds(100, 50, 1200, 800);
+            var serviceStats = service.GetStats();
+            bool serviceOk = serviceStats.ViewportX == 100 &&
+                             serviceStats.ViewportY == 50 &&
+                             serviceStats.ViewportWidth == 1200 &&
+                             serviceStats.ViewportHeight == 800;
+
+            // 8. Graceful shutdown
+            service.Shutdown();
+            bool shutDownOk = EngineNativeBindings.IsRendererRunning() == 0;
+
+            if (initNotRunning && initResult == 0 && isRunning && boundsOk && resizeOk && serviceOk && shutDownOk)
+            {
+                Console.WriteLine($"PASSED (Swapchain: {stats.SwapchainWidth}x{stats.SwapchainHeight}, Viewport: {serviceStats.ViewportWidth}x{serviceStats.ViewportHeight}, Isolated Thread Stopped: {shutDownOk})");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"FAILED (initNotRunning:{initNotRunning}, isRunning:{isRunning}, boundsOk:{boundsOk}, resizeOk:{resizeOk}, serviceOk:{serviceOk}, shutDownOk:{shutDownOk})");
                 failed++;
             }
         }

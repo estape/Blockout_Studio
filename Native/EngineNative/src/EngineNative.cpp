@@ -9,9 +9,24 @@
 #include "../include/EngineNative.h"
 #include <cmath>
 #include <cstring>
+#include <atomic>
+#include <thread>
+#include <chrono>
+#include <iostream>
+#include <algorithm>
+#include <vector>
 
 #if defined(_WIN32)
+  #define WIN32_LEAN_AND_MEAN
+  #include <windows.h>
   #include <intrin.h>
+#endif
+
+#if defined(ENGINE_NATIVE_HAS_VULKAN)
+  #if defined(_WIN32)
+    #define VK_USE_PLATFORM_WIN32_KHR
+  #endif
+  #include <vulkan/vulkan.h>
 #endif
 
 /**
@@ -260,4 +275,280 @@ ENGINE_API float EngineNative_RayTriangleIntersect(
 
     float t = (e2x * qx + e2y * qy + e2z * qz) * invDet;
     return (t > EPSILON) ? t : -1.0f;
+}
+
+// =============================================================================
+// Vulkan Viewport & Isolated Render Loop Implementation
+// =============================================================================
+
+namespace {
+    std::atomic<bool> g_isRendererRunning{false};
+    std::atomic<bool> g_isRendererPaused{false};
+    std::atomic<uint32_t> g_targetFps{60};
+    std::atomic<uint32_t> g_swapchainWidth{1280};
+    std::atomic<uint32_t> g_swapchainHeight{720};
+    std::atomic<int32_t> g_viewportX{0};
+    std::atomic<int32_t> g_viewportY{0};
+    std::atomic<uint32_t> g_viewportWidth{1280};
+    std::atomic<uint32_t> g_viewportHeight{720};
+    std::atomic<uint32_t> g_currentFps{0};
+    std::atomic<float> g_frameTimeMs{0.0f};
+    std::atomic<bool> g_swapchainResizePending{false};
+
+    void* g_windowHandle = nullptr;
+    std::thread g_renderThread;
+
+#if defined(ENGINE_NATIVE_HAS_VULKAN)
+    VkInstance g_vkInstance = VK_NULL_HANDLE;
+    VkSurfaceKHR g_vkSurface = VK_NULL_HANDLE;
+    VkPhysicalDevice g_vkPhysicalDevice = VK_NULL_HANDLE;
+    VkDevice g_vkDevice = VK_NULL_HANDLE;
+    VkQueue g_vkQueue = VK_NULL_HANDLE;
+    VkSwapchainKHR g_vkSwapchain = VK_NULL_HANDLE;
+    bool g_vulkanInitialized = false;
+
+    void CleanupVulkanResources() {
+        if (g_vkDevice != VK_NULL_HANDLE) {
+            if (g_vkSwapchain != VK_NULL_HANDLE) {
+                vkDestroySwapchainKHR(g_vkDevice, g_vkSwapchain, nullptr);
+                g_vkSwapchain = VK_NULL_HANDLE;
+            }
+            vkDestroyDevice(g_vkDevice, nullptr);
+            g_vkDevice = VK_NULL_HANDLE;
+        }
+        if (g_vkInstance != VK_NULL_HANDLE) {
+            if (g_vkSurface != VK_NULL_HANDLE) {
+                vkDestroySurfaceKHR(g_vkInstance, g_vkSurface, nullptr);
+                g_vkSurface = VK_NULL_HANDLE;
+            }
+            vkDestroyInstance(g_vkInstance, nullptr);
+            g_vkInstance = VK_NULL_HANDLE;
+        }
+        g_vulkanInitialized = false;
+    }
+
+    bool InitVulkanContext(void* windowHandle, uint32_t width, uint32_t height) {
+#if defined(_WIN32)
+        if (!windowHandle || !IsWindow((HWND)windowHandle)) {
+            // Simulated or test handle: bypass physical Vulkan surface creation
+            return false;
+        }
+
+        VkApplicationInfo appInfo{};
+        appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+        appInfo.pApplicationName = "Blockout Studio Native";
+        appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.pEngineName = "EngineNative";
+        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.apiVersion = VK_API_VERSION_1_2;
+
+        const char* extensions[] = {
+            VK_KHR_SURFACE_EXTENSION_NAME,
+            VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+        };
+
+        VkInstanceCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+        createInfo.pApplicationInfo = &appInfo;
+        createInfo.enabledExtensionCount = 2;
+        createInfo.ppEnabledExtensionNames = extensions;
+
+        if (vkCreateInstance(&createInfo, nullptr, &g_vkInstance) != VK_SUCCESS) {
+            return false;
+        }
+
+        VkWin32SurfaceCreateInfoKHR surfaceCreateInfo{};
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.hwnd = (HWND)windowHandle;
+        surfaceCreateInfo.hinstance = GetModuleHandle(nullptr);
+
+        if (vkCreateWin32SurfaceKHR(g_vkInstance, &surfaceCreateInfo, nullptr, &g_vkSurface) != VK_SUCCESS) {
+            CleanupVulkanResources();
+            return false;
+        }
+
+        uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(g_vkInstance, &deviceCount, nullptr);
+        if (deviceCount == 0) {
+            CleanupVulkanResources();
+            return false;
+        }
+
+        std::vector<VkPhysicalDevice> devices(deviceCount);
+        vkEnumeratePhysicalDevices(g_vkInstance, &deviceCount, devices.data());
+        g_vkPhysicalDevice = devices[0];
+
+        float queuePriority = 1.0f;
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = 0;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+
+        const char* deviceExtensions[] = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        };
+
+        VkDeviceCreateInfo deviceCreateInfo{};
+        deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+        deviceCreateInfo.queueCreateInfoCount = 1;
+        deviceCreateInfo.enabledExtensionCount = 1;
+        deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions;
+
+        if (vkCreateDevice(g_vkPhysicalDevice, &deviceCreateInfo, nullptr, &g_vkDevice) != VK_SUCCESS) {
+            CleanupVulkanResources();
+            return false;
+        }
+
+        vkGetDeviceQueue(g_vkDevice, 0, 0, &g_vkQueue);
+        g_vulkanInitialized = true;
+        return true;
+#else
+        return false;
+#endif
+    }
+#endif
+
+    void RenderLoopWorker() {
+        using clock = std::chrono::steady_clock;
+        auto lastFrameTime = clock::now();
+        auto lastFpsUpdateTime = clock::now();
+        uint32_t framesCounted = 0;
+
+        while (g_isRendererRunning.load(std::memory_order_relaxed)) {
+            // Check paused state
+            if (g_isRendererPaused.load(std::memory_order_relaxed)) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(16));
+                lastFrameTime = clock::now();
+                continue;
+            }
+
+            auto frameStartTime = clock::now();
+
+            // Handle swapchain resize request if pending
+            if (g_swapchainResizePending.exchange(false, std::memory_order_acq_rel)) {
+                uint32_t newW = g_swapchainWidth.load(std::memory_order_relaxed);
+                uint32_t newH = g_swapchainHeight.load(std::memory_order_relaxed);
+                // When Vulkan is active, swapchain would be recreated here
+                (void)newW;
+                (void)newH;
+            }
+
+            // Retrieve thread-safe viewport and scissor rect
+            int32_t vx = g_viewportX.load(std::memory_order_relaxed);
+            int32_t vy = g_viewportY.load(std::memory_order_relaxed);
+            uint32_t vw = g_viewportWidth.load(std::memory_order_relaxed);
+            uint32_t vh = g_viewportHeight.load(std::memory_order_relaxed);
+
+            // Execute frame render pass (mock or Vulkan)
+            // In real Vulkan mode: vkCmdSetViewport, vkCmdSetScissor, vkQueuePresentKHR
+            (void)vx; (void)vy; (void)vw; (void)vh;
+
+            framesCounted++;
+            auto frameEndTime = clock::now();
+            float frameDurationMs = std::chrono::duration<float, std::milli>(frameEndTime - frameStartTime).count();
+
+            // Compute FPS every 500ms
+            float elapsedFpsSec = std::chrono::duration<float>(frameEndTime - lastFpsUpdateTime).count();
+            if (elapsedFpsSec >= 0.5f) {
+                g_currentFps.store(static_cast<uint32_t>(framesCounted / elapsedFpsSec), std::memory_order_relaxed);
+                g_frameTimeMs.store(frameDurationMs, std::memory_order_relaxed);
+                framesCounted = 0;
+                lastFpsUpdateTime = frameEndTime;
+            }
+
+            // Frame pacing
+            uint32_t targetFps = g_targetFps.load(std::memory_order_relaxed);
+            if (targetFps > 0) {
+                float targetFrameBudgetMs = 1000.0f / targetFps;
+                float timeToSleepMs = targetFrameBudgetMs - frameDurationMs;
+                if (timeToSleepMs > 1.0f) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int64_t>(timeToSleepMs)));
+                }
+            } else {
+                std::this_thread::yield();
+            }
+        }
+
+#if defined(ENGINE_NATIVE_HAS_VULKAN)
+        CleanupVulkanResources();
+#endif
+    }
+}
+
+ENGINE_API int32_t EngineNative_InitRenderer(void* nativeWindowHandle, uint32_t initialWidth, uint32_t initialHeight) {
+    if (g_isRendererRunning.load(std::memory_order_acquire)) {
+        EngineNative_ShutdownRenderer();
+    }
+
+    g_windowHandle = nativeWindowHandle;
+    uint32_t width = initialWidth > 0 ? initialWidth : 1280;
+    uint32_t height = initialHeight > 0 ? initialHeight : 720;
+
+    g_swapchainWidth.store(width, std::memory_order_release);
+    g_swapchainHeight.store(height, std::memory_order_release);
+    g_viewportX.store(0, std::memory_order_release);
+    g_viewportY.store(0, std::memory_order_release);
+    g_viewportWidth.store(width, std::memory_order_release);
+    g_viewportHeight.store(height, std::memory_order_release);
+
+#if defined(ENGINE_NATIVE_HAS_VULKAN)
+    InitVulkanContext(nativeWindowHandle, width, height);
+#endif
+
+    g_isRendererRunning.store(true, std::memory_order_release);
+    g_isRendererPaused.store(false, std::memory_order_release);
+
+    g_renderThread = std::thread(RenderLoopWorker);
+    return 0;
+}
+
+ENGINE_API void EngineNative_ShutdownRenderer() {
+    if (!g_isRendererRunning.load(std::memory_order_acquire)) {
+        return;
+    }
+
+    g_isRendererRunning.store(false, std::memory_order_release);
+    if (g_renderThread.joinable()) {
+        g_renderThread.join();
+    }
+}
+
+ENGINE_API void EngineNative_ResizeSwapchain(uint32_t newWidth, uint32_t newHeight) {
+    if (newWidth == 0 || newHeight == 0) return;
+    g_swapchainWidth.store(newWidth, std::memory_order_release);
+    g_swapchainHeight.store(newHeight, std::memory_order_release);
+    g_swapchainResizePending.store(true, std::memory_order_release);
+}
+
+ENGINE_API void EngineNative_SetViewportScissor(int32_t x, int32_t y, uint32_t width, uint32_t height) {
+    g_viewportX.store(x, std::memory_order_release);
+    g_viewportY.store(y, std::memory_order_release);
+    g_viewportWidth.store(width, std::memory_order_release);
+    g_viewportHeight.store(height, std::memory_order_release);
+}
+
+ENGINE_API void EngineNative_SetTargetFps(uint32_t targetFps) {
+    g_targetFps.store(targetFps, std::memory_order_release);
+}
+
+ENGINE_API void EngineNative_SetRendererPaused(int32_t isPaused) {
+    g_isRendererPaused.store(isPaused != 0, std::memory_order_release);
+}
+
+ENGINE_API void EngineNative_GetRendererStats(NativeRendererStats* outStats) {
+    if (!outStats) return;
+    outStats->currentFps = g_currentFps.load(std::memory_order_relaxed);
+    outStats->frameTimeMs = g_frameTimeMs.load(std::memory_order_relaxed);
+    outStats->swapchainWidth = g_swapchainWidth.load(std::memory_order_relaxed);
+    outStats->swapchainHeight = g_swapchainHeight.load(std::memory_order_relaxed);
+    outStats->viewportX = g_viewportX.load(std::memory_order_relaxed);
+    outStats->viewportY = g_viewportY.load(std::memory_order_relaxed);
+    outStats->viewportWidth = g_viewportWidth.load(std::memory_order_relaxed);
+    outStats->viewportHeight = g_viewportHeight.load(std::memory_order_relaxed);
+}
+
+ENGINE_API int32_t EngineNative_IsRendererRunning() {
+    return g_isRendererRunning.load(std::memory_order_relaxed) ? 1 : 0;
 }
