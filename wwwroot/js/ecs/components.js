@@ -225,6 +225,34 @@ export class ScriptComponent {
 }
 
 /**
+ * Component binding an entity to a visual Blueprint visual script executed via C# and Roslyn.
+ */
+export class BlueprintComponent {
+  /**
+   * @param {Object} [data={}] - Initial component data.
+   */
+  constructor(data = {}) {
+    this.type = 'Blueprint';
+    this.blueprintName = data.blueprintName || '';
+    this.blueprintGuid = data.blueprintGuid || null;
+    this.enabled = data.enabled !== undefined ? data.enabled : true;
+  }
+
+  /**
+   * Serializes component properties.
+   * @returns {Object} Plain JavaScript object representation.
+   */
+  serialize() {
+    return {
+      type: this.type,
+      blueprintName: this.blueprintName,
+      blueprintGuid: this.blueprintGuid,
+      enabled: this.enabled
+    };
+  }
+}
+
+/**
  * Component providing 3D spatialized or ambient audio playback.
  */
 export class AudioSourceComponent {
@@ -272,6 +300,7 @@ export function createComponentByType(type, data = {}) {
     case 'Rigidbody': return new RigidbodyComponent(data);
     case 'CharacterController': return new CharacterControllerComponent(data);
     case 'Script': return new ScriptComponent(data);
+    case 'Blueprint': return new BlueprintComponent(data);
     case 'AudioSource': return new AudioSourceComponent(data);
     default:
       console.warn('Unknown component type:', type);

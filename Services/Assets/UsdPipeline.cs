@@ -43,6 +43,31 @@ public class UsdPipeline : IAssetPipeline
             var uvs = part.UVs;
             var norms = part.Normals;
 
+            int vertCount = pos.Length / 3;
+
+            // Compute local bounding box extent for UsdGeomBoundable compliance
+            float minX = float.MaxValue, minY = float.MaxValue, minZ = float.MaxValue;
+            float maxX = float.MinValue, maxY = float.MinValue, maxZ = float.MinValue;
+
+            for (int i = 0; i < vertCount; ++i)
+            {
+                float ux = -pos[i * 3 + 2];
+                float uy = pos[i * 3];
+                float uz = pos[i * 3 + 1];
+
+                if (ux < minX) minX = ux;
+                if (ux > maxX) maxX = ux;
+                if (uy < minY) minY = uy;
+                if (uy > maxY) maxY = uy;
+                if (uz < minZ) minZ = uz;
+                if (uz > maxZ) maxZ = uz;
+            }
+
+            if (vertCount > 0)
+            {
+                sb.AppendLine($"        float3[] extent = [({minX.ToString("F3", inv)}, {minY.ToString("F3", inv)}, {minZ.ToString("F3", inv)}), ({maxX.ToString("F3", inv)}, {maxY.ToString("F3", inv)}, {maxZ.ToString("F3", inv)})]");
+            }
+
             // Compute face counts and face indices
             int triangleCount = (indices != null && indices.Length > 0) ? indices.Length / 3 : pos.Length / 9;
 
@@ -65,8 +90,7 @@ public class UsdPipeline : IAssetPipeline
             }
             else
             {
-                int vCount = pos.Length / 3;
-                for (int i = 0; i < vCount; ++i)
+                for (int i = 0; i < vertCount; ++i)
                 {
                     sb.Append(i == 0 ? $"{i}" : $", {i}");
                 }
@@ -75,7 +99,6 @@ public class UsdPipeline : IAssetPipeline
 
             // Points (Engine coordinate mapping: X forward = -posZ, Y right = posX, Z up = posY)
             sb.Append("        point3f[] points = [");
-            int vertCount = pos.Length / 3;
             for (int i = 0; i < vertCount; ++i)
             {
                 float ux = -pos[i * 3 + 2];
@@ -87,10 +110,10 @@ public class UsdPipeline : IAssetPipeline
             }
             sb.AppendLine("]");
 
-            // Normals
+            // Normals (UsdGeomMesh standard)
             if (norms != null && norms.Length > 0)
             {
-                sb.AppendLine("        normal3f[] primvars:normals = [");
+                sb.AppendLine("        normal3f[] normals = [");
                 int normCount = norms.Length / 3;
                 for (int i = 0; i < normCount; ++i)
                 {
@@ -108,10 +131,10 @@ public class UsdPipeline : IAssetPipeline
                 sb.AppendLine("        )");
             }
 
-            // UVs
+            // UVs (UsdGeom standard texCoord2f)
             if (uvs != null && uvs.Length > 0)
             {
-                sb.AppendLine("        float2[] primvars:st = [");
+                sb.AppendLine("        texCoord2f[] primvars:st = [");
                 int uvCount = uvs.Length / 2;
                 for (int i = 0; i < uvCount; ++i)
                 {

@@ -8,7 +8,7 @@
 // ============================================================================
 
 import { scene, gridTexture, mannequinGroup, resetDummyTransform, toggleMannequin } from './engine.js';
-import { transformControl, snapSize } from './transformGizmo.js';
+import { transformControl, snapSize, isTransformGizmoEnabled } from './transformGizmo.js';
 import { recordState } from './historyManager.js';
 import { applyCsgGeometry } from './tools/holeTool.js';
 import {
@@ -259,10 +259,11 @@ export function rebuildBlockMesh(mesh) {
 }
 
 /**
- * @brief Selects a block actor in the scene, attaches the transform gizmo, and updates inspector panels.
+ * @brief Selects a block actor in the scene, attaches the transform gizmo (if enabled), and updates inspector panels.
  * @param {THREE.Object3D|null} mesh Target object to select, or null to deselect all.
+ * @param {boolean|null} [attachTransform=null] Explicit override to attach or prevent attaching the transform gizmo.
  */
-export function selectBlock(mesh) {
+export function selectBlock(mesh, attachTransform = null) {
   if (selectedBlock && selectedBlock !== mannequinGroup && selectedBlock.children[0] && selectedBlock.children[0].isLineSegments) {
     selectedBlock.children[0].material.color.setHex(0x181a20);
     if (selectedBlock.material && selectedBlock.material.emissive) {
@@ -280,8 +281,13 @@ export function selectBlock(mesh) {
       mesh.material.emissive.setHex(0x241708); // Subtle warm selection glow
     }
 
-    transformControl.attach(mesh);
-    transformControl.setSpace('world');
+    const shouldAttach = (attachTransform !== null) ? attachTransform : isTransformGizmoEnabled();
+    if (shouldAttach) {
+      transformControl.attach(mesh);
+      transformControl.setSpace('world');
+    } else {
+      transformControl.detach();
+    }
     syncInspectorFromSelected();
   } else {
     transformControl.detach();
@@ -436,6 +442,20 @@ export function renderComponentStack(entity) {
         <div class="comp-row">
           <span class="comp-lbl">Speed (deg/s)</span>
           <input type="number" class="comp-input" value="${comp.properties ? comp.properties.speed || 45 : 45}" step="15" onchange="updateScriptProp('speed', parseFloat(this.value)||45)">
+        </div>
+      `;
+    } else if (comp.type === 'Blueprint') {
+      icon = '⚡';
+      title = 'Blueprint (C# Visual Script)';
+      body = `
+        <div class="comp-row">
+          <span class="comp-lbl">Blueprint</span>
+          <input type="text" class="comp-input" value="${comp.blueprintName || ''}" placeholder="e.g. BP_DoorController" onchange="updateComponentField('Blueprint', 'blueprintName', this.value.trim())">
+        </div>
+        <div style="margin-top:6px; display:flex; gap:6px;">
+          <button type="button" class="preset-btn" style="flex:1; justify-content:center; font-size:10.5px; padding:4px;" onclick="window.openBlueprintInEditor('${comp.blueprintName || ''}')">
+            ⚡ Open in Blueprint Editor
+          </button>
         </div>
       `;
     } else if (comp.type === 'AudioSource') {

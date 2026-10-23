@@ -11,7 +11,7 @@ import {
   scene, camera, renderer, orbit, viewport, getMouseRay, toggleMannequin, mannequinGroup, raycaster,
   setScalabilityTier, toggleGpuHud, updateGpuHud, registerTierChangeCallback, SCALABILITY_TIERS, currentScalabilityTier
 } from './engine.js';
-import { transformControl, updateSnapSize } from './transformGizmo.js';
+import { transformControl, updateSnapSize, setTransformGizmoEnabled } from './transformGizmo.js';
 import {
   blocks, selectedBlock, selectBlock, createBlock, applyInspectorChanges,
   applyPositionChanges, duplicateSelected, deleteSelected, spawnPreset, refreshOutliner,
@@ -21,7 +21,7 @@ import { spawnLight, updateLightShadowLimits } from './lights.js';
 import { startPie, pausePie, stopPie, isPieActive, updatePie } from './pieManager.js';
 import { handleRectPointerDown, handleRectPointerMove, handleRectPointerUp, resetRectTool } from './tools/rectTool.js';
 import { handleCirclePointerDown, handleCirclePointerMove, handleCirclePointerUp, resetCircleTool } from './tools/circleTool.js';
-import { handlePushPullPointerDown, handlePushPullPointerMove, handlePushPullPointerUp } from './tools/pushPullTool.js';
+import { handlePushPullPointerDown, handlePushPullPointerMove, handlePushPullPointerUp, cleanupPushPullTool } from './tools/pushPullTool.js';
 import { updateHoleUi, punchHoleOnSelected, applyCsgGeometry } from './tools/holeTool.js';
 import {
   copyToClipboard, saveProject, loadProject, loadProjectFromData, requestBakeAo,
@@ -44,6 +44,7 @@ import {
   saveCustomSdkPaths, refreshAdbDevices, compileNativePlugin, packageGame,
   deployToSelectedDevice
 } from './buildManager.js';
+import { initBlueprintStudio } from './blueprint/blueprintManager.js';
 
 /**
  * @type {string}
@@ -68,22 +69,32 @@ export function setTool(tool) {
 
   resetRectTool();
   resetCircleTool();
+  if (tool !== 'pushpull') {
+    cleanupPushPullTool();
+  }
 
   if (tool === 'select') {
+    setTransformGizmoEnabled(true);
     transformControl.setMode('translate');
     transformControl.setSpace('world');
     if (selectedBlock) transformControl.attach(selectedBlock);
   } else if (tool === 'rotate') {
+    setTransformGizmoEnabled(true);
     transformControl.setMode('rotate');
     transformControl.setSpace('world');
     if (selectedBlock) transformControl.attach(selectedBlock);
   } else {
-    transformControl.detach();
+    setTransformGizmoEnabled(false);
   }
 }
 
 // Global Pointer Event Listeners
 renderer.domElement.addEventListener('pointerdown', (e) => {
+  // Alt + Pointer Drag is dedicated to laptop trackpad Orbit / Pan
+  if (e.altKey) {
+    return;
+  }
+
   getMouseRay(e);
 
   if (currentTool === 'select' || currentTool === 'rotate' || currentTool === 'hole') {
@@ -127,7 +138,7 @@ window.addEventListener('pointerup', (e) => {
   } else if (currentTool === 'draw-circle') {
     handleCirclePointerUp(e);
   } else if (currentTool === 'pushpull') {
-    handlePushPullPointerUp();
+    handlePushPullPointerUp(e);
   }
 });
 
@@ -777,3 +788,20 @@ window.welcomeNewProject = welcomeNewProject;
 window.welcomeOpenProject = welcomeOpenProject;
 window.welcomeQuickStart = welcomeQuickStart;
 window.toggleWelcomeStartup = toggleWelcomeStartup;
+
+// Blueprint Visual Scripting Studio Window Bindings
+window.openBlueprintInEditor = function(name) {
+  if (window.blueprintManager) {
+    window.blueprintManager.switchTab('blueprint');
+    if (name) {
+      window.blueprintManager.loadBlueprint(name);
+    }
+  }
+};
+
+// Initialize Blueprint Studio
+try {
+  initBlueprintStudio();
+} catch (e) {
+  console.error('[Blueprint Studio Init Error]', e);
+}

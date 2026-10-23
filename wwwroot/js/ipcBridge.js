@@ -9,15 +9,21 @@
 
 /**
  * @brief Sends a serialized JSON action payload to the Photino.NET C# backend host.
- * @param {string} action The action verb identifying the backend handler.
+ * @param {string|Object} actionOrObj The action verb string or complete action payload object.
  * @param {Object} [payload={}] Additional payload parameters to send.
  */
-export function sendToBackend(action, payload = {}) {
-  const json = JSON.stringify({ action, ...payload });
+export function sendToBackend(actionOrObj, payload = {}) {
+  let msg;
+  if (typeof actionOrObj === 'object' && actionOrObj !== null) {
+    msg = { ...actionOrObj, ...payload };
+  } else {
+    msg = { action: actionOrObj, ...payload };
+  }
+  const json = JSON.stringify(msg);
   if (window.external && window.external.sendMessage) {
     window.external.sendMessage(json);
   } else {
-    console.log('[Browser Fallback] IPC Message:', action, payload);
+    console.log('[Browser Fallback] IPC Message:', msg.action, msg);
   }
 }
 

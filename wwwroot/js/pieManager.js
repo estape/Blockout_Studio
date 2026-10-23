@@ -11,7 +11,7 @@ import { scene, camera, renderer, orbit, subGrid, majorGrid } from './engine.js'
 import { blocks, selectBlock, createBlock } from './sceneManager.js';
 import { transformControl } from './transformGizmo.js';
 import { serializeScene, deserializeScene } from './historyManager.js';
-import { showToast } from './ipcBridge.js';
+import { showToast, sendToBackend, registerHandler } from './ipcBridge.js';
 import { ensureEntityComponents, getComponent, addComponent } from './ecs/entity.js';
 import { CharacterControllerComponent, ColliderComponent } from './ecs/components.js';
 import { characterControllerSystem } from './ecs/systems/characterControllerSystem.js';
@@ -142,6 +142,31 @@ export function startPie() {
   audioSystem.ensureContext();
   audioSystem.playSound('chime');
 
+  // 5b. Start C# Blueprint Simulation for Actors with BlueprintComponent
+  const bpActors = [];
+  for (const b of blocks) {
+    const bpComp = getComponent(b, 'Blueprint');
+    if (bpComp && bpComp.enabled && bpComp.blueprintName) {
+      bpActors.push({
+        id: b.userData.name || ('actor_' + b.id),
+        name: b.userData.name || 'Actor',
+        blueprintName: bpComp.blueprintName,
+        posX: b.position.x,
+        posY: b.position.z,
+        posZ: b.position.y,
+        rotX: THREE.MathUtils.radToDeg(b.rotation.x),
+        rotY: THREE.MathUtils.radToDeg(b.rotation.y),
+        rotZ: THREE.MathUtils.radToDeg(b.rotation.z),
+        scaleX: b.scale.x,
+        scaleY: b.scale.y,
+        scaleZ: b.scale.z
+      });
+    }
+  }
+  if (bpActors.length > 0) {
+    sendToBackend({ action: 'pie_blueprint_start', actors: bpActors });
+  }
+
   // 6. Update State & UI Controls
   currentPieState = PieState.PLAYING;
   updatePieUi();
@@ -188,6 +213,7 @@ export function stopPie() {
 
   // 2. Stop Scripts & Audio
   scriptSystem.stop();
+  sendToBackend({ action: 'pie_blueprint_stop' });
 
   // 3. Restore Pre-Play Scene Snapshot
   if (prePlaySnapshot) {
@@ -245,6 +271,12 @@ export function updatePie(dt) {
   // 4. Update Scripts
   scriptSystem.update(dt, characterControllerSystem.keys);
 
+  // 4b. Step C# Blueprint Simulation
+  sendToBackend({
+    action: 'pie_blueprint_tick',
+    deltaSeconds: dt
+  });
+
   // 5. Update 3D Audio Listener
   audioSystem.updateListener(camera);
 
@@ -293,7 +325,34 @@ function updatePieHud() {
   }
 }
 
-// Pointer lock change handler
+// Handle C# Blueprint Simulation Tick Responses
+registerHandler('pie_blueprint_tick_response', (data) => {
+  if (!isPieActive() || !data.success) return;
+
+  if (Array.isArray(data.transforms)) {
+    for (const t of data.transforms) {
+      const b = blocks.find(item => item.userData && (item.userData.name === t.actorId || ('actor_' + item.id) === t.actorId));
+      if (b) {
+        b.position.x = t.posX;
+        b.position.z = t.posY;
+        b.position.y = t.posZ;
+        b.rotation.x = THREE.MathUtils.degToRad(t.rotX);
+        b.rotation.y = THREE.MathUtils.degToRad(t.rotY);
+        b.rotation.z = THREE.MathUtils.degToRad(t.rotZ);
+      }
+    }
+  }
+
+  if (Array.isArray(data.events)) {
+    for (const ev of data.events) {
+      if (ev.eventType === 'sound') {
+        audioSystem.playSound(ev.parameter, ev.value);
+      } else if (ev.eventType === 'print') {
+        showToast(`[Blueprint]: ${ev.parameter}`);
+      }
+    }
+  }
+});
 document.addEventListener('pointerlockchange', () => {
   const canvas = renderer.domElement;
   characterControllerSystem.isPointerLocked = (document.pointerLockElement === canvas);

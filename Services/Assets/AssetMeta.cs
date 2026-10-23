@@ -107,7 +107,7 @@ public class AssetMeta
             ".glsl" or ".vert" or ".frag" or ".comp" or ".hlsl" or ".spv" => "Shader",
             ".png" or ".jpg" or ".jpeg" or ".tga" or ".webp" or ".bmp" => "Texture",
             ".wav" or ".ogg" or ".mp3" => "Audio",
-            ".bscene" or ".ueblock" => "Scene",
+            ".bscene" or ".pjblock" or ".ueblock" => "Scene",
             ".prefab" => "Prefab",
             ".cs" or ".cpp" or ".h" or ".hpp" or ".js" => "Script",
             _ => "Unknown"

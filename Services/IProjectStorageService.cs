@@ -16,7 +16,15 @@ public interface IProjectStorageService
     /// <param name="jsonContent">Serialized scene JSON text.</param>
     /// <param name="defaultFileName">Default suggested file name.</param>
     /// <returns>The destination file path if saved, or null if cancelled.</returns>
-    string? SaveProjectDialog(string jsonContent, string defaultFileName = "Level_Blockout.ueblock");
+    string? SaveProjectDialog(string jsonContent, string defaultFileName = ProjectFileType.DefaultFileName);
+
+    /// <summary>
+    /// Displays a native OS Save File dialog and writes the level JSON content to the selected path using a typed project file type struct.
+    /// </summary>
+    /// <param name="jsonContent">Serialized scene JSON text.</param>
+    /// <param name="defaultFileType">Default project file type struct.</param>
+    /// <returns>The destination file path if saved, or null if cancelled.</returns>
+    string? SaveProjectDialog(string jsonContent, ProjectFileType defaultFileType) => SaveProjectDialog(jsonContent, defaultFileType.Value);
 
     /// <summary>
     /// Displays a native OS Open File dialog and reads level JSON content from disk.

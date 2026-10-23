@@ -1,0 +1,524 @@
+/* ============================================================================
+   BLOCKOUT STUDIO - UE5-INSPIRED BLUEPRINT VISUAL SCRIPTING ENGINE
+   Aesthetic: Authentic Unreal Engine 5 Dark Carbon Grid & Color-Coded Pins
+   ============================================================================ */
+
+/* Top Viewport / Blueprint Center Tab Switcher */
+.center-tabs-bar {
+  display: flex;
+  align-items: center;
+  background: #14171d;
+  border-bottom: 1px solid var(--panel-border, #2c3340);
+  padding: 0 8px;
+  gap: 2px;
+  height: 32px;
+  flex-shrink: 0;
+  z-index: 25;
+}
+
+.center-tab-btn {
+  background: transparent;
+  color: #8c9ba5;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 4px 4px 0 0;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.center-tab-btn:hover {
+  color: #e6ebf2;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.center-tab-btn.active {
+  color: #fff;
+  background: #1c2027;
+  border-bottom: 2px solid var(--ue-orange, #f58220);
+}
+
+/* Blueprint Workspace Main View */
+#blueprint-view {
+  display: none;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #121418;
+}
+
+/* Blueprint Top Toolbar */
+.bp-toolbar {
+  height: 40px;
+  background: #181b22;
+  border-bottom: 1px solid #282f3c;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  gap: 10px;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.bp-toolbar-left, .bp-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bp-tool-btn {
+  background: #252b36;
+  border: 1px solid #374151;
+  color: #d1d5db;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.bp-tool-btn:hover {
+  background: #2f3746;
+  border-color: #4b5563;
+  color: #fff;
+}
+
+.bp-tool-btn.primary {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.bp-tool-btn.primary:hover {
+  background: #1d4ed8;
+}
+
+/* Compile Status Badge */
+.bp-compile-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.bp-compile-badge.clean {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.bp-compile-badge.dirty {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.bp-compile-badge.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.bp-compile-badge.compiling {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Blueprint Main Body Layout */
+.bp-body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Left Sidebar: My Blueprint & Variables */
+.bp-sidebar {
+  width: 230px;
+  background: #161920;
+  border-right: 1px solid #282f3c;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 10;
+  overflow-y: auto;
+}
+
+.bp-sidebar-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #13151a;
+  border-bottom: 1px solid #222733;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+}
+
+.bp-var-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-bottom: 1px solid #1f242e;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.bp-var-item:hover, .bp-var-item.selected {
+  background: #202633;
+}
+
+.bp-var-type-pill {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Infinite Canvas Container */
+.bp-canvas-container {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  background-color: #121418;
+  overscroll-behavior: none;
+  touch-action: none;
+  scroll-axis-lock: none;
+  /* Dual-tier UE5 Blueprint Grid */
+  background-image: 
+    linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px);
+  background-size: 32px 32px, 32px 32px, 160px 160px, 160px 160px;
+}
+
+.bp-canvas-container:active {
+  cursor: grabbing;
+}
+
+/* Zoom/Pan Transform Layer */
+.bp-canvas-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10000px;
+  height: 10000px;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.bp-canvas-world > * {
+  pointer-events: auto;
+}
+
+/* SVG Connection Overlay */
+.bp-svg-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 2;
+}
+
+.bp-wire {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  cursor: pointer;
+  pointer-events: stroke;
+  transition: stroke-width 0.15s ease, filter 0.15s ease;
+}
+
+.bp-wire:hover {
+  stroke-width: 4;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.bp-wire.exec {
+  stroke: #ffffff;
+}
+
+.bp-wire.pulse {
+  stroke-dasharray: 6 6;
+  animation: bp-exec-flow 0.8s linear infinite;
+}
+
+@keyframes bp-exec-flow {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* Blueprint Node Card */
+.bp-node {
+  position: absolute;
+  width: auto;
+  min-width: 170px;
+  max-width: 320px;
+  background: #181b22;
+  border: 1px solid #2d3442;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(0, 0, 0, 0.4);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  z-index: 3;
+  user-select: none;
+  transition: box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.bp-node.selected {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px #f59e0b, 0 8px 24px rgba(0, 0, 0, 0.8);
+  z-index: 5;
+}
+
+/* Node Header Accents */
+.bp-node-header {
+  padding: 6px 10px;
+  border-radius: 5px 5px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  cursor: move;
+}
+
+.bp-node-header.event {
+  background: linear-gradient(90deg, #881313 0%, #520d0d 100%);
+  border-bottom: 1px solid #991b1b;
+}
+
+.bp-node-header.actor {
+  background: linear-gradient(90deg, #1d4ed8 0%, #1e3a8a 100%);
+  border-bottom: 1px solid #2563eb;
+}
+
+.bp-node-header.math {
+  background: linear-gradient(90deg, #15803d 0%, #14532d 100%);
+  border-bottom: 1px solid #16a34a;
+}
+
+.bp-node-header.flowcontrol {
+  background: linear-gradient(90deg, #374151 0%, #1f2937 100%);
+  border-bottom: 1px solid #4b5563;
+}
+
+.bp-node-header.variable {
+  background: linear-gradient(90deg, #0e7490 0%, #164e63 100%);
+  border-bottom: 1px solid #06b6d4;
+}
+
+.bp-node-body {
+  padding: 6px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bp-pins-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bp-pins-left {
+  align-items: flex-start;
+  padding-left: 8px;
+}
+
+.bp-pins-right {
+  align-items: flex-end;
+  padding-right: 8px;
+}
+
+/* Pin Rows */
+.bp-pin-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+.bp-pin-icon {
+  width: 12px;
+  height: 12px;
+  cursor: crosshair;
+  transition: transform 0.12s ease;
+  flex-shrink: 0;
+}
+
+.bp-pin-icon:hover {
+  transform: scale(1.35);
+}
+
+.bp-pin-name {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+
+/* Pin Type Colors */
+.pin-exec { color: #ffffff; fill: #ffffff; }
+.pin-bool { color: #dc2626; fill: #dc2626; }
+.pin-int { color: #06b6d4; fill: #06b6d4; }
+.pin-float { color: #22c55e; fill: #22c55e; }
+.pin-vector3 { color: #f59e0b; fill: #f59e0b; }
+.pin-string { color: #ec4899; fill: #ec4899; }
+.pin-actor { color: #3b82f6; fill: #3b82f6; }
+
+/* Inline Data Input Controls */
+.bp-inline-input {
+  background: #111317;
+  border: 1px solid #374151;
+  color: #f1f5f9;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+  width: 52px;
+  font-family: inherit;
+}
+
+.bp-inline-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #0f172a;
+}
+
+/* Live C# Code Preview Drawer */
+.bp-csharp-drawer {
+  width: 320px;
+  background: #13151b;
+  border-left: 1px solid #282f3c;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.bp-csharp-header {
+  height: 36px;
+  background: #171a21;
+  border-bottom: 1px solid #282f3c;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.bp-csharp-code {
+  flex: 1 1 0;
+  overflow: auto;
+  margin: 0;
+  padding: 10px;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #93c5fd;
+  white-space: pre;
+  background: #0d0f13;
+}
+
+/* Searchable Context Menu */
+.bp-context-menu {
+  position: fixed;
+  width: 260px;
+  max-height: 380px;
+  background: #181b22;
+  border: 1px solid #3b4454;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  overflow: hidden;
+  font-size: 11px;
+}
+
+.bp-context-search {
+  padding: 8px;
+  background: #13151a;
+  border-bottom: 1px solid #262c38;
+}
+
+.bp-context-search input {
+  width: 100%;
+  background: #1e222a;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  color: #fff;
+  padding: 5px 8px;
+  font-size: 11px;
+  outline: none;
+}
+
+.bp-context-search input:focus {
+  border-color: #3b82f6;
+}
+
+.bp-context-list {
+  flex: 1 1 0;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.bp-context-cat {
+  padding: 5px 10px 3px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bp-context-item {
+  padding: 5px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #e2e8f0;
+  transition: background 0.1s ease;
+}
+
+.bp-context-item:hover, .bp-context-item.active {
+  background: #2563eb;
+  color: #fff;
+}

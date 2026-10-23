@@ -17,6 +17,31 @@ import { recordState } from './historyManager.js';
 export let snapSize = 50;
 
 /**
+ * @type {boolean}
+ * @brief Whether the transform gizmo is permitted to attach to selected objects.
+ */
+let transformGizmoEnabled = true;
+
+/**
+ * @brief Enables or disables the transform gizmo, detaching it immediately if disabled.
+ * @param {boolean} enabled Whether the transform gizmo should be enabled.
+ */
+export function setTransformGizmoEnabled(enabled) {
+  transformGizmoEnabled = enabled;
+  if (!enabled) {
+    transformControl.detach();
+  }
+}
+
+/**
+ * @brief Checks if the transform gizmo is currently permitted to attach.
+ * @returns {boolean} True if enabled.
+ */
+export function isTransformGizmoEnabled() {
+  return transformGizmoEnabled;
+}
+
+/**
  * @type {THREE.TransformControls}
  * @brief Three.js transform controls gizmo attached to selected objects.
  */

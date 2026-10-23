@@ -10,7 +10,7 @@
 import { blocks, selectedBlock, createBlock, refreshOutliner } from './sceneManager.js';
 import { scene } from './engine.js';
 import { sendToBackend, showToast } from './ipcBridge.js';
-import { initHistory } from './historyManager.js';
+import { initHistory, serializeScene, deserializeScene } from './historyManager.js';
 
 /**
  * @brief Serializes selected or all scene blocks to the system clipboard via backend IPC.
@@ -45,23 +45,12 @@ export function copyToClipboard() {
  * @brief Saves the active project layout to disk as a JSON manifest via backend IPC.
  */
 export function saveProject() {
+  const sceneSnapshot = serializeScene();
   const data = {
-    version: '1.0',
-    blocks: blocks.map((b) => ({
-      name: b.userData.name,
-      shapeType: b.userData.shapeType,
-      mobility: b.userData.mobility,
-      intensity: b.userData.intensity,
-      radius: b.userData.radius,
-      color: b.userData.color,
-      sizeX: b.userData.sizeX,
-      sizeY: b.userData.sizeY,
-      sizeZ: b.userData.sizeZ,
-      posX: b.position.x,
-      posY: b.position.z,
-      posZ: b.position.y,
-      rotZ: b.rotation.y
-    }))
+    formatVersion: 2,
+    engineVersion: '1.0.0',
+    savedAt: new Date().toISOString(),
+    ...sceneSnapshot
   };
   sendToBackend('save_project', { projectData: JSON.stringify(data, null, 2) });
 }
@@ -78,21 +67,37 @@ export function loadProject() {
  * @param {Object} data Parsed project data object containing the block list.
  */
 export function loadProjectFromData(data) {
-  if (!data.blocks) return;
-  while (blocks.length > 0) {
-    const b = blocks.pop();
-    scene.remove(b);
+  if (!data) return;
+  if (data.formatVersion >= 2 || (data.blocks && data.blocks.some(b => b.components || b.csgData || b.rotX !== undefined))) {
+    deserializeScene(data);
+  } else {
+    // Legacy format compatibility: convert old block schema and restore
+    const converted = {
+      selectedName: null,
+      blocks: (data.blocks || []).map(b => ({
+        name: b.name,
+        shapeType: b.shapeType || 'box',
+        mobility: b.mobility || 'Static',
+        intensity: b.intensity || 5000,
+        radius: b.radius || 600,
+        color: b.color || '#ffe6a3',
+        sizeX: b.sizeX || 100,
+        sizeY: b.sizeY || 100,
+        sizeZ: b.sizeZ || 100,
+        posX: b.posX || 0,
+        posY: b.posZ !== undefined ? b.posZ : (b.posY || 0),
+        posZ: b.posZ !== undefined ? b.posY : (b.posZ || 0),
+        rotX: 0,
+        rotY: b.rotZ || 0,
+        rotZ: 0,
+        customMesh: false,
+        csgData: null,
+        aoColors: null,
+        components: []
+      }))
+    };
+    deserializeScene(converted);
   }
-  data.blocks.forEach((b) => {
-    const mesh = createBlock(
-      b.name.replace(/_\d+$/, ''),
-      b.shapeType,
-      b.sizeX, b.sizeY, b.sizeZ,
-      b.posX, b.posY, b.posZ,
-      false
-    );
-    mesh.rotation.y = b.rotZ || 0;
-  });
   refreshOutliner();
   initHistory();
 }

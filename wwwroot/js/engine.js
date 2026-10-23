@@ -43,6 +43,52 @@ orbit.enableDamping = true;
 orbit.dampingFactor = 0.08;
 orbit.update();
 
+// ============================================================================
+// TOUCHPAD & LAPTOP TRACKPAD GESTURE SUPPORT
+// ============================================================================
+
+// Prevent browser-level Ctrl+Wheel whole-page UI zoom
+if (typeof window !== 'undefined') {
+  window.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+}
+
+// Precision trackpad 2D Pan & Pinch-to-zoom in 3D Viewport
+renderer.domElement.addEventListener('wheel', (e) => {
+  e.preventDefault();
+
+  if (e.ctrlKey) {
+    // 1. PINCH-TO-ZOOM on trackpad (or Ctrl + Wheel on mouse)
+    const zoomFactor = Math.pow(0.993, e.deltaY);
+    camera.position.sub(orbit.target).multiplyScalar(zoomFactor).add(orbit.target);
+    orbit.update();
+    e.stopImmediatePropagation();
+  } else if (e.shiftKey || Math.abs(e.deltaX) > 0 || (e.deltaMode === 0 && Math.abs(e.deltaY) < 35)) {
+    // 2. TWO-FINGER TRACKPAD 2D PAN
+    const right = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    const forward = new THREE.Vector3();
+    camera.matrixWorld.extractBasis(right, up, forward);
+
+    const dist = camera.position.distanceTo(orbit.target);
+    const panFactor = Math.max(0.08, dist * 0.0012);
+
+    const panOffset = new THREE.Vector3();
+    panOffset.addScaledVector(right, e.deltaX * panFactor);
+    panOffset.addScaledVector(up, -e.deltaY * panFactor);
+
+    camera.position.add(panOffset);
+    orbit.target.add(panOffset);
+    orbit.update();
+
+    e.stopImmediatePropagation();
+  }
+  // Standard discrete wheel clicks pass through to OrbitControls for normal dolly
+}, { passive: false, capture: true });
+
 // Lighting
 /** @type {THREE.HemisphereLight} Ambient sky/ground hemisphere light source. */
 export const hemiLight = new THREE.HemisphereLight(0xffffff, 0x242a34, 0.75);

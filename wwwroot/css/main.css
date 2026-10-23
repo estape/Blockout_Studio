@@ -1,3 +1,5 @@
+@import "blueprint.css";
+
 :root {
   --bg-dark: #121417;
   --panel-bg: #1c2027;
@@ -20,6 +22,7 @@ body, html {
   background: var(--bg-dark); color: var(--text-main);
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 body {
   display: flex;
@@ -282,12 +285,16 @@ button.danger-btn:hover { background: var(--danger); border-color: #ff6b6b; colo
   position: relative;
   overflow: hidden;
   background: var(--bg-dark);
+  overscroll-behavior: none;
+  touch-action: none;
 }
 #viewport canvas {
   display: block;
   width: 100%;
   height: 100%;
   background: var(--bg-dark);
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 /* Right Sidebar (Forms & Inspector) */

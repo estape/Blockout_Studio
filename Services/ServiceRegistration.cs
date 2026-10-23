@@ -7,6 +7,10 @@ using BlockoutStudio.Services.Ipc.Handlers;
 using BlockoutStudio.Services.NativeInterop;
 using BlockoutStudio.Services.Toolchains;
 using BlockoutStudio.Services.BuildPipeline;
+using BlockoutStudio.Services.Blueprints.Transpiler;
+using BlockoutStudio.Services.Blueprints.Compiler;
+using BlockoutStudio.Services.Blueprints.Storage;
+using BlockoutStudio.Services.Blueprints.Runtime;
 
 namespace BlockoutStudio.Services;
 
@@ -89,6 +93,26 @@ public static class ServiceRegistration
         services.AddSingleton<IIpcActionHandler, BuildProjectHandler>();
         services.AddSingleton<IIpcActionHandler, GetAdbDevicesHandler>();
         services.AddSingleton<IIpcActionHandler, DeployToDeviceHandler>();
+
+        // Blueprint Visual Scripting Subsystem
+        services.AddSingleton<IBlueprintTranspiler, BlueprintTranspiler>();
+        services.AddSingleton<BlueprintTranspiler>(sp => (BlueprintTranspiler)sp.GetRequiredService<IBlueprintTranspiler>());
+        services.AddSingleton<IBlueprintCompilerService, BlueprintCompilerService>();
+        services.AddSingleton<BlueprintCompilerService>(sp => (BlueprintCompilerService)sp.GetRequiredService<IBlueprintCompilerService>());
+        services.AddSingleton<IBlueprintStorageService, BlueprintStorageService>();
+        services.AddSingleton<BlueprintStorageService>(sp => (BlueprintStorageService)sp.GetRequiredService<IBlueprintStorageService>());
+        services.AddSingleton<IBlueprintSimulationService, BlueprintSimulationService>();
+        services.AddSingleton<BlueprintSimulationService>(sp => (BlueprintSimulationService)sp.GetRequiredService<IBlueprintSimulationService>());
+
+        // Blueprint IPC Handlers
+        services.AddSingleton<IIpcActionHandler, ListBlueprintsHandler>();
+        services.AddSingleton<IIpcActionHandler, LoadBlueprintHandler>();
+        services.AddSingleton<IIpcActionHandler, SaveBlueprintHandler>();
+        services.AddSingleton<IIpcActionHandler, TranspileBlueprintHandler>();
+        services.AddSingleton<IIpcActionHandler, CompileBlueprintHandler>();
+        services.AddSingleton<IIpcActionHandler, PieBlueprintStartHandler>();
+        services.AddSingleton<IIpcActionHandler, PieBlueprintTickHandler>();
+        services.AddSingleton<IIpcActionHandler, PieBlueprintStopHandler>();
 
         // IPC Router
         services.AddSingleton<IIpcRouter, IpcRouter>();

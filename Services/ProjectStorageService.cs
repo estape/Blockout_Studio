@@ -121,13 +121,13 @@ public class ProjectStorageService : IProjectStorageService
     /// <param name="jsonContent">Serialized scene JSON string.</param>
     /// <param name="defaultFileName">Default project file name.</param>
     /// <returns>Saved file path or null.</returns>
-    public static string? SaveProjectDialog(string jsonContent, string defaultFileName = "Level_Blockout.bproject")
+    public static string? SaveProjectDialog(string jsonContent, string defaultFileName = ProjectFileType.DefaultFileName)
     {
         return SaveTextDialog(
             jsonContent,
             defaultFileName,
-            "Blockout Studio Project (*.bproject)\0*.bproject\0Blockout Scene (*.bscene)\0*.bscene\0All Files (*.*)\0*.*\0",
-            "bproject",
+            "Blockout Studio Project (*.pjblock)\0*.pjblock\0Blockout Scene (*.bscene)\0*.bscene\0All Files (*.*)\0*.*\0",
+            ProjectFileType.DefaultExtension,
             "Save Blockout Project"
         );
     }
@@ -143,7 +143,7 @@ public class ProjectStorageService : IProjectStorageService
             var ofn = new OpenFileName
             {
                 structSize = Marshal.SizeOf(typeof(OpenFileName)),
-                filter = "Game Engine Projects (*.bengine;*.ueblock;*.bscene)\0*.bengine;*.ueblock;*.bscene\0All Files (*.*)\0*.*\0",
+                filter = "Game Engine Projects (*.bengine;*.pjblock;*.bscene;*.ueblock)\0*.bengine;*.pjblock;*.bscene;*.ueblock\0All Files (*.*)\0*.*\0",
                 file = new string('\0', 260),
                 maxFile = 260,
                 initialDir = DefaultProjectsDir,
@@ -299,6 +299,8 @@ public class ProjectStorageService : IProjectStorageService
             Path.Combine(rootDir, "Assets", "Textures"),
             Path.Combine(rootDir, "Assets", "Scenes"),
             Path.Combine(rootDir, "Assets", "Scripts"),
+            Path.Combine(rootDir, "Assets", "Scripts", "Generated"),
+            Path.Combine(rootDir, "Assets", "Blueprints"),
             Path.Combine(rootDir, "Assets", "Audio"),
             Path.Combine(rootDir, "Assets", "Prefabs"),
             Path.Combine(rootDir, "Assets", "NativePlugins"),

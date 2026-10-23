@@ -389,38 +389,130 @@
     <!-- Draggable Left Column Resizer -->
     <div id="resizer-left" class="column-resizer" title="Drag to resize tools panel"></div>
 
-    <div id="viewport">
-      <!-- Real-Time GPU & Vulkan Status HUD (F3) -->
-      <div id="gpu-hud" style="display:none;"></div>
+    <!-- Center Workspace Area (3D Viewport & UE5 Blueprint Studio) -->
+    <div id="center-container" style="grid-area: viewport; display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; overflow: hidden;">
+      
+      <!-- Top Center Tab Switcher -->
+      <div id="center-tabs" class="center-tabs-bar">
+        <button type="button" id="tab-btn-viewport" class="center-tab-btn active" onclick="switchCenterTab('viewport')">
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="2" width="12" height="12" rx="2" />
+            <path d="M5 8h6M8 5v6" />
+          </svg>
+          <span>3D Viewport</span>
+        </button>
+        <button type="button" id="tab-btn-blueprint" class="center-tab-btn" onclick="switchCenterTab('blueprint')">
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M9 2L3 9h5l-1 5 6-7H8l1-5z" />
+          </svg>
+          <span>Blueprint Editor</span>
+        </button>
+      </div>
 
-      <!-- Play-In-Editor (PIE) Reticle & Live Status HUD (Module 4) -->
-      <div id="pie-hud" style="display:none;">
-        <div class="pie-reticle"></div>
-        <div class="pie-status-pill">
-          <span class="pie-badge">PIE ACTIVE</span>
-          <span id="pie-speed">0 cm/s</span>
-          <span id="pie-ground" style="color:#2ecc71;">Grounded</span>
-          <span class="pie-hint">Press <b>ESC</b> to Exit</span>
+      <!-- 3D Viewport (Three.js WebGL) -->
+      <div id="viewport" style="flex:1 1 0; min-height:0; position:relative; overflow:hidden;">
+        <!-- Real-Time GPU & Vulkan Status HUD (F3) -->
+        <div id="gpu-hud" style="display:none;"></div>
+
+        <!-- Play-In-Editor (PIE) Reticle & Live Status HUD (Module 4) -->
+        <div id="pie-hud" style="display:none;">
+          <div class="pie-reticle"></div>
+          <div class="pie-status-pill">
+            <span class="pie-badge">PIE ACTIVE</span>
+            <span id="pie-speed">0 cm/s</span>
+            <span id="pie-ground" style="color:#2ecc71;">Grounded</span>
+            <span class="pie-hint">Press <b>ESC</b> to Exit</span>
+          </div>
+        </div>
+
+        <div id="live-measure">W: 100 cm | L: 100 cm | H: 200 cm</div>
+        <!-- In-Scene 3D Floating Measurement Badge -->
+        <div id="gizmo-measure-badge">X: +1.50m</div>
+        <div id="toast-msg">Notification</div>
+        <div id="hud-overlay">
+          <strong>Blockout Studio Controls:</strong><br/>
+          • <b>Mouse:</b> Right-Click Drag = Orbit | Middle-Click Drag = Pan | Wheel = Zoom<br/>
+          • <b>Touchpad:</b> Two-Finger Scroll = Pan | Pinch = Zoom | Alt + Drag = Orbit<br/>
+          • <b>History:</b> Undo = <b>Ctrl + Z</b> | Redo = <b>Ctrl + Y</b> (or <b>Ctrl + Shift + Z</b>)<br/>
+          • <b>Rect:</b> Click 3D face to place rectangular block<br/>
+          • <b>Push / Pull:</b> Click any surface face to extrude along its normal<br/>
+          • <b>Hole Cutter:</b> Select wall &rarr; choose door/window &rarr; C# CSG punches opening<br/>
+          • <b>Play Mode:</b> Click <b>Play</b> &rarr; <b>WASD</b> + Mouse Look &rarr; <b>ESC</b> to exit
+        </div>
+        <!-- Quick-Access Content Drawer Pill -->
+        <div id="drawer-pill" onclick="toggleContentDrawer()">
+          <span>📁 Content Drawer</span>
+          <span class="hotkey">Ctrl+Space</span>
         </div>
       </div>
 
-      <div id="live-measure">W: 100 cm | L: 100 cm | H: 200 cm</div>
-      <!-- In-Scene 3D Floating Measurement Badge -->
-      <div id="gizmo-measure-badge">X: +1.50m</div>
-      <div id="toast-msg">Notification</div>
-      <div id="hud-overlay">
-        <strong>Blockout Studio Controls:</strong><br/>
-        • <b>Camera:</b> Right-Click Drag = Orbit | Middle-Click Drag = Pan | Wheel = Zoom<br/>
-        • <b>History:</b> Undo = <b>Ctrl + Z</b> | Redo = <b>Ctrl + Y</b> (or <b>Ctrl + Shift + Z</b>)<br/>
-        • <b>Rect:</b> Click 3D face to place rectangular block<br/>
-        • <b>Push / Pull:</b> Click any surface face to extrude along its normal<br/>
-        • <b>Hole Cutter:</b> Select wall &rarr; choose door/window &rarr; C# CSG punches opening<br/>
-        • <b>Play Mode:</b> Click <b>Play</b> &rarr; <b>WASD</b> + Mouse Look &rarr; <b>ESC</b> to exit
-      </div>
-      <!-- Quick-Access Content Drawer Pill -->
-      <div id="drawer-pill" onclick="toggleContentDrawer()">
-        <span>📁 Content Drawer</span>
-        <span class="hotkey">Ctrl+Space</span>
+      <!-- Blueprint Visual Scripting Studio View -->
+      <div id="blueprint-view">
+        <!-- Blueprint Top Toolbar -->
+        <div class="bp-toolbar">
+          <div class="bp-toolbar-left">
+            <button type="button" id="bp-btn-compile" class="bp-tool-btn primary" title="Transpile & Compile Blueprint with Roslyn (F7)">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M4 2v12l9-6-9-6z"/>
+              </svg>
+              <span>Compile</span>
+            </button>
+            <span id="bp-compile-badge" class="bp-compile-badge clean">✓ Good</span>
+
+            <button type="button" id="bp-btn-save" class="bp-tool-btn" title="Save Blueprint Graph & Emit C# Source (Ctrl+S)">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 2h8l3 3v9H3V2z"/>
+                <path d="M5 2v4h6V2"/>
+              </svg>
+              <span>Save</span>
+            </button>
+
+            <div style="height:18px; width:1px; background:#374151; margin:0 4px;"></div>
+
+            <select id="bp-select-asset" style="background:#111317; border:1px solid #374151; color:#fff; font-size:11px; padding:3px 8px; border-radius:4px; max-width:200px;">
+              <option value="">-- Select Blueprint --</option>
+            </select>
+
+            <button type="button" id="bp-btn-new" class="bp-tool-btn" title="Create New Blueprint">
+              <span>+ New</span>
+            </button>
+          </div>
+
+          <div class="bp-toolbar-right">
+            <button type="button" id="bp-btn-toggle-cs" class="bp-tool-btn" title="Toggle Live Transpiled C# Code Preview">
+              <span style="font-family:monospace; font-weight:700; color:#60a5fa;">&lt;/&gt;</span>
+              <span>View C# Code</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Blueprint Main Body -->
+        <div class="bp-body">
+          <!-- Left Sidebar: My Blueprint & Variables -->
+          <div class="bp-sidebar">
+            <div class="bp-sidebar-section">
+              <span>Variables</span>
+              <button type="button" id="bp-btn-add-var" class="bp-tool-btn" style="padding:1px 6px; font-size:10px;">+ Var</button>
+            </div>
+            <div id="bp-vars-list" style="flex:1 1 0; overflow-y:auto; min-height:120px;"></div>
+
+            <div class="bp-sidebar-section">Variable Details</div>
+            <div id="bp-var-details" style="min-height:140px; background:#111317; border-top:1px solid #1f242e;">
+              <div style="padding:12px; color:#64748b; font-size:10.5px; text-align:center;">Select or add a variable to edit its type and default value.</div>
+            </div>
+          </div>
+
+          <!-- Central Infinite Canvas -->
+          <div class="bp-canvas-container" id="bp-canvas-container"></div>
+
+          <!-- Right Collapsible C# Code Preview Drawer -->
+          <div class="bp-csharp-drawer" id="bp-csharp-drawer" style="display:none;">
+            <div class="bp-csharp-header">
+              <span>Generated C# 13 Source</span>
+            </div>
+            <pre class="bp-csharp-code" id="bp-csharp-code">// Transpiled C# code will appear here...</pre>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -618,6 +710,7 @@
               <option value="Rigidbody">Rigidbody</option>
               <option value="CharacterController">Character Controller</option>
               <option value="Script">Script</option>
+              <option value="Blueprint">Blueprint (C# Visual Script)</option>
               <option value="AudioSource">Audio Source</option>
             </select>
           </div>
@@ -904,6 +997,7 @@
   <script type="module" src="js/usdObjLoader.js"></script>
   <script type="module" src="js/pieManager.js"></script>
   <script type="module" src="js/buildManager.js"></script>
+  <script type="module" src="js/blueprint/blueprintManager.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
