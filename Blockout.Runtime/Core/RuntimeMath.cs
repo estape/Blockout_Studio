@@ -18,3 +18,4 @@ public static class MathLibrary
     public static float VectorLength(Vector3 v) => v.Length();
     public static Vector3 VectorNormalize(Vector3 v) => Vector3.Normalize(v);
 }
+

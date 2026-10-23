@@ -72,3 +72,4 @@ public static class CompactSceneBinaryReader
         return actors;
     }
 }
+

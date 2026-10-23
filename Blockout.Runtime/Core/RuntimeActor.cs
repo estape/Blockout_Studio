@@ -63,3 +63,4 @@ public abstract class ActorComponent
 public abstract class ActorBlueprint : ActorComponent
 {
 }
+

@@ -28,3 +28,4 @@ public class GraphNode
     public GraphPin? FindPinByName(string pinName, GraphPinDirection direction) =>
         Pins.FirstOrDefault(p => p.Name == pinName && p.Direction == direction);
 }
+

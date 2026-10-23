@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Models.Assets;
 
 /// <summary>
 /// Geometry and spatial transform buffers for a discrete sub-mesh or mesh part.
@@ -46,3 +46,5 @@ public class ModelData
     /// <summary>List of constituent sub-mesh parts.</summary>
     public List<ModelMeshPart> Parts { get; set; } = [];
 }
+
+

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Models.Assets;
 
 /// <summary>
 /// Native C++ compiler and SIMD optimization settings.
@@ -266,3 +266,5 @@ public class SdkPathsSettings
     /// <summary>Path to GCC or Clang toolchain executable directory.</summary>
     public string? GccPath { get; set; }
 }
+
+

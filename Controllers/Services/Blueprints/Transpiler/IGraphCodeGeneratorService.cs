@@ -13,3 +13,4 @@ public interface IGraphCodeGeneratorService
     string GenerateSourceCode(GraphDocument document);
     Task<string> GenerateAndSaveAsync(string projectRoot, GraphDocument document);
 }
+

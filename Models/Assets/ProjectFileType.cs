@@ -1,4 +1,4 @@
-namespace BlockoutStudio.Services;
+namespace BlockoutStudio.Models.Assets;
 
 /// <summary>
 /// Strongly-typed string struct representing the project file type, extension, and default file name.
@@ -49,10 +49,10 @@ public readonly struct ProjectFileType : IEquatable<ProjectFileType>, IComparabl
     public override string ToString() => Value;
 
     /// <inheritdoc/>
-    public bool Equals(ProjectFileType other) => string.Equals(Value, other.Value, StringComparison.OrdinalIgnoreCase);
+    public override bool Equals(object? obj) => obj is ProjectFileType other && Equals(other);
 
     /// <inheritdoc/>
-    public override bool Equals(object? obj) => obj is ProjectFileType other && Equals(other);
+    public bool Equals(ProjectFileType other) => string.Equals(Value, other.Value, StringComparison.OrdinalIgnoreCase);
 
     /// <inheritdoc/>
     public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(Value);
@@ -60,10 +60,8 @@ public readonly struct ProjectFileType : IEquatable<ProjectFileType>, IComparabl
     /// <inheritdoc/>
     public int CompareTo(ProjectFileType other) => string.Compare(Value, other.Value, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Equality operator.</summary>
     public static bool operator ==(ProjectFileType left, ProjectFileType right) => left.Equals(right);
-
-    /// <summary>Inequality operator.</summary>
     public static bool operator !=(ProjectFileType left, ProjectFileType right) => !left.Equals(right);
 }
+
 

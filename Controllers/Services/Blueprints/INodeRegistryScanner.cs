@@ -14,3 +14,4 @@ public interface INodeRegistryScanner
     /// <returns>Serialized NodeCatalog containing all discovered nodes and category index.</returns>
     NodeCatalog GetCatalog(bool forceRescan = false);
 }
+

@@ -23,3 +23,4 @@ public class GraphDocument
 
     public GraphNode? FindNode(string nodeId) => Nodes.FirstOrDefault(n => n.Id == nodeId);
 }
+

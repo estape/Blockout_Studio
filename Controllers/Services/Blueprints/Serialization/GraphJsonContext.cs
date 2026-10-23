@@ -29,3 +29,4 @@ namespace BlockoutStudio.Controllers.Services.Blueprints.Serialization;
 public partial class GraphJsonContext : JsonSerializerContext
 {
 }
+

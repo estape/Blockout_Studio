@@ -55,3 +55,4 @@ public static class GraphValidationErrors
     public const string CircularExecutionCycle = "ERR_CIRCULAR_EXECUTION_CYCLE";
     public const string CircularDataDependency = "ERR_CIRCULAR_DATA_DEPENDENCY";
 }
+

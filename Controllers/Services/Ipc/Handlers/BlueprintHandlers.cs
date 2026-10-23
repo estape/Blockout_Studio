@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Text.Json;
 using BlockoutStudio.Services.Assets;
 using BlockoutStudio.Services.Blueprints.Compiler;
-using BlockoutStudio.Services.Blueprints.Models;
+using BlockoutStudio.Models.Blueprints;
 using BlockoutStudio.Services.Blueprints.Runtime;
 using BlockoutStudio.Services.Blueprints.Storage;
 using BlockoutStudio.Services.Blueprints.Transpiler;

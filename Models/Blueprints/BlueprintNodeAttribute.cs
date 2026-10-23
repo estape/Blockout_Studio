@@ -27,3 +27,4 @@ public sealed class BlueprintNodeAttribute : Attribute
         IsPure = isPure;
     }
 }
+

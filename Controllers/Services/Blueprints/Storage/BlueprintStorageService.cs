@@ -4,7 +4,7 @@ using BlockoutStudio.Controllers.Services.Blueprints.Serialization;
 using BlockoutStudio.Controllers.Services.Blueprints.Validation;
 using BlockoutStudio.Models.Blueprints.Format;
 using BlockoutStudio.Services.Assets;
-using BlockoutStudio.Services.Blueprints.Models;
+using BlockoutStudio.Models.Blueprints;
 using BlockoutStudio.Services.Blueprints.Transpiler;
 
 namespace BlockoutStudio.Services.Blueprints.Storage;

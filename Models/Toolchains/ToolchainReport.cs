@@ -1,4 +1,4 @@
-namespace BlockoutStudio.Services.Toolchains;
+namespace BlockoutStudio.Models.Toolchains;
 
 /// <summary>
 /// Status and metadata for a specific compiler or graphics development toolchain.
@@ -23,3 +23,5 @@ public record ToolchainReport(
     string HostOs,
     string ActiveWebViewAngleBackend
 );
+
+

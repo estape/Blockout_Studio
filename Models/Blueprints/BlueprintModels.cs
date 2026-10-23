@@ -1,11 +1,11 @@
 using System.Text.Json.Serialization;
 
-namespace BlockoutStudio.Services.Blueprints.Models;
+namespace BlockoutStudio.Models.Blueprints;
 
 /// <summary>
 /// Data types supported for Blueprint execution pins and data pins.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<BlueprintPinType>))]
 public enum BlueprintPinType
 {
     Exec,
@@ -20,7 +20,7 @@ public enum BlueprintPinType
 /// <summary>
 /// Direction of a Blueprint pin (Input or Output).
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<BlueprintPinDirection>))]
 public enum BlueprintPinDirection
 {
     Input,
@@ -30,7 +30,7 @@ public enum BlueprintPinDirection
 /// <summary>
 /// High-level visual category for node classification and UE5 header accent styling.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<BlueprintNodeCategory>))]
 public enum BlueprintNodeCategory
 {
     Event,
@@ -43,7 +43,7 @@ public enum BlueprintNodeCategory
 /// <summary>
 /// Top-level graph classification (Actor / Entity Blueprint or global Level Blueprint).
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<BlueprintGraphType>))]
 public enum BlueprintGraphType
 {
     Actor,

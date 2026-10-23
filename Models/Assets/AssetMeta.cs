@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Models.Assets;
 
 /// <summary>
 /// Configurable import parameters stored per-asset inside .meta sidecar files.
@@ -168,3 +168,5 @@ public class AssetMeta
         return meta;
     }
 }
+
+

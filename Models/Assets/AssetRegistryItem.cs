@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace BlockoutStudio.Services.Assets;
+namespace BlockoutStudio.Models.Assets;
 
 /// <summary>
 /// Individual entry in the project-wide AssetRegistry index database.
@@ -69,3 +69,6 @@ public class AssetRegistryData
     [JsonPropertyName("assets")]
     public List<AssetRegistryItem> Assets { get; set; } = new();
 }
+
+
+

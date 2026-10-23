@@ -43,3 +43,4 @@ public class GraphSerializer : IGraphSerializer
         return JsonSerializer.Deserialize(utf8Json, GraphJsonContext.Default.GraphDocument);
     }
 }
+

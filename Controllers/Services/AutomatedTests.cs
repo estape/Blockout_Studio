@@ -10,7 +10,7 @@ using BlockoutStudio.Services.NativeInterop;
 using BlockoutStudio.Models.Blueprints;
 using BlockoutStudio.Services.Blueprints;
 
-using BlockoutStudio.Services.Blueprints.Models;
+
 using BlockoutStudio.Services.Blueprints.Transpiler;
 using BlockoutStudio.Services.Blueprints.Compiler;
 using BlockoutStudio.Services.Blueprints.Runtime;
@@ -397,11 +397,11 @@ public static class AutomatedTests
         {
             Console.Write("Test 10: Native OBJ Asset Pipeline Roundtrip... ");
             var objPipe = new Assets.ObjPipeline();
-            var model = new Assets.ModelData
+            var model = new Models.Assets.ModelData
             {
                 SceneName = "TestScene",
                 Parts = [
-                    new Assets.ModelMeshPart
+                    new Models.Assets.ModelMeshPart
                     {
                         Name = "SM_Box",
                         Positions = [0,0,0, 100,0,0, 100,100,0],
@@ -436,11 +436,11 @@ public static class AutomatedTests
         {
             Console.Write("Test 11: Native USDA Stage Generator... ");
             var usdPipe = new Assets.UsdPipeline();
-            var model = new Assets.ModelData
+            var model = new Models.Assets.ModelData
             {
                 SceneName = "Blockout_Level",
                 Parts = [
-                    new Assets.ModelMeshPart
+                    new Models.Assets.ModelMeshPart
                     {
                         Name = "SM_Wall_01",
                         Positions = [0,0,0, 400,0,0, 400,20,0],
@@ -755,13 +755,13 @@ public static class AutomatedTests
                     }
                     """;
 
-                var vertResult = vulkanCompute.CompileAndTranspileShader(testVert, Graphics.ShaderStage.Vertex, optimize: true);
+                var vertResult = vulkanCompute.CompileAndTranspileShader(testVert, ShaderStage.Vertex, optimize: true);
                 bool vertSuccess = vertResult.Success &&
                     !string.IsNullOrEmpty(vertResult.GlslEsSource) &&
                     vertResult.GlslEsSource.Contains("#version 300 es");
 
                 // Test Compute Shader compilation to SPIR-V
-                var compResult = vulkanCompute.CompileGlslToSpirv(Graphics.VulkanComputeService.DefaultAoComputeShader, Graphics.ShaderStage.Compute, optimize: true);
+                var compResult = vulkanCompute.CompileGlslToSpirv(Graphics.VulkanComputeService.DefaultAoComputeShader, ShaderStage.Compute, optimize: true);
                 bool compSuccess = compResult.Success && compResult.SpirvByteLength > 0;
 
                 // Test Vulkan Ray-Marched AO compute execution/fallback
@@ -799,7 +799,7 @@ public static class AutomatedTests
             var lodGen = sp.GetRequiredService<Geometry.ILodGeneratorService>();
 
             // 1. Verify QualitySettings 4 Tiers
-            var quality = new Assets.QualitySettings();
+            var quality = new Models.Assets.QualitySettings();
             bool validTiers = quality.Tiers.Count == 4 &&
                 quality.Tiers[0].TierName == "MobileLow" &&
                 quality.Tiers[0].ResolutionScale == 0.75f &&
@@ -984,7 +984,7 @@ public static class AutomatedTests
         {
             Console.Write("Test 21: Starter Script Assets & Project Directory Scaffolding... ");
             var tempDir = Path.Combine(Path.GetTempPath(), "BEngine_EcsScriptTest_" + Guid.NewGuid().ToString("N"));
-            var manifest = new Assets.ProjectManifest { ProjectName = "EcsScriptTest" };
+            var manifest = new Models.Assets.ProjectManifest { ProjectName = "EcsScriptTest" };
 
             ProjectStorageService.EnsureProjectStructure(tempDir, manifest);
 
@@ -1060,7 +1060,7 @@ public static class AutomatedTests
         {
             Console.Write("Test 23: Native C++20 Plugin Compiler (MSVC / cl.exe)... ");
             var tempDir = Path.Combine(Path.GetTempPath(), "BEngine_NativeCompilerTest_" + Guid.NewGuid().ToString("N"));
-            var manifest = new Assets.ProjectManifest { ProjectName = "NativeCompilerTest" };
+            var manifest = new Models.Assets.ProjectManifest { ProjectName = "NativeCompilerTest" };
             ProjectStorageService.EnsureProjectStructure(tempDir, manifest);
 
             ISdkDetectorService sdkService = new SdkDetectorService();
@@ -1109,7 +1109,7 @@ public static class AutomatedTests
         {
             Console.Write("Test 24: Platform Builder Packaging & Asset Cooking... ");
             var tempDir = Path.Combine(Path.GetTempPath(), "BEngine_PlatformBuilderTest_" + Guid.NewGuid().ToString("N"));
-            var manifest = new Assets.ProjectManifest { ProjectName = "PlatformBuilderTest" };
+            var manifest = new Models.Assets.ProjectManifest { ProjectName = "PlatformBuilderTest" };
             ProjectStorageService.EnsureProjectStructure(tempDir, manifest);
 
             var sp = ServiceRegistration.BuildEngineServiceProvider();
@@ -1522,11 +1522,11 @@ public static class AutomatedTests
         {
             Console.Write("Test 28: OpenUSD Compliance & Schema Validation Suite... ");
             var usdPipe = new Assets.UsdPipeline();
-            var meshModel = new Assets.ModelData
+            var meshModel = new Models.Assets.ModelData
             {
                 SceneName = "ValidationMesh",
                 Parts = [
-                    new Assets.ModelMeshPart
+                    new Models.Assets.ModelMeshPart
                     {
                         Name = "SM_Box",
                         Positions = [

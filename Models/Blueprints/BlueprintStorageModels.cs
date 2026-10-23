@@ -1,4 +1,4 @@
-namespace BlockoutStudio.Services.Blueprints.Storage;
+namespace BlockoutStudio.Models.Blueprints;
 
 /// <summary>
 /// Metadata info for a discovered Blueprint asset in the project.
@@ -20,3 +20,5 @@ public record SaveBlueprintResult(
     string BlueprintPath,
     string GeneratedCSharpPath,
     string? ErrorMessage = null);
+
+

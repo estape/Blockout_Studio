@@ -33,3 +33,4 @@ public static partial class EngineNativeDirect
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial void SetTargetFps(int fps);
 }
+

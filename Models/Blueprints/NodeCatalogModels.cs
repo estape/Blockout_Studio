@@ -53,3 +53,4 @@ public class NodeCatalog
     public List<DiscoveredNodeDefinition> Nodes { get; set; } = [];
     public Dictionary<string, List<string>> Categories { get; set; } = [];
 }
+

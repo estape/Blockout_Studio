@@ -19,3 +19,4 @@ public class GraphValidationResult
         Warnings.Add(new GraphValidationWarning(code, message, nodeId, pinId));
     }
 }
+

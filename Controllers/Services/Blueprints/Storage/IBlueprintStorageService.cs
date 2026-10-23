@@ -1,5 +1,5 @@
 using BlockoutStudio.Models.Blueprints.Format;
-using BlockoutStudio.Services.Blueprints.Models;
+using BlockoutStudio.Models.Blueprints;
 
 namespace BlockoutStudio.Services.Blueprints.Storage;
 

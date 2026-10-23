@@ -74,3 +74,4 @@ public static class CompactSceneBinaryReader
 
     private static InvalidDataException excitingInvalidDataException(string message) => new(message);
 }
+

@@ -28,8 +28,7 @@ public class RoslynGraphCodeGeneratorService : IGraphCodeGeneratorService
             SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System")),
             SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Numerics")),
             SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.CodeDom.Compiler")),
-            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("BlockoutStudio.Services.Blueprints.Runtime")),
-            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("BlockoutStudio.Models.Blueprints"))
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("BlockoutStudio.Services.Blueprints.Runtime"))
         };
 
         // 2. Class Attributes: [GeneratedCode("BlockoutStudio.GraphCodeGenerator", "1.0.0")]
