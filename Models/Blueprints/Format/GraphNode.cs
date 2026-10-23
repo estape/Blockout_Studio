@@ -83,7 +83,9 @@ public class GraphNode
         Spatial = spatial ?? new NodeSpatialMetadata();
     }
 
-    public GraphPin? FindPin(string pinId) => Pins.FirstOrDefault(p => p.Id == pinId);
+    public GraphPin? FindPin(string pinId) =>
+        Pins.FirstOrDefault(p => string.Equals(p.Id, pinId, StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(p.Name, pinId, StringComparison.OrdinalIgnoreCase));
     public GraphPin? FindPinByName(string pinName, GraphPinDirection direction) =>
         Pins.FirstOrDefault(p => p.Name == pinName && p.Direction == direction);
 }

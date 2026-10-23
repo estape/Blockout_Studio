@@ -58,6 +58,7 @@ public sealed class GraphIpcDispatcher : IIpcActionHandler
 
             case "graph_add_node":
             {
+                var id = payload.TryGetProperty("id", out var idp) ? idp.GetString() : null;
                 var methodId = payload.TryGetProperty("targetMethodIdentifier", out var mp) ? mp.GetString() ?? "" : "";
                 var nodeType = GraphNodeType.ImpureFunction;
                 if ((payload.TryGetProperty("nodeType", out var ntp) && Enum.TryParse<GraphNodeType>(ntp.GetString(), ignoreCase: true, out var parsedType)) ||
@@ -69,6 +70,23 @@ public sealed class GraphIpcDispatcher : IIpcActionHandler
                 var y = payload.TryGetProperty("y", out var yp) ? yp.GetSingle() : 0f;
 
                 var res = _controller.AddNode(methodId, nodeType, x, y);
+                if (res.Success && res.Data != null)
+                {
+                    if (!string.IsNullOrEmpty(id)) res.Data.Id = id;
+                    if (payload.TryGetProperty("pins", out var pinsEl) && pinsEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var pinEl in pinsEl.EnumerateArray())
+                        {
+                            var pid = pinEl.TryGetProperty("id", out var pidp) ? pidp.GetString() ?? "" : "";
+                            var pname = pinEl.TryGetProperty("name", out var pnp) ? pnp.GetString() ?? "" : "";
+                            var pdirStr = pinEl.TryGetProperty("direction", out var pdp) ? pdp.GetString() ?? "Input" : "Input";
+                            var ptypeStr = pinEl.TryGetProperty("type", out var ptp) ? ptp.GetString() ?? "Exec" : "Exec";
+                            var pdir = Enum.TryParse<GraphPinDirection>(pdirStr, true, out var pd) ? pd : GraphPinDirection.Input;
+                            var ptype = Enum.TryParse<GraphPinType>(ptypeStr, true, out var pt) ? pt : GraphPinType.Exec;
+                            res.Data.Pins.Add(new GraphPin(pid, pname, pdir, ptype));
+                        }
+                    }
+                }
                 Reply(window, "graph_add_node_response", res, GraphJsonContext.Default.GraphOperationResultGraphNode);
                 break;
             }
@@ -130,9 +148,30 @@ public sealed class GraphIpcDispatcher : IIpcActionHandler
                 break;
             }
 
+            case "graph_add_variable":
+            {
+                var name = payload.TryGetProperty("name", out var np) ? np.GetString() ?? "NewVar" : "NewVar";
+                var typeStr = payload.TryGetProperty("type", out var tp) ? tp.GetString() ?? "Float" : "Float";
+                var defVal = payload.TryGetProperty("defaultValue", out var dp) ? dp.GetString() ?? "0" : "0";
+                var isPublic = !payload.TryGetProperty("isPublic", out var ip) || ip.GetBoolean();
+                var pinType = Enum.TryParse<GraphPinType>(typeStr, true, out var parsedPinType) ? parsedPinType : GraphPinType.Float;
+
+                var res = _controller.AddVariable(name, pinType, defVal, isPublic);
+                Reply(window, "graph_add_variable_response", res, GraphJsonContext.Default.GraphOperationResultGraphVariable);
+                break;
+            }
+
+            case "graph_remove_variable":
+            {
+                var varId = payload.TryGetProperty("variableId", out var vp) ? vp.GetString() ?? "" : "";
+                var res = _controller.RemoveVariable(varId);
+                Reply(window, "graph_remove_variable_response", res, GraphJsonContext.Default.GraphOperationResultBoolean);
+                break;
+            }
+
             default:
             {
-                window.SendWebMessage(JsonSerializer.Serialize(new
+                window?.SendWebMessage(JsonSerializer.Serialize(new
                 {
                     type = "error",
                     message = $"Unknown graph sub-action: '{subAction}'"
@@ -142,9 +181,9 @@ public sealed class GraphIpcDispatcher : IIpcActionHandler
         }
     }
 
-    private static void Reply<T>(PhotinoWindow window, string type, T data, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
+    private static void Reply<T>(PhotinoWindow? window, string type, T data, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
     {
         var json = JsonSerializer.Serialize(data, typeInfo);
-        window.SendWebMessage($"{{\"type\":\"{type}\",\"action\":\"graph_action\",\"data\":{json}}}");
+        window?.SendWebMessage($"{{\"type\":\"{type}\",\"action\":\"graph_action\",\"data\":{json}}}");
     }
 }

@@ -99,6 +99,81 @@ export class BlueprintManager {
       }
     });
 
+    // --- MVC GRAPH CONTROLLER RESPONSES ---
+    registerHandler('graph_create_response', (msg) => {
+      const res = msg.data || msg;
+      if (res && res.success && res.data) {
+        this.currentGraph = this.adaptBackendDocument(res.data);
+        this.isDirty = false;
+        this.updateCompileBadge('clean');
+        this.renderGraph();
+        this.updateVariablesUI();
+        this.updateCSharpPreview();
+      }
+    });
+
+    registerHandler('graph_load_response', (msg) => {
+      const res = msg.data || msg;
+      if (res && res.success && res.data) {
+        this.currentGraph = this.adaptBackendDocument(res.data);
+        this.isDirty = false;
+        this.updateCompileBadge('clean');
+        this.renderGraph();
+        this.updateVariablesUI();
+        this.updateCSharpPreview();
+        if (window.showToast) window.showToast(`Loaded Blueprint '${this.currentGraph.name}' via MVC Controller`);
+      }
+    });
+
+    registerHandler('graph_save_response', (msg) => {
+      const res = msg.data || msg;
+      if (res && res.success) {
+        this.isDirty = false;
+        this.updateCompileBadge('clean');
+        this.refreshBlueprintList();
+        if (window.showToast) window.showToast(`Saved ${this.currentGraph.name}.bgraph & compiled C#`);
+      } else if (res && !res.success) {
+        if (window.showToast) window.showToast(`Save failed: ${res.message || 'Validation error'}`, true);
+      }
+    });
+
+    registerHandler('graph_connect_pins_response', (msg) => {
+      const res = msg.data || msg;
+      if (res && !res.success) {
+        const errMsg = res.message || (res.errors && res.errors[0]?.message) || 'Illegal connection rejected by Controller';
+        if (window.showToast) window.showToast(`❌ Connection Rejected: ${errMsg}`, true);
+        // Revert last pending wire
+        if (this._lastPendingConnId) {
+          this.currentGraph.connections = this.currentGraph.connections.filter(c => c.id !== this._lastPendingConnId);
+          this._lastPendingConnId = null;
+          this.renderGraph();
+        }
+      } else if (res && res.success && res.data) {
+        const payload = res.data;
+        if (payload.replacedLinkId) {
+          this.currentGraph.connections = this.currentGraph.connections.filter(c => c.id !== payload.replacedLinkId);
+        }
+        if (this._lastPendingConnId && payload.addedLink) {
+          const wire = this.currentGraph.connections.find(c => c.id === this._lastPendingConnId);
+          if (wire) wire.id = payload.addedLink.id;
+          this._lastPendingConnId = null;
+        }
+        this.renderGraph();
+      }
+    });
+
+    registerHandler('graph_validate_response', (msg) => {
+      const res = msg.data || msg;
+      if (res) {
+        if (res.isValid) {
+          if (window.showToast) window.showToast('✓ Graph schema is 100% valid');
+        } else {
+          const errCount = (res.errors || []).length;
+          if (window.showToast) window.showToast(`Graph has ${errCount} validation errors`, true);
+        }
+      }
+    });
+
     registerHandler('save_blueprint_response', (data) => {
       if (data.success) {
         this.isDirty = false;
@@ -153,12 +228,71 @@ export class BlueprintManager {
     }
   }
 
+  adaptBackendDocument(doc) {
+    if (!doc) return this.createEmptyGraph();
+    const nodes = (doc.nodes || []).map(n => ({
+      id: n.id,
+      nodeType: n.targetMethodIdentifier,
+      title: n.targetMethodIdentifier,
+      category: n.nodeType === 'Event' ? 'Event' : (n.nodeType === 'PureFunction' ? 'Math' : 'Actor'),
+      posX: n.x ?? n.spatial?.x ?? 0,
+      posY: n.y ?? n.spatial?.y ?? 0,
+      inputs: (n.pins || []).filter(p => p.direction === 'Input' || p.direction === 0).map(p => ({
+        id: p.id,
+        name: p.name,
+        type: p.valueType,
+        direction: 'Input',
+        defaultValue: n.defaultPinValues?.[p.name] ?? n.defaultPinValues?.[p.id] ?? ''
+      })),
+      outputs: (n.pins || []).filter(p => p.direction === 'Output' || p.direction === 1).map(p => ({
+        id: p.id,
+        name: p.name,
+        type: p.valueType,
+        direction: 'Output'
+      })),
+      properties: { ...(n.defaultPinValues || {}) }
+    }));
+
+    const connections = (doc.links || []).map(l => ({
+      id: l.id,
+      fromNodeId: l.sourceNodeId,
+      fromPinId: l.sourcePinId,
+      toNodeId: l.targetNodeId,
+      toPinId: l.targetPinId
+    }));
+
+    const variables = (doc.variables || []).map(v => ({
+      id: v.id,
+      name: v.name,
+      type: v.type,
+      defaultValue: v.defaultValue,
+      isPublic: v.isPublic
+    }));
+
+    return {
+      id: doc.graphId || doc.id || 'bp_' + Math.random().toString(36).substring(2, 9),
+      name: doc.name || 'BP_Actor',
+      type: doc.targetActorClass || 'Actor',
+      nodes,
+      connections,
+      variables
+    };
+  }
+
   promptNewBlueprint() {
     const name = prompt('Enter new Blueprint name:', `BP_Actor_${Math.floor(Math.random() * 900 + 100)}`);
     if (!name || !name.trim()) return;
 
     const cleanName = name.trim().replace(/[^a-zA-Z0-9_]/g, '_');
     this.currentGraph = this.createEmptyGraph(cleanName, 'Actor');
+
+    // Dispatch authoritative MVC creation
+    sendToBackend({
+      action: 'graph_action',
+      subAction: 'graph_create',
+      name: cleanName,
+      targetActorClass: 'Actor'
+    });
 
     // Add Starter Event BeginPlay and Tick nodes
     const bp1 = createNodeInstance('EventBeginPlay', 80, 80);
@@ -174,10 +308,23 @@ export class BlueprintManager {
 
   loadBlueprint(name) {
     if (!name) return;
+    // Dispatch authoritative MVC load
+    sendToBackend({
+      action: 'graph_action',
+      subAction: 'graph_load',
+      name
+    });
+    // Fallback legacy load
     sendToBackend({ action: 'load_blueprint', name });
   }
 
   saveBlueprint() {
+    // 1. Dispatch authoritative MVC save
+    sendToBackend({
+      action: 'graph_action',
+      subAction: 'graph_save'
+    });
+    // 2. Also send legacy format for backward compatibility
     sendToBackend({
       action: 'save_blueprint',
       graph: this.currentGraph
@@ -186,7 +333,6 @@ export class BlueprintManager {
 
   compileBlueprint() {
     this.updateCompileBadge('compiling');
-    // Save and compile in sequence
     this.saveBlueprint();
     sendToBackend({
       action: 'transpile_blueprint',
@@ -230,6 +376,28 @@ export class BlueprintManager {
     this.updateCSharpPreview();
   }
 
+  onNodeMoved(nodeId, x, y) {
+    this.onGraphModified();
+    sendToBackend({
+      action: 'graph_action',
+      subAction: 'graph_move_node',
+      nodeId,
+      x,
+      y
+    });
+  }
+
+  onPinValueChanged(nodeId, pinId, value) {
+    this.onGraphModified();
+    sendToBackend({
+      action: 'graph_action',
+      subAction: 'graph_set_pin_value',
+      nodeId,
+      pinId,
+      value: String(value)
+    });
+  }
+
   renderGraph() {
     this.canvas.renderGraph(this.currentGraph);
   }
@@ -249,6 +417,25 @@ export class BlueprintManager {
   spawnNode(nodeType, worldX, worldY, customProps = {}, sourcePin = null) {
     const node = createNodeInstance(nodeType, worldX, worldY, customProps);
     this.currentGraph.nodes.push(node);
+
+    // Dispatch authoritative MVC AddNode
+    const allPins = [...node.inputs, ...node.outputs].map(p => ({
+      id: p.id,
+      name: p.name,
+      direction: p.direction,
+      type: p.type
+    }));
+
+    sendToBackend({
+      action: 'graph_action',
+      subAction: 'graph_add_node',
+      id: node.id,
+      targetMethodIdentifier: node.nodeType || nodeType,
+      nodeType: node.category === 'Event' ? 'Event' : (node.category === 'Math' ? 'PureFunction' : 'ImpureFunction'),
+      x: worldX,
+      y: worldY,
+      pins: allPins
+    });
 
     // Auto-connect if spawned by pulling from a pin
     if (sourcePin && sourcePin.pin) {
@@ -277,16 +464,26 @@ export class BlueprintManager {
     this.selectedNodeId = null;
     this.onGraphModified();
     this.renderGraph();
+
+    // Dispatch authoritative MVC RemoveNode
+    sendToBackend({
+      action: 'graph_action',
+      subAction: 'graph_remove_node',
+      nodeId
+    });
   }
 
   addConnection(fromNodeId, fromPinId, toNodeId, toPinId) {
-    // If input pin is already connected, remove existing connection (single-in rule)
+    const tempId = 'conn_' + Math.random().toString(36).substring(2, 9);
+    this._lastPendingConnId = tempId;
+
+    // Optimistic single-in replacement on canvas
     this.currentGraph.connections = this.currentGraph.connections.filter(
       c => !(c.toNodeId === toNodeId && c.toPinId === toPinId)
     );
 
     const conn = {
-      id: 'conn_' + Math.random().toString(36).substring(2, 9),
+      id: tempId,
       fromNodeId,
       fromPinId,
       toNodeId,
@@ -296,12 +493,29 @@ export class BlueprintManager {
     this.currentGraph.connections.push(conn);
     this.onGraphModified();
     this.renderGraph();
+
+    // Dispatch authoritative MVC ConnectPins
+    sendToBackend({
+      action: 'graph_action',
+      subAction: 'graph_connect_pins',
+      sourceNodeId: fromNodeId,
+      sourcePinId: fromPinId,
+      targetNodeId: toNodeId,
+      targetPinId: toPinId
+    });
   }
 
   removeConnection(connectionId) {
     this.currentGraph.connections = this.currentGraph.connections.filter(c => c.id !== connectionId);
     this.onGraphModified();
     this.renderGraph();
+
+    // Dispatch authoritative MVC DisconnectPins
+    sendToBackend({
+      action: 'graph_action',
+      subAction: 'graph_disconnect_pins',
+      linkId: connectionId
+    });
   }
 
   isPinConnected(nodeId, pinId) {
@@ -341,6 +555,11 @@ export class BlueprintManager {
         this.currentGraph.variables = this.currentGraph.variables.filter(item => item.id !== v.id);
         this.updateVariablesUI();
         this.onGraphModified();
+        sendToBackend({
+          action: 'graph_action',
+          subAction: 'graph_remove_variable',
+          variableId: v.id
+        });
       });
 
       item.appendChild(typePill);
@@ -381,6 +600,14 @@ export class BlueprintManager {
     this.currentGraph.variables.push(v);
     this.updateVariablesUI();
     this.onGraphModified();
+    sendToBackend({
+      action: 'graph_action',
+      subAction: 'graph_add_variable',
+      name: v.name,
+      type: v.type,
+      defaultValue: v.defaultValue,
+      isPublic: v.isPublic
+    });
   }
 
   showVariableDetails(v) {

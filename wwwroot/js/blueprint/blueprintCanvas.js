@@ -137,8 +137,9 @@ export class BlueprintCanvas {
       }
 
       if (this.draggedNode) {
+        const movedNode = this.draggedNode;
         this.draggedNode = null;
-        this.manager.onGraphModified();
+        this.manager.onNodeMoved(movedNode.id, movedNode.posX, movedNode.posY);
       }
 
       if (this.draggedPin) {
@@ -359,12 +360,17 @@ export class BlueprintCanvas {
       input.checked = currentVal === 'true' || currentVal === true;
       input.style.width = '16px';
       input.addEventListener('change', () => {
-        node.properties[pin.name] = input.checked ? 'true' : 'false';
-        this.manager.onGraphModified();
+        const val = input.checked ? 'true' : 'false';
+        node.properties[pin.name] = val;
+        this.manager.onPinValueChanged(node.id, pin.id, val);
       });
     } else {
       input.type = pin.type === PinTypes.INTEGER || pin.type === PinTypes.FLOAT ? 'number' : 'text';
       if (pin.type === PinTypes.FLOAT) input.step = '0.1';
+      input.addEventListener('change', () => {
+        node.properties[pin.name] = input.value;
+        this.manager.onPinValueChanged(node.id, pin.id, input.value);
+      });
       input.addEventListener('input', () => {
         node.properties[pin.name] = input.value;
         this.manager.onGraphModified();

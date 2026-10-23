@@ -53,16 +53,17 @@ public class PackageStandaloneGameHandler : IIpcActionHandler
 
         void StreamLog(string line)
         {
-            window.SendWebMessage(JsonSerializer.Serialize(new
+            window?.SendWebMessage(JsonSerializer.Serialize(new
             {
                 type = "package_standalone_game_log",
+                line = line,
                 message = line
             }));
         }
 
         var result = await _packagingService.PackageStandaloneGameAsync(projectRoot, request, StreamLog);
 
-        window.SendWebMessage(JsonSerializer.Serialize(new
+        window?.SendWebMessage(JsonSerializer.Serialize(new
         {
             type = "package_standalone_game_response",
             result
@@ -80,3 +81,4 @@ public class PSGH : PackageStandaloneGameHandler
     {
     }
 }
+

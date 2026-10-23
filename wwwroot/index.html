@@ -164,6 +164,10 @@
           <button type="button" class="menu-action-item" onclick="openBuildModal(); switchBuildTab('package');">
             <span>Package Project (Win64 / Linux / Android)</span>
           </button>
+          <button type="button" class="menu-action-item" onclick="openBuildModal(); switchBuildTab('package');">
+            <span>Package Standalone Game (NativeAOT)...</span>
+            <span class="menu-shortcut">Ctrl+Shift+B</span>
+          </button>
         </div>
 
         <button type="button" class="menubar-trigger" id="btn-menu-view" popovertarget="menu-view" style="anchor-name: --anchor-menu-view;">View</button>
@@ -865,8 +869,9 @@
             </div>
           </div>
 
-          <div style="margin:14px 0; display:flex; gap:10px;">
-            <button id="btn-package-game" onclick="packageGame()" class="btn-primary" style="background:#22c55e; color:#111; font-weight:700;">📦 Package Game</button>
+          <div style="margin:14px 0; display:flex; gap:10px; flex-wrap:wrap;">
+            <button id="btn-package-standalone-aot" onclick="packageStandaloneGame()" class="btn-primary" style="background:#0284c7; color:#fff; font-weight:700;">🚀 Package Standalone Game (NativeAOT)</button>
+            <button id="btn-package-game" onclick="packageGame()" class="btn-primary" style="background:#22c55e; color:#111; font-weight:700;">📦 Package Game (Classic)</button>
             <button id="btn-deploy-android" onclick="deployToSelectedDevice()" class="btn-primary" style="background:#a855f7; color:#fff; font-weight:700;" disabled>🚀 Deploy to Android (ADB)</button>
           </div>
 

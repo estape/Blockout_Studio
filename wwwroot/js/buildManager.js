@@ -79,6 +79,14 @@ function onIpcMessage(e) {
                 showToast('❌ Deployment failed. Check package logs.');
             }
             break;
+
+        case 'package_standalone_game_log':
+            appendPackageLog(`[STANDALONE-AOT] ${data.line || data.message || ''}`);
+            break;
+
+        case 'package_standalone_game_response':
+            onStandalonePackageFinished(data.result);
+            break;
     }
 }
 
@@ -517,6 +525,59 @@ function onPackageFinished(result) {
         }
     } else {
         showToast('❌ Packaging failed. Check logs.');
+    }
+}
+
+/**
+ * @brief Starts standalone NativeAOT game packaging via SPS / PSGH backend.
+ */
+export function packageStandaloneGame() {
+    if (isPackaging) return;
+    isPackaging = true;
+
+    const btn = document.getElementById('btn-package-standalone-aot');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Compiling NativeAOT Game...';
+    }
+
+    const consoleBox = document.getElementById('package-console');
+    if (consoleBox) consoleBox.innerHTML = '';
+
+    const platform = document.getElementById('package-target-platform')?.value || 'Windows';
+    const rid = platform === 'Linux' ? 'linux-x64' : (platform === 'macOS' ? 'osx-arm64' : 'win-x64');
+
+    appendPackageLog(`[START] 🚀 Initiating NativeAOT Standalone Packaging for ${platform} (${rid})...`);
+    appendPackageLog(`[MVC] Stripping Photino View, compiling Visual Scripts via Roslyn, generating Native Vulkan Binary...`);
+
+    sendIpcMessage('package_standalone_game', {
+        projectRoot: window.activeProjectRoot || '',
+        targetPlatform: platform,
+        runtimeIdentifier: rid,
+        configuration: 'Release',
+        cleanBuild: false
+    });
+}
+
+/**
+ * @brief Callback invoked when Standalone NativeAOT packaging completes.
+ * @param {Object} result Standalone packaging result payload.
+ */
+function onStandalonePackageFinished(result) {
+    isPackaging = false;
+    const btn = document.getElementById('btn-package-standalone-aot');
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🚀 Package Standalone Game (NativeAOT)';
+    }
+
+    if (result && result.success) {
+        appendPackageLog(`[SUCCESS] 🏆 Standalone Game built in ${result.durationMs}ms! Binary: ${result.executablePath}`);
+        showToast(`✅ Standalone NativeAOT Game packaged successfully! Output: ${result.outputDirectory}`);
+    } else {
+        const err = (result && (result.errorMessage || result.message)) || 'Unknown packaging failure';
+        appendPackageLog(`[ERROR] ❌ Packaging failed: ${err}`);
+        showToast(`❌ Standalone packaging failed: ${err}`, true);
     }
 }
 

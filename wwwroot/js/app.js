@@ -42,7 +42,7 @@ import { initUsdObjLoader, saveSelectedAsObj, saveLevelAsUsdStage } from './usdO
 import {
   initBuildManager, openBuildModal, closeBuildModal, switchBuildTab,
   saveCustomSdkPaths, refreshAdbDevices, compileNativePlugin, packageGame,
-  deployToSelectedDevice
+  packageStandaloneGame, deployToSelectedDevice
 } from './buildManager.js';
 import { initBlueprintStudio } from './blueprint/blueprintManager.js';
 
@@ -204,7 +204,12 @@ window.addEventListener('keydown', (e) => {
   }
   if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
     e.preventDefault();
-    openBuildModal();
+    if (e.shiftKey) {
+      openBuildModal();
+      switchBuildTab('package');
+    } else {
+      openBuildModal();
+    }
   }
   if (e.key === 'F7') {
     e.preventDefault();
@@ -779,6 +784,7 @@ window.saveCustomSdkPaths = saveCustomSdkPaths;
 window.refreshAdbDevices = refreshAdbDevices;
 window.compileNativePlugin = compileNativePlugin;
 window.packageGame = packageGame;
+window.packageStandaloneGame = packageStandaloneGame;
 window.deployToSelectedDevice = deployToSelectedDevice;
 
 // Welcome Screen Window Bindings

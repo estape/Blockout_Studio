@@ -22,6 +22,7 @@ using BlockoutStudio.Controllers.Services.Blueprints.Validation;
 using BlockoutStudio.Controllers.Services.Blueprints.Converters;
 using BlockoutStudio.Controllers.Services.Blueprints.Transpiler;
 using BlockoutStudio.Controllers.Blueprints;
+using BlockoutStudio.Services.Ipc.Handlers;
 
 namespace BlockoutStudio.Services;
 
@@ -583,7 +584,7 @@ public static class AutomatedTests
                 failed++;
             }
 
-            assetDb.Dispose();
+            (assetDb as IDisposable)?.Dispose();
             try { Directory.Delete(tempDir, true); } catch { }
         }
         catch (Exception ex)
@@ -2247,6 +2248,172 @@ public static class AutomatedTests
                 Console.WriteLine($"FAILED (create:{createOk}, move:{moveOk}, setVal:{setValOk}, rejSelf:{rejSelfOk}, rejExec:{rejExecDataOk}, rejCycle:{rejCycleOk}, rejPureCycle:{rejPureCycleOk}, execConn:{execConnOk}, fanIn:{singleFanInOk}, ser:{serializeOk}, opJson:{opJsonOk})");
                 failed++;
             }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"FAILED: {ex.Message}");
+            failed++;
+        }
+
+        // Test 35: GraphIpcDispatcher & MVC Blueprint End-to-End & Standalone Packaging (SPS/PSGH)
+        try
+        {
+            Console.Write("Test 35: GraphIpcDispatcher & Standalone Packaging Coordinator (SPS/PSGH)... ");
+            var tempDir = Path.Combine(Path.GetTempPath(), "BEngine_IpcMvCTest_" + Guid.NewGuid().ToString("N"));
+            var (projRoot, _) = ProjectStorageService.CreateNewProject(tempDir, "IpcMvCTestProject");
+
+            var sp = ServiceRegistration.BuildEngineServiceProvider();
+            var assetDb = sp.GetRequiredService<IAssetDatabaseService>();
+            assetDb.Initialize(projRoot);
+
+            var controller = sp.GetRequiredService<IGraphController>();
+            var dispatcher = sp.GetServices<IIpcActionHandler>().OfType<GraphIpcDispatcher>().FirstOrDefault()
+                ?? new GraphIpcDispatcher(controller, assetDb);
+
+            // 1. Dispatch graph_create
+            var createDoc = JsonDocument.Parse("""
+            {
+                "subAction": "graph_create",
+                "name": "BP_IpcHero",
+                "targetActorClass": "Actor"
+            }
+            """);
+            dispatcher.HandleAsync(createDoc.RootElement, createDoc.RootElement, null!).GetAwaiter().GetResult();
+            bool docCreated = controller.ActiveDocument != null && controller.ActiveDocument.Name == "BP_IpcHero";
+
+            // 2. Dispatch graph_add_node (BeginPlay Event)
+            var addNode1Doc = JsonDocument.Parse("""
+            {
+                "subAction": "graph_add_node",
+                "id": "node_hero_begin",
+                "targetMethodIdentifier": "Event.OnBeginPlay",
+                "nodeType": "Event",
+                "x": 80,
+                "y": 100,
+                "pins": [
+                    { "id": "p_exec_out", "name": "ExecOut", "direction": "Output", "type": "Exec" }
+                ]
+            }
+            """);
+            dispatcher.HandleAsync(addNode1Doc.RootElement, addNode1Doc.RootElement, null!).GetAwaiter().GetResult();
+            bool node1Added = controller.ActiveDocument?.Nodes.Any(n => n.Id == "node_hero_begin") == true;
+
+            // 3. Dispatch graph_add_node (PrintString ImpureFunction)
+            var addNode2Doc = JsonDocument.Parse("""
+            {
+                "subAction": "graph_add_node",
+                "id": "node_hero_print",
+                "targetMethodIdentifier": "ActorBlueprint.PrintString",
+                "nodeType": "ImpureFunction",
+                "x": 380,
+                "y": 100,
+                "pins": [
+                    { "id": "p_exec_in", "name": "ExecIn", "direction": "Input", "type": "Exec" },
+                    { "id": "p_msg_in", "name": "Message", "direction": "Input", "type": "String" }
+                ]
+            }
+            """);
+            dispatcher.HandleAsync(addNode2Doc.RootElement, addNode2Doc.RootElement, null!).GetAwaiter().GetResult();
+            bool node2Added = controller.ActiveDocument?.Nodes.Any(n => n.Id == "node_hero_print") == true;
+
+            // 4. Dispatch graph_connect_pins
+            var connectDoc = JsonDocument.Parse("""
+            {
+                "subAction": "graph_connect_pins",
+                "sourceNodeId": "node_hero_begin",
+                "sourcePinId": "p_exec_out",
+                "targetNodeId": "node_hero_print",
+                "targetPinId": "p_exec_in"
+            }
+            """);
+            dispatcher.HandleAsync(connectDoc.RootElement, connectDoc.RootElement, null!).GetAwaiter().GetResult();
+            bool connected = controller.ActiveDocument?.Links.Any(l => l.SourceNodeId == "node_hero_begin" && l.TargetNodeId == "node_hero_print") == true;
+
+            // 5. Dispatch graph_move_node
+            var moveDoc = JsonDocument.Parse("""
+            {
+                "subAction": "graph_move_node",
+                "nodeId": "node_hero_begin",
+                "x": 120,
+                "y": 150
+            }
+            """);
+            dispatcher.HandleAsync(moveDoc.RootElement, moveDoc.RootElement, null!).GetAwaiter().GetResult();
+            var movedNode = controller.ActiveDocument?.Nodes.FirstOrDefault(n => n.Id == "node_hero_begin");
+            bool moved = movedNode != null && MathF.Abs(movedNode.X - 120f) < 0.001f;
+
+            // 6. Dispatch graph_set_pin_value
+            var pinValDoc = JsonDocument.Parse("""
+            {
+                "subAction": "graph_set_pin_value",
+                "nodeId": "node_hero_print",
+                "pinId": "Message",
+                "value": "Authoritative MVC Dispatch Verified"
+            }
+            """);
+            dispatcher.HandleAsync(pinValDoc.RootElement, pinValDoc.RootElement, null!).GetAwaiter().GetResult();
+            var printNode = controller.ActiveDocument?.Nodes.FirstOrDefault(n => n.Id == "node_hero_print");
+            bool pinValSet = printNode != null && printNode.DefaultPinValues.TryGetValue("Message", out var val) && val == "Authoritative MVC Dispatch Verified";
+
+            // 7. Dispatch graph_add_variable
+            var addVarDoc = JsonDocument.Parse("""
+            {
+                "subAction": "graph_add_variable",
+                "name": "Health",
+                "type": "Float",
+                "defaultValue": "100.0",
+                "isPublic": true
+            }
+            """);
+            dispatcher.HandleAsync(addVarDoc.RootElement, addVarDoc.RootElement, null!).GetAwaiter().GetResult();
+            bool varAdded = controller.ActiveDocument?.Variables.Any(v => v.Name == "Health") == true;
+
+            // 8. Dispatch graph_validate
+            var validateDoc = JsonDocument.Parse("""
+            {
+                "subAction": "graph_validate"
+            }
+            """);
+            dispatcher.HandleAsync(validateDoc.RootElement, validateDoc.RootElement, null!).GetAwaiter().GetResult();
+
+            // 9. Dispatch graph_save
+            var saveDoc = JsonDocument.Parse("""
+            {
+                "subAction": "graph_save"
+            }
+            """);
+            dispatcher.HandleAsync(saveDoc.RootElement, saveDoc.RootElement, null!).GetAwaiter().GetResult();
+            string expectedSavedFile = Path.Combine(projRoot, "Assets", "Blueprints", "BP_IpcHero.bgraph");
+            bool savedOnDisk = File.Exists(expectedSavedFile);
+
+            // 10. Test Standalone Packaging Service (SPS) & PSGH Resolution
+            var sps = sp.GetRequiredService<IStandalonePackagingService>();
+            var psgh = sp.GetServices<IIpcActionHandler>().OfType<PackageStandaloneGameHandler>().FirstOrDefault();
+            bool packagingDiOk = sps != null && psgh != null;
+
+            // Test dry-run packaging pipeline (skipping native publish)
+            var packRequest = new StandalonePackageRequest(
+                OutputDirectory: Path.Combine(projRoot, "Saved", "StagedBuilds", "TestStandalone"),
+                Configuration: "Release",
+                RuntimeIdentifier: "win-x64",
+                SkipNativeAotPublish: true);
+
+            var packResult = sps!.PackageStandaloneGameAsync(projRoot, packRequest, _ => { }).GetAwaiter().GetResult();
+            bool packOk = packResult.Success && Directory.Exists(packRequest.OutputDirectory);
+
+            if (docCreated && node1Added && node2Added && connected && moved && pinValSet && varAdded && savedOnDisk && packagingDiOk && packOk)
+            {
+                Console.WriteLine("PASSED (authoritative IPC graph manipulation, schema persistence, SPS packaging pipeline verified)");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"FAILED (create:{docCreated}, node1:{node1Added}, node2:{node2Added}, conn:{connected}, move:{moved}, pinVal:{pinValSet}, var:{varAdded}, save:{savedOnDisk}, di:{packagingDiOk}, pack:{packOk})");
+                failed++;
+            }
+
+            (assetDb as IDisposable)?.Dispose();
+            try { Directory.Delete(tempDir, true); } catch { }
         }
         catch (Exception ex)
         {

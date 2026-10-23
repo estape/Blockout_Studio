@@ -44,6 +44,7 @@ namespace BlockoutStudio.Controllers.Services.Blueprints.Serialization;
 [JsonSerializable(typeof(ConnectPinsResponse))]
 [JsonSerializable(typeof(GraphOperationResult<GraphDocument>))]
 [JsonSerializable(typeof(GraphOperationResult<GraphNode>))]
+[JsonSerializable(typeof(GraphOperationResult<GraphVariable>))]
 [JsonSerializable(typeof(GraphOperationResult<ConnectPinsResponse>))]
 [JsonSerializable(typeof(GraphOperationResult<bool>))]
 [JsonSerializable(typeof(GraphOperationResult<string>))]
