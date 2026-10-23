@@ -4,7 +4,7 @@
  */
 
 import { sendToBackend, registerHandler } from '../ipcBridge.js';
-import { createNodeInstance, arePinsCompatible, PinTypes } from './blueprintNodes.js';
+import { createNodeInstance, arePinsCompatible, PinTypes, registerDynamicNodes } from './blueprintNodes.js';
 import { BlueprintCanvas } from './blueprintCanvas.js';
 
 export class BlueprintManager {
@@ -21,6 +21,11 @@ export class BlueprintManager {
     this.canvas = new BlueprintCanvas(this.canvasContainer, this);
     this.registerIpcHandlers();
     this.refreshBlueprintList();
+    this.requestNodeCatalog();
+  }
+
+  requestNodeCatalog() {
+    sendToBackend('get_node_registry', {});
   }
 
   initDOM() {
@@ -68,6 +73,13 @@ export class BlueprintManager {
   }
 
   registerIpcHandlers() {
+    registerHandler('get_node_registry_response', (data) => {
+      if (data && data.success && data.catalog && Array.isArray(data.catalog.nodes)) {
+        registerDynamicNodes(data.catalog.nodes);
+        console.log(`[BlueprintManager] Ingested ${data.catalog.nodeCount || data.catalog.nodes.length} dynamic nodes via C# reflection.`);
+      }
+    });
+
     registerHandler('list_blueprints_response', (data) => {
       if (data.success && Array.isArray(data.blueprints)) {
         this.availableBlueprints = data.blueprints;

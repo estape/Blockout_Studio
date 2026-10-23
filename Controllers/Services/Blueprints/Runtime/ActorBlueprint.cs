@@ -1,4 +1,5 @@
 using System.Numerics;
+using BlockoutStudio.Models.Blueprints;
 
 namespace BlockoutStudio.Services.Blueprints.Runtime;
 
@@ -72,33 +73,43 @@ public abstract class ActorBlueprint
     // Core Actor APIs (UE5 Parity)
     // =========================================================================
 
+    [BlueprintNode("Actor", "Get Actor Location", isPure: true)]
     public Vector3 GetActorLocation() => Owner.Location;
 
+    [BlueprintNode("Actor", "Set Actor Location", isPure: false)]
     public void SetActorLocation(Vector3 newLocation) => Owner.Location = newLocation;
 
+    [BlueprintNode("Actor", "Get Actor Rotation", isPure: true)]
     public Vector3 GetActorRotation() => Owner.Rotation;
 
+    [BlueprintNode("Actor", "Set Actor Rotation", isPure: false)]
     public void SetActorRotation(Vector3 newRotation) => Owner.Rotation = newRotation;
 
+    [BlueprintNode("Actor", "Get Actor Scale", isPure: true)]
     public Vector3 GetActorScale() => Owner.Scale;
 
+    [BlueprintNode("Actor", "Set Actor Scale", isPure: false)]
     public void SetActorScale(Vector3 newScale) => Owner.Scale = newScale;
 
+    [BlueprintNode("Actor", "Add Actor World Offset", isPure: false)]
     public void AddActorWorldOffset(Vector3 deltaLocation)
     {
         Owner.Location += deltaLocation;
     }
 
+    [BlueprintNode("Actor", "Add Actor World Rotation", isPure: false)]
     public void AddActorWorldRotation(Vector3 deltaRotation)
     {
         Owner.Rotation += deltaRotation;
     }
 
+    [BlueprintNode("Audio", "Play Sound 2D", isPure: false)]
     public void PlaySound2D(string soundName, float volume = 1.0f)
     {
         OnPlaySound?.Invoke(soundName, volume);
     }
 
+    [BlueprintNode("Debug", "Print String", isPure: false)]
     public void PrintString(string message)
     {
         OnPrintString?.Invoke(message);

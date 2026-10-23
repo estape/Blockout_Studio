@@ -7,6 +7,7 @@ using BlockoutStudio.Services.Ipc.Handlers;
 using BlockoutStudio.Services.NativeInterop;
 using BlockoutStudio.Services.Toolchains;
 using BlockoutStudio.Services.BuildPipeline;
+using BlockoutStudio.Services.Blueprints;
 using BlockoutStudio.Services.Blueprints.Transpiler;
 using BlockoutStudio.Services.Blueprints.Compiler;
 using BlockoutStudio.Services.Blueprints.Storage;
@@ -98,6 +99,8 @@ public static class ServiceRegistration
         services.AddSingleton<IIpcActionHandler, DeployToDeviceHandler>();
 
         // Blueprint Visual Scripting Subsystem
+        services.AddSingleton<INodeRegistryScanner, NodeRegistryScanner>();
+        services.AddSingleton<NodeRegistryScanner>(sp => (NodeRegistryScanner)sp.GetRequiredService<INodeRegistryScanner>());
         services.AddSingleton<IBlueprintTranspiler, BlueprintTranspiler>();
         services.AddSingleton<BlueprintTranspiler>(sp => (BlueprintTranspiler)sp.GetRequiredService<IBlueprintTranspiler>());
         services.AddSingleton<IBlueprintCompilerService, BlueprintCompilerService>();
@@ -108,6 +111,7 @@ public static class ServiceRegistration
         services.AddSingleton<BlueprintSimulationService>(sp => (BlueprintSimulationService)sp.GetRequiredService<IBlueprintSimulationService>());
 
         // Blueprint IPC Handlers
+        services.AddSingleton<IIpcActionHandler, GetNodeCatalogHandler>();
         services.AddSingleton<IIpcActionHandler, ListBlueprintsHandler>();
         services.AddSingleton<IIpcActionHandler, LoadBlueprintHandler>();
         services.AddSingleton<IIpcActionHandler, SaveBlueprintHandler>();

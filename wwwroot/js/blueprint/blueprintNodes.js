@@ -511,3 +511,50 @@ export function arePinsCompatible(fromPin, toPin) {
 
   return false;
 }
+
+/**
+ * Dynamically registers or updates node definitions discovered via C# reflection.
+ * @param {Array<Object>} discoveredNodes List of node definitions from C# NodeCatalog.
+ */
+export function registerDynamicNodes(discoveredNodes) {
+  if (!Array.isArray(discoveredNodes)) return;
+
+  for (const node of discoveredNodes) {
+    if (!node || !node.id) continue;
+
+    const category = node.category || 'Actor';
+    if (!NodeCategories[category.toUpperCase()]) {
+      NodeCategories[category.toUpperCase()] = category;
+    }
+
+    const inputs = (node.inputs || []).map(p => ({
+      name: p.name,
+      type: p.type || PinTypes.EXEC,
+      defaultValue: p.defaultValue ?? null
+    }));
+
+    const outputs = (node.outputs || []).map(p => ({
+      name: p.name,
+      type: p.type || PinTypes.EXEC,
+      defaultValue: p.defaultValue ?? null
+    }));
+
+    NodeRegistry[node.id] = {
+      type: node.id,
+      title: node.title || node.nodeType,
+      category: category,
+      isPure: node.isPure || false,
+      declaringType: node.declaringType,
+      methodName: node.methodName,
+      isStatic: node.isStatic,
+      inputs,
+      outputs,
+      properties: node.properties || {}
+    };
+
+    // Also register under nodeType if not already claimed
+    if (!NodeRegistry[node.nodeType]) {
+      NodeRegistry[node.nodeType] = NodeRegistry[node.id];
+    }
+  }
+}

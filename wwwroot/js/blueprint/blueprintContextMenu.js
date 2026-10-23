@@ -86,9 +86,9 @@ export class BlueprintContextMenu {
       'Events': [],
       'Flow Control': [],
       'Actor Operations': [],
-      'Math & Logic': [],
-      'Variables': []
+      'Math & Logic': []
     };
+    const seenItems = new Set();
 
     // Populate registry nodes
     for (const [key, def] of Object.entries(NodeRegistry)) {
@@ -98,10 +98,21 @@ export class BlueprintContextMenu {
         continue;
       }
 
-      const catName = def.category === 'Event' ? 'Events'
-        : def.category === 'FlowControl' ? 'Flow Control'
-        : def.category === 'Actor' ? 'Actor Operations'
-        : 'Math & Logic';
+      // Avoid duplicating aliases with same title and category
+      const dedupeKey = `${def.category || 'General'}::${def.title}`;
+      if (seenItems.has(dedupeKey)) continue;
+      seenItems.add(dedupeKey);
+
+      const rawCat = def.category || 'General';
+      const catName = rawCat === 'Event' ? 'Events'
+        : rawCat === 'FlowControl' ? 'Flow Control'
+        : rawCat === 'Actor' ? 'Actor Operations'
+        : rawCat === 'Math' ? 'Math & Logic'
+        : rawCat;
+
+      if (!categories[catName]) {
+        categories[catName] = [];
+      }
 
       categories[catName].push({
         type: key,

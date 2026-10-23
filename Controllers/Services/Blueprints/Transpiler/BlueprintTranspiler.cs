@@ -319,7 +319,19 @@ public partial class BlueprintTranspiler : IBlueprintTranspiler
                 break;
 
             default:
-                // If the node has an Exec output, continue
+                // Handle dynamic / reflected method call
+                if (node.Inputs.Any(p => p.Type != BlueprintPinType.Exec) || node.NodeType.Contains('.'))
+                {
+                    var dataInputs = node.Inputs.Where(p => p.Type != BlueprintPinType.Exec).ToList();
+                    var argExprs = dataInputs.Select(p => ResolveInputPinExpression(node, p.Name, p.Type, nodeMap, connectionsToPin));
+                    var argsStr = string.Join(", ", argExprs);
+                    var methodName = node.NodeType.Contains('.') ? node.NodeType.Substring(node.NodeType.LastIndexOf('.') + 1) : node.NodeType;
+                    var declaring = node.Properties.TryGetValue("DeclaringTypeShort", out var dt) ? dt : "";
+                    var isStatic = node.Properties.TryGetValue("IsStatic", out var isSt) && isSt == "true";
+
+                    var callPrefix = isStatic && !string.IsNullOrEmpty(declaring) ? $"{declaring}.{methodName}" : methodName;
+                    sb.AppendLine($"{indent}{callPrefix}({argsStr});");
+                }
                 EmitNextSequentialExec(sb, indentLevel, node, nodeMap, connectionsFromPin, connectionsToPin, visitedInChain);
                 break;
         }
@@ -502,6 +514,19 @@ public partial class BlueprintTranspiler : IBlueprintTranspiler
                     return "other";
                 }
                 break;
+        }
+
+        // Reflected pure function invocation fallback
+        var dataInputs = node.Inputs.Where(p => p.Type != BlueprintPinType.Exec).ToList();
+        if (dataInputs.Count > 0 || node.NodeType.Contains('.'))
+        {
+            var argExprs = dataInputs.Select(p => ResolveInputPinExpression(node, p.Name, p.Type, nodeMap, connectionsToPin));
+            var argsStr = string.Join(", ", argExprs);
+            var methodName = node.NodeType.Contains('.') ? node.NodeType.Substring(node.NodeType.LastIndexOf('.') + 1) : node.NodeType;
+            var declaring = node.Properties.TryGetValue("DeclaringTypeShort", out var dt) ? dt : "";
+            var isStatic = !node.Properties.TryGetValue("IsStatic", out var isSt) || isSt == "true";
+            var prefix = isStatic && !string.IsNullOrEmpty(declaring) ? $"{declaring}.{methodName}" : methodName;
+            return $"{prefix}({argsStr})";
         }
 
         return FormatDefaultLiteral(pin?.DefaultValue, pin?.Type ?? BlueprintPinType.Float);

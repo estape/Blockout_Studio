@@ -7,6 +7,8 @@ using BlockoutStudio.Services.Geometry;
 using BlockoutStudio.Services.Graphics;
 using BlockoutStudio.Services.Ipc;
 using BlockoutStudio.Services.NativeInterop;
+using BlockoutStudio.Models.Blueprints;
+using BlockoutStudio.Services.Blueprints;
 
 using BlockoutStudio.Services.Blueprints.Models;
 using BlockoutStudio.Services.Blueprints.Transpiler;
@@ -1641,6 +1643,73 @@ public static class AutomatedTests
             else
             {
                 Console.WriteLine($"FAILED (initNotRunning:{initNotRunning}, isRunning:{isRunning}, boundsOk:{boundsOk}, resizeOk:{resizeOk}, serviceOk:{serviceOk}, shutDownOk:{shutDownOk})");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"FAILED: {ex.Message}");
+            failed++;
+        }
+
+        // Test 30: Blueprint Metadata Reflection & Node Catalog Discovery
+        try
+        {
+            Console.Write("Test 30: Blueprint Metadata Reflection & Node Catalog Discovery... ");
+
+            var scanner = new NodeRegistryScanner();
+            var catalog = scanner.GetCatalog(forceRescan: true);
+
+            bool hasNodes = catalog.NodeCount >= 10;
+
+            // Check pure node reflection: ActorBlueprint.GetActorLocation
+            var getLocNode = catalog.Nodes.FirstOrDefault(n => n.Id == "ActorBlueprint.GetActorLocation");
+            bool getLocOk = getLocNode != null &&
+                            getLocNode.IsPure &&
+                            !getLocNode.Inputs.Any(p => p.Type == "Exec") &&
+                            getLocNode.Outputs.Any(p => p.Name == "ReturnValue" && p.Type == "Vector3" && p.Color == "#f59e0b");
+
+            // Check impure node reflection: ActorBlueprint.SetActorLocation
+            var setLocNode = catalog.Nodes.FirstOrDefault(n => n.Id == "ActorBlueprint.SetActorLocation");
+            bool setLocOk = setLocNode != null &&
+                            !setLocNode.IsPure &&
+                            setLocNode.Inputs.Any(p => p.Name == "ExecIn" && p.Type == "Exec") &&
+                            setLocNode.Outputs.Any(p => p.Name == "ExecOut" && p.Type == "Exec") &&
+                            setLocNode.Inputs.Any(p => p.Name == "newLocation" && p.Type == "Vector3");
+
+            // Check math pure library: MathLibrary.VectorDistance
+            var vecDistNode = catalog.Nodes.FirstOrDefault(n => n.Id == "MathLibrary.VectorDistance");
+            bool vecDistOk = vecDistNode != null &&
+                             vecDistNode.IsPure &&
+                             vecDistNode.Category == "Math" &&
+                             vecDistNode.Inputs.Count == 2 &&
+                             vecDistNode.Outputs.Any(p => p.Name == "ReturnValue" && p.Type == "Float" && p.Color == "#22c55e");
+
+            // Check categories index
+            bool categoriesOk = catalog.Categories.ContainsKey("Actor") &&
+                                catalog.Categories.ContainsKey("Math") &&
+                                catalog.Categories.ContainsKey("Audio") &&
+                                catalog.Categories.ContainsKey("Debug") &&
+                                catalog.Categories.ContainsKey("Gameplay");
+
+            // Check JSON serialization
+            var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            var json = JsonSerializer.Serialize(catalog, jsonOpts);
+            bool jsonOk = json.Contains("\"category\":\"Math\"") && json.Contains("\"nodeCount\":");
+
+            // Check DI registration
+            var serviceProvider = ServiceRegistration.BuildEngineServiceProvider();
+            var diScanner = serviceProvider.GetService<INodeRegistryScanner>();
+            bool diOk = diScanner != null;
+
+            if (hasNodes && getLocOk && setLocOk && vecDistOk && categoriesOk && jsonOk && diOk)
+            {
+                Console.WriteLine($"PASSED (Reflected {catalog.NodeCount} nodes across {catalog.Categories.Count} categories, Exec injection & pure pins verified)");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"FAILED (hasNodes:{hasNodes}, getLocOk:{getLocOk}, setLocOk:{setLocOk}, vecDistOk:{vecDistOk}, categoriesOk:{categoriesOk}, jsonOk:{jsonOk}, diOk:{diOk})");
                 failed++;
             }
         }
