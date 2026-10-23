@@ -15,8 +15,100 @@ public interface IGraphValidator
 /// Pre-save and pre-compilation validation service enforcing pin compatibility, single input connections on data pins,
 /// and acyclic graph guarantees for both impure execution chains and pure expression DAGs.
 /// </summary>
-public class GraphValidator : IGraphValidator
+public class GraphValidator : IGraphValidationService
 {
+    public GraphValidationResult CanConnectPins(GraphDocument document, string sourceNodeId, string sourcePinId, string targetNodeId, string targetPinId)
+    {
+        var result = new GraphValidationResult();
+        if (document == null)
+        {
+            result.AddError("ERR_NULL_DOCUMENT", "Graph document cannot be null.");
+            return result;
+        }
+
+        // 1. Invariant: Disallow self-connection on same node
+        if (string.Equals(sourceNodeId, targetNodeId, StringComparison.OrdinalIgnoreCase))
+        {
+            result.AddError(GraphValidationErrors.SelfConnection, "Cannot connect pins on the same node.", sourceNodeId);
+            return result;
+        }
+
+        var sourceNode = document.FindNode(sourceNodeId);
+        var targetNode = document.FindNode(targetNodeId);
+        if (sourceNode == null)
+        {
+            result.AddError(GraphValidationErrors.NodeNotFound, $"Source node '{sourceNodeId}' not found in document.", sourceNodeId);
+            return result;
+        }
+        if (targetNode == null)
+        {
+            result.AddError(GraphValidationErrors.NodeNotFound, $"Target node '{targetNodeId}' not found in document.", targetNodeId);
+            return result;
+        }
+
+        var sourcePin = sourceNode.FindPin(sourcePinId);
+        var targetPin = targetNode.FindPin(targetPinId);
+        if (sourcePin == null)
+        {
+            result.AddError(GraphValidationErrors.PinNotFound, $"Source pin '{sourcePinId}' not found on node '{sourceNodeId}'.", sourceNodeId, sourcePinId);
+            return result;
+        }
+        if (targetPin == null)
+        {
+            result.AddError(GraphValidationErrors.PinNotFound, $"Target pin '{targetPinId}' not found on node '{targetNodeId}'.", targetNodeId, targetPinId);
+            return result;
+        }
+
+        // 2. Direction legality: Source must be Output, Target must be Input
+        if (sourcePin.Direction != GraphPinDirection.Output)
+        {
+            result.AddError(GraphValidationErrors.InvalidPinDirection, $"Source pin '{sourcePin.Name}' must have Direction Output but has '{sourcePin.Direction}'.", sourceNodeId, sourcePinId);
+        }
+        if (targetPin.Direction != GraphPinDirection.Input)
+        {
+            result.AddError(GraphValidationErrors.InvalidPinDirection, $"Target pin '{targetPin.Name}' must have Direction Input but has '{targetPin.Direction}'.", targetNodeId, targetPinId);
+        }
+        if (!result.IsValid) return result;
+
+        // 3. Execution pin compatibility
+        if (sourcePin.ValueType == GraphPinType.Exec || targetPin.ValueType == GraphPinType.Exec)
+        {
+            if (sourcePin.ValueType != targetPin.ValueType)
+            {
+                result.AddError(GraphValidationErrors.ExecDataMismatch, $"Cannot connect execution pin '{sourcePin.Name}' to data pin '{targetPin.Name}' (type: {targetPin.ValueType}).", sourceNodeId, sourcePinId);
+                return result;
+            }
+
+            // Pre-flight execution cycle detection: would connecting sourceNode -> targetNode create a cycle?
+            if (WouldCreateExecutionCycle(document, sourceNodeId, targetNodeId))
+            {
+                result.AddError(GraphValidationErrors.CircularExecutionCycle, $"Connecting execution pins between '{sourceNodeId}' and '{targetNodeId}' creates a circular execution loop.", sourceNodeId);
+                return result;
+            }
+        }
+        else
+        {
+            // 4. Data pin compatibility & widening
+            if (!AreDataPinTypesCompatible(sourcePin.ValueType, targetPin.ValueType))
+            {
+                result.AddError(GraphValidationErrors.TypeMismatch, $"Type mismatch: cannot connect pin '{sourcePin.Name}' of type '{sourcePin.ValueType}' to pin '{targetPin.Name}' of type '{targetPin.ValueType}'.", sourceNodeId, sourcePinId);
+                return result;
+            }
+
+            // 5. Pre-flight pure function DAG cycle detection
+            if (sourceNode.NodeKind == GraphNodeKind.PureFunction && targetNode.NodeKind == GraphNodeKind.PureFunction)
+            {
+                if (WouldCreateDataDependencyCycle(document, sourceNodeId, targetNodeId))
+                {
+                    result.AddError(GraphValidationErrors.CircularDataDependency, $"Connecting pure functions between '{sourceNodeId}' and '{targetNodeId}' creates a cyclic data dependency.", sourceNodeId);
+                    return result;
+                }
+            }
+        }
+
+        return result;
+    }
+
     public GraphValidationResult Validate(GraphDocument document)
     {
         var result = new GraphValidationResult();
@@ -169,9 +261,70 @@ public class GraphValidator : IGraphValidator
         return false;
     }
 
+    private static bool WouldCreateExecutionCycle(GraphDocument document, string sourceNodeId, string proposedTargetNodeId)
+    {
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var queue = new Queue<string>();
+        queue.Enqueue(proposedTargetNodeId);
+
+        while (queue.Count > 0)
+        {
+            var curr = queue.Dequeue();
+            if (string.Equals(curr, sourceNodeId, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (!visited.Add(curr)) continue;
+
+            foreach (var link in document.Links)
+            {
+                if (string.Equals(link.SourceNodeId, curr, StringComparison.OrdinalIgnoreCase))
+                {
+                    var node = document.FindNode(curr);
+                    var pin = node?.FindPin(link.SourcePinId);
+                    if (pin?.ValueType == GraphPinType.Exec)
+                    {
+                        queue.Enqueue(link.TargetNodeId);
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool WouldCreateDataDependencyCycle(GraphDocument document, string sourcePureNodeId, string proposedTargetPureNodeId)
+    {
+        // Target depends on Source. If Source already depends on Target through pure nodes, cycle exists.
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var queue = new Queue<string>();
+        queue.Enqueue(sourcePureNodeId);
+
+        while (queue.Count > 0)
+        {
+            var curr = queue.Dequeue();
+            if (string.Equals(curr, proposedTargetPureNodeId, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (!visited.Add(curr)) continue;
+
+            foreach (var link in document.Links)
+            {
+                if (string.Equals(link.TargetNodeId, curr, StringComparison.OrdinalIgnoreCase))
+                {
+                    var srcNode = document.FindNode(link.SourceNodeId);
+                    if (srcNode?.NodeKind == GraphNodeKind.PureFunction)
+                    {
+                        queue.Enqueue(srcNode.Id);
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     private static void DetectExecutionCycles(GraphDocument document, Dictionary<string, GraphNode> nodeMap, GraphValidationResult result)
     {
-        // Build adjacency map for Exec pins
         var execAdj = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var node in document.Nodes)
         {
@@ -242,9 +395,6 @@ public class GraphValidator : IGraphValidator
 
     private static void DetectDataDependencyCycles(GraphDocument document, Dictionary<string, GraphNode> nodeMap, GraphValidationResult result)
     {
-        // For pure function nodes:
-        // A pure node depends on the nodes feeding its input data pins.
-        // If Target depends on Source: edge Target -> Source
         var depAdj = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var node in document.Nodes.Where(n => n.NodeKind == GraphNodeKind.PureFunction))
         {
@@ -256,7 +406,6 @@ public class GraphValidator : IGraphValidator
             if (!nodeMap.TryGetValue(link.SourceNodeId, out var srcNode) || !nodeMap.TryGetValue(link.TargetNodeId, out var tgtNode))
                 continue;
 
-            // Only track dependencies between pure nodes
             if (srcNode.NodeKind == GraphNodeKind.PureFunction && tgtNode.NodeKind == GraphNodeKind.PureFunction)
             {
                 var srcPin = srcNode.FindPin(link.SourcePinId);
@@ -317,4 +466,3 @@ public class GraphValidator : IGraphValidator
         return false;
     }
 }
-

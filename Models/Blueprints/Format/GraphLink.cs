@@ -1,7 +1,7 @@
 namespace BlockoutStudio.Models.Blueprints.Format;
 
 /// <summary>
-/// Strongly-typed connection linking an output pin on a source node to an input pin on a target node.
+/// Strongly-typed pure connection linking an output pin on a source node to an input pin on a target node.
 /// </summary>
 public class GraphLink
 {
@@ -21,5 +21,7 @@ public class GraphLink
         TargetNodeId = targetNodeId;
         TargetPinId = targetPinId;
     }
-}
 
+    public static GraphLink Create(string sourceNodeId, string sourcePinId, string targetNodeId, string targetPinId) =>
+        new(sourceNodeId, sourcePinId, targetNodeId, targetPinId, Guid.NewGuid().ToString("N"));
+}

@@ -10,6 +10,8 @@ public enum GraphNodeKind
 {
     Event,
     PureFunction,
-    ImpureFunction
+    ImpureFunction,
+    Branch,
+    VariableGet,
+    VariableSet
 }
-

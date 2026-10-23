@@ -15,6 +15,7 @@ using BlockoutStudio.Services.Blueprints.Runtime;
 using BlockoutStudio.Controllers.Services.Blueprints.Serialization;
 using BlockoutStudio.Controllers.Services.Blueprints.Validation;
 using BlockoutStudio.Controllers.Services.Blueprints.Transpiler;
+using BlockoutStudio.Controllers.Blueprints;
 
 namespace BlockoutStudio.Services;
 
@@ -109,8 +110,11 @@ public static class ServiceRegistration
         services.AddSingleton<NodeRegistryScanner>(sp => (NodeRegistryScanner)sp.GetRequiredService<INodeRegistryScanner>());
         services.AddSingleton<IGraphSerializer, GraphSerializer>();
         services.AddSingleton<GraphSerializer>(sp => (GraphSerializer)sp.GetRequiredService<IGraphSerializer>());
-        services.AddSingleton<IGraphValidator, GraphValidator>();
-        services.AddSingleton<GraphValidator>(sp => (GraphValidator)sp.GetRequiredService<IGraphValidator>());
+        services.AddSingleton<IGraphValidationService, GraphValidator>();
+        services.AddSingleton<IGraphValidator>(sp => sp.GetRequiredService<IGraphValidationService>());
+        services.AddSingleton<GraphValidator>(sp => (GraphValidator)sp.GetRequiredService<IGraphValidationService>());
+        services.AddSingleton<IGraphController, GraphController>();
+        services.AddSingleton<GraphController>(sp => (GraphController)sp.GetRequiredService<IGraphController>());
         services.AddSingleton<IGraphCodeGeneratorService, RoslynGraphCodeGeneratorService>();
         services.AddSingleton<RoslynGraphCodeGeneratorService>(sp => (RoslynGraphCodeGeneratorService)sp.GetRequiredService<IGraphCodeGeneratorService>());
         services.AddSingleton<IBlueprintTranspiler, BlueprintTranspiler>();
@@ -123,6 +127,7 @@ public static class ServiceRegistration
         services.AddSingleton<BlueprintSimulationService>(sp => (BlueprintSimulationService)sp.GetRequiredService<IBlueprintSimulationService>());
 
         // Blueprint IPC Handlers
+        services.AddSingleton<IIpcActionHandler, GraphIpcDispatcher>();
         services.AddSingleton<IIpcActionHandler, GetNodeCatalogHandler>();
         services.AddSingleton<IIpcActionHandler, ListBlueprintsHandler>();
         services.AddSingleton<IIpcActionHandler, LoadBlueprintHandler>();

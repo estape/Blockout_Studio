@@ -21,6 +21,7 @@ using BlockoutStudio.Controllers.Services.Blueprints.Serialization;
 using BlockoutStudio.Controllers.Services.Blueprints.Validation;
 using BlockoutStudio.Controllers.Services.Blueprints.Converters;
 using BlockoutStudio.Controllers.Services.Blueprints.Transpiler;
+using BlockoutStudio.Controllers.Blueprints;
 
 namespace BlockoutStudio.Services;
 
@@ -2108,6 +2109,138 @@ public static class AutomatedTests
             else
             {
                 Console.WriteLine($"FAILED (binaryOk:{binaryOk}, resultOk:{resultOk}, filesOk:{filesOk}, manifestOk:{manifestOk}, err:{packageResult.ErrorMessage})");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"FAILED: {ex.Message}");
+            failed++;
+        }
+
+        // Test 34: MVC GraphController, Pre-Flight Validation & NativeAOT Serialization
+        try
+        {
+            Console.Write("Test 34: MVC GraphController, Pre-Flight Validation & NativeAOT Serialization... ");
+            var sp = ServiceRegistration.BuildEngineServiceProvider();
+            var controller = sp.GetRequiredService<IGraphController>();
+            var validator = sp.GetRequiredService<IGraphValidationService>();
+            var serializer = sp.GetRequiredService<IGraphSerializer>();
+
+            // 1. Create Graph via Controller
+            var createRes = controller.CreateGraph("BP_HeroCharacter", "ActorComponent");
+            bool createOk = createRes.Success && controller.ActiveDocument != null && controller.IsDirty;
+
+            // 2. Add Nodes with Spatial Metadata
+            var evtRes = controller.AddNode("Event.OnBeginPlay", GraphNodeKind.Event, 50, 100);
+            var printRes = controller.AddNode("ActorBlueprint.PrintString", GraphNodeKind.ImpureFunction, 350, 100);
+            var addNodeRes = controller.AddNode("MathLibrary.FloatAdd", GraphNodeKind.PureFunction, 350, 300);
+            var srcVal1Res = controller.AddNode("MathLibrary.FloatConstant", GraphNodeKind.PureFunction, 100, 250);
+            var srcVal2Res = controller.AddNode("MathLibrary.FloatConstant", GraphNodeKind.PureFunction, 100, 350);
+
+            var evtNode = evtRes.Data!;
+            var printNode = printRes.Data!;
+            var addNode = addNodeRes.Data!;
+            var src1 = srcVal1Res.Data!;
+            var src2 = srcVal2Res.Data!;
+
+            // Configure pins
+            var evtOut = new GraphPin("p-evt-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec);
+            evtNode.Pins.Add(evtOut);
+
+            var printIn = new GraphPin("p-pr-in", "ExecIn", GraphPinDirection.Input, GraphPinType.Exec);
+            var printOut = new GraphPin("p-pr-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec);
+            var printMsg = new GraphPin("p-pr-msg", "message", GraphPinDirection.Input, GraphPinType.String);
+            printNode.Pins.AddRange([printIn, printOut, printMsg]);
+
+            var addInA = new GraphPin("p-add-a", "A", GraphPinDirection.Input, GraphPinType.Float);
+            var addInB = new GraphPin("p-add-b", "B", GraphPinDirection.Input, GraphPinType.Float);
+            var addOut = new GraphPin("p-add-ret", "Return", GraphPinDirection.Output, GraphPinType.Float);
+            addNode.Pins.AddRange([addInA, addInB, addOut]);
+
+            var src1Out = new GraphPin("p-s1-out", "Value", GraphPinDirection.Output, GraphPinType.Float);
+            src1.Pins.Add(src1Out);
+
+            var src2Out = new GraphPin("p-s2-out", "Value", GraphPinDirection.Output, GraphPinType.Float);
+            src2.Pins.Add(src2Out);
+
+            // 3. Fast-path MoveNode without semantic re-validation
+            var moveRes = controller.MoveNode(evtNode.Id, 80f, 120f);
+            bool moveOk = moveRes.Success && MathF.Abs(evtNode.X - 80f) < 0.001f && MathF.Abs(evtNode.Spatial.Y - 120f) < 0.001f;
+
+            // 4. Set Pin Value
+            var setValRes = controller.SetPinValue(printNode.Id, "message", "Blockout MVC Activated");
+            bool setValOk = setValRes.Success && printNode.DefaultPinValues["message"] == "Blockout MVC Activated";
+
+            // 5. Pre-Flight Rejection Tests:
+            // 5a. Self connection
+            var rejSelf = controller.ConnectPins(evtNode.Id, evtOut.Id, evtNode.Id, evtOut.Id);
+            bool rejSelfOk = !rejSelf.Success && rejSelf.Errors?.Any(e => e.Code == GraphValidationErrors.SelfConnection) == true;
+
+            // 5b. Exec to Data connection mismatch
+            var rejExecData = controller.ConnectPins(evtNode.Id, evtOut.Id, printNode.Id, printMsg.Id);
+            bool rejExecDataOk = !rejExecData.Success && rejExecData.Errors?.Any(e => e.Code == GraphValidationErrors.ExecDataMismatch || e.Code == GraphValidationErrors.TypeMismatch) == true;
+
+            // 5c. Circular execution cycle rejection
+            var cycleNodeRes = controller.AddNode("ActorBlueprint.CustomStep", GraphNodeKind.ImpureFunction, 600, 100);
+            var cycleNode = cycleNodeRes.Data!;
+            var cycleIn = new GraphPin("p-cy-in", "ExecIn", GraphPinDirection.Input, GraphPinType.Exec);
+            var cycleOut = new GraphPin("p-cy-out", "ExecOut", GraphPinDirection.Output, GraphPinType.Exec);
+            cycleNode.Pins.AddRange([cycleIn, cycleOut]);
+
+            var connA = controller.ConnectPins(printNode.Id, printOut.Id, cycleNode.Id, cycleIn.Id);
+            var rejCycle = controller.ConnectPins(cycleNode.Id, cycleOut.Id, printNode.Id, printIn.Id);
+            bool rejCycleOk = connA.Success && !rejCycle.Success && rejCycle.Errors?.Any(e => e.Code == GraphValidationErrors.CircularExecutionCycle) == true;
+
+            // 5d. Circular pure data dependency rejection
+            var pureDep1 = controller.AddNode("Math.Pure1", GraphNodeKind.PureFunction, 100, 500);
+            var pureDep2 = controller.AddNode("Math.Pure2", GraphNodeKind.PureFunction, 300, 500);
+            var p1Out = new GraphPin("p-p1-out", "Out", GraphPinDirection.Output, GraphPinType.Float);
+            var p1In = new GraphPin("p-p1-in", "In", GraphPinDirection.Input, GraphPinType.Float);
+            var p2Out = new GraphPin("p-p2-out", "Out", GraphPinDirection.Output, GraphPinType.Float);
+            var p2In = new GraphPin("p-p2-in", "In", GraphPinDirection.Input, GraphPinType.Float);
+            pureDep1.Data!.Pins.AddRange([p1Out, p1In]);
+            pureDep2.Data!.Pins.AddRange([p2Out, p2In]);
+
+            var pConn1 = controller.ConnectPins(pureDep1.Data.Id, p1Out.Id, pureDep2.Data.Id, p2In.Id);
+            var rejPureCycle = controller.ConnectPins(pureDep2.Data.Id, p2Out.Id, pureDep1.Data.Id, p1In.Id);
+            bool rejPureCycleOk = pConn1.Success && !rejPureCycle.Success && rejPureCycle.Errors?.Any(e => e.Code == GraphValidationErrors.CircularDataDependency) == true;
+
+            // 6. Connect Exec chain
+            var execConn = controller.ConnectPins(evtNode.Id, evtOut.Id, printNode.Id, printIn.Id);
+            bool execConnOk = execConn.Success && execConn.Data?.AddedLink != null;
+
+            // 7. Test Single Fan-In Replacement on Data Inputs
+            var link1Res = controller.ConnectPins(src1.Id, src1Out.Id, addNode.Id, addInA.Id);
+            bool link1Ok = link1Res.Success && link1Res.Data?.AddedLink != null && link1Res.Data.ReplacedLinkId == null;
+
+            var link2Res = controller.ConnectPins(src2.Id, src2Out.Id, addNode.Id, addInA.Id);
+            bool link2Ok = link2Res.Success && link2Res.Data?.AddedLink != null && link2Res.Data.ReplacedLinkId == link1Res.Data?.AddedLink?.Id;
+
+            // Verify only 1 incoming connection to addInA
+            int inConnections = controller.ActiveDocument?.Links.Count(l => l.TargetNodeId == addNode.Id && l.TargetPinId == addInA.Id) ?? 0;
+            bool singleFanInOk = inConnections == 1;
+
+            // 8. Test NativeAOT Source-Generated Serialization & Roundtrip
+            var json = serializer.Serialize(controller.ActiveDocument!);
+            var roundtripDoc = serializer.Deserialize(json);
+            bool serializeOk = roundtripDoc != null &&
+                               roundtripDoc.Name == "BP_HeroCharacter" &&
+                               roundtripDoc.Nodes.Count == controller.ActiveDocument?.Nodes.Count &&
+                               roundtripDoc.Links.Count == controller.ActiveDocument?.Links.Count;
+
+            // Test IPC Response Serialization via GraphJsonContext
+            var opResultJson = JsonSerializer.Serialize(link2Res, GraphJsonContext.Default.GraphOperationResultConnectPinsResponse);
+            bool opJsonOk = opResultJson.Contains("replacedLinkId") && opResultJson.Contains("success");
+
+            if (createOk && moveOk && setValOk && rejSelfOk && rejExecDataOk && rejCycleOk && rejPureCycleOk && execConnOk && link1Ok && link2Ok && singleFanInOk && serializeOk && opJsonOk)
+            {
+                Console.WriteLine($"PASSED (MVC GraphController state isolated, pre-flight guards active, single fan-in enforced, NativeAOT SourceGen roundtrip validated)");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"FAILED (create:{createOk}, move:{moveOk}, setVal:{setValOk}, rejSelf:{rejSelfOk}, rejExec:{rejExecDataOk}, rejCycle:{rejCycleOk}, rejPureCycle:{rejPureCycleOk}, execConn:{execConnOk}, fanIn:{singleFanInOk}, ser:{serializeOk}, opJson:{opJsonOk})");
                 failed++;
             }
         }

@@ -124,3 +124,4 @@ public class BlueprintGraph
     public List<BlueprintConnection> Connections { get; set; } = [];
     public List<BlueprintVariable> Variables { get; set; } = [];
 }
+

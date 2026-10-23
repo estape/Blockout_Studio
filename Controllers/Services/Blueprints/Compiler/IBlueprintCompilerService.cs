@@ -15,3 +15,4 @@ public interface IBlueprintCompilerService
     /// <returns>Compilation result with emitted assembly or diagnostics.</returns>
     BlueprintCompilationResult CompileSource(string csharpCode, string? assemblyName = null);
 }
+

@@ -47,10 +47,12 @@ public class GraphValidationWarning
 /// </summary>
 public static class GraphValidationErrors
 {
+    public const string SelfConnection = "ERR_SELF_CONNECT";
     public const string NodeNotFound = "ERR_NODE_NOT_FOUND";
     public const string PinNotFound = "ERR_PIN_NOT_FOUND";
     public const string InvalidPinDirection = "ERR_INVALID_PIN_DIRECTION";
     public const string TypeMismatch = "ERR_TYPE_MISMATCH";
+    public const string ExecDataMismatch = "ERR_EXEC_DATA_MISMATCH";
     public const string MultipleInputConnections = "ERR_MULTIPLE_INPUT_CONNECTIONS";
     public const string CircularExecutionCycle = "ERR_CIRCULAR_EXECUTION_CYCLE";
     public const string CircularDataDependency = "ERR_CIRCULAR_DATA_DEPENDENCY";

@@ -71,3 +71,4 @@ public class VulkanAoBakeResult
     /// <summary>Gets or sets error description if baking failed.</summary>
     public string? Error { get; set; }
 }
+
