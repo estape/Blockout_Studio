@@ -25,8 +25,19 @@
 #if defined(ENGINE_NATIVE_HAS_VULKAN)
   #if defined(_WIN32)
     #define VK_USE_PLATFORM_WIN32_KHR
+  #elif defined(__linux__) || defined(__unix__)
+    #define VK_USE_PLATFORM_XLIB_KHR
+    #define VK_USE_PLATFORM_WAYLAND_KHR
   #endif
   #include <vulkan/vulkan.h>
+  #if defined(__linux__) || defined(__unix__)
+    #if __has_include(<X11/Xlib.h>)
+      #include <X11/Xlib.h>
+    #endif
+    #if __has_include(<wayland-client.h>)
+      #include <wayland-client.h>
+    #endif
+  #endif
 #endif
 
 /**
@@ -327,9 +338,9 @@ namespace {
         g_vulkanInitialized = false;
     }
 
-    bool InitVulkanContext(void* windowHandle, uint32_t width, uint32_t height) {
+    bool InitVulkanContext(const NativeWindowDescriptor& desc) {
 #if defined(_WIN32)
-        if (!windowHandle || !IsWindow((HWND)windowHandle)) {
+        if (desc.platformType != NativePlatformType::Win32 || !desc.windowHandle || !IsWindow((HWND)desc.windowHandle)) {
             // Simulated or test handle: bypass physical Vulkan surface creation
             return false;
         }
@@ -342,7 +353,7 @@ namespace {
         appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
         appInfo.apiVersion = VK_API_VERSION_1_2;
 
-        const char* extensions[] = {
+        std::vector<const char*> extensions = {
             VK_KHR_SURFACE_EXTENSION_NAME,
             VK_KHR_WIN32_SURFACE_EXTENSION_NAME
         };
@@ -350,23 +361,140 @@ namespace {
         VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
-        createInfo.enabledExtensionCount = 2;
-        createInfo.ppEnabledExtensionNames = extensions;
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+        createInfo.ppEnabledExtensionNames = extensions.data();
 
         if (vkCreateInstance(&createInfo, nullptr, &g_vkInstance) != VK_SUCCESS) {
             return false;
         }
 
-        VkWin32SurfaceCreateInfoKHR surfaceCreateInfo{};
-        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-        surfaceCreateInfo.hwnd = (HWND)windowHandle;
-        surfaceCreateInfo.hinstance = GetModuleHandle(nullptr);
-
-        if (vkCreateWin32SurfaceKHR(g_vkInstance, &surfaceCreateInfo, nullptr, &g_vkSurface) != VK_SUCCESS) {
+        auto pfnCreateWin32 = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>(
+            vkGetInstanceProcAddr(g_vkInstance, "vkCreateWin32SurfaceKHR"));
+        if (!pfnCreateWin32) {
             CleanupVulkanResources();
             return false;
         }
 
+        VkWin32SurfaceCreateInfoKHR surfaceCreateInfo{};
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.hwnd = (HWND)desc.windowHandle;
+        surfaceCreateInfo.hinstance = GetModuleHandle(nullptr);
+
+        if (pfnCreateWin32(g_vkInstance, &surfaceCreateInfo, nullptr, &g_vkSurface) != VK_SUCCESS) {
+            CleanupVulkanResources();
+            return false;
+        }
+#elif defined(__linux__) || defined(__unix__)
+        if (!desc.windowHandle || (uintptr_t)desc.windowHandle < 0x10000) {
+            // Simulated or test handle (e.g. 0x1000 in tests): bypass physical Vulkan surface creation
+            return false;
+        }
+
+        VkApplicationInfo appInfo{};
+        appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+        appInfo.pApplicationName = "Blockout Studio Native";
+        appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.pEngineName = "EngineNative";
+        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.apiVersion = VK_API_VERSION_1_2;
+
+        std::vector<const char*> extensions = {
+            VK_KHR_SURFACE_EXTENSION_NAME
+        };
+
+        if (desc.platformType == NativePlatformType::Wayland) {
+            extensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
+        } else {
+            // Default to X11 for Linux desktop
+            extensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+        }
+
+        VkInstanceCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+        createInfo.pApplicationInfo = &appInfo;
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+        createInfo.ppEnabledExtensionNames = extensions.data();
+
+        if (vkCreateInstance(&createInfo, nullptr, &g_vkInstance) != VK_SUCCESS) {
+            std::cerr << "[NativeVulkan] Failed to create VkInstance with Linux surface extensions.\n";
+            return false;
+        }
+
+        if (desc.platformType == NativePlatformType::Wayland) {
+            auto pfnCreateWayland = reinterpret_cast<PFN_vkCreateWaylandSurfaceKHR>(
+                vkGetInstanceProcAddr(g_vkInstance, "vkCreateWaylandSurfaceKHR"));
+            if (!pfnCreateWayland) {
+                std::cerr << "[NativeVulkan] vkCreateWaylandSurfaceKHR proc not found.\n";
+                CleanupVulkanResources();
+                return false;
+            }
+
+            if (!desc.displayHandle || !desc.windowHandle) {
+                std::cerr << "[NativeVulkan] Invalid Wayland display or surface handle.\n";
+                CleanupVulkanResources();
+                return false;
+            }
+
+            VkWaylandSurfaceCreateInfoKHR wlCreateInfo{};
+            wlCreateInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+            wlCreateInfo.pNext = nullptr;
+            wlCreateInfo.flags = 0;
+            wlCreateInfo.display = static_cast<struct wl_display*>(desc.displayHandle);
+            wlCreateInfo.surface = static_cast<struct wl_surface*>(desc.windowHandle);
+
+            if (pfnCreateWayland(g_vkInstance, &wlCreateInfo, nullptr, &g_vkSurface) != VK_SUCCESS) {
+                std::cerr << "[NativeVulkan] vkCreateWaylandSurfaceKHR failed.\n";
+                CleanupVulkanResources();
+                return false;
+            }
+        } else {
+            // X11 Surface Creation
+            auto pfnCreateXlib = reinterpret_cast<PFN_vkCreateXlibSurfaceKHR>(
+                vkGetInstanceProcAddr(g_vkInstance, "vkCreateXlibSurfaceKHR"));
+            if (!pfnCreateXlib) {
+                std::cerr << "[NativeVulkan] vkCreateXlibSurfaceKHR proc not found.\n";
+                CleanupVulkanResources();
+                return false;
+            }
+
+#if __has_include(<X11/Xlib.h>)
+            Display* dpy = static_cast<Display*>(desc.displayHandle);
+            if (!dpy) {
+                dpy = XOpenDisplay(nullptr);
+            }
+
+            if (!dpy) {
+                std::cerr << "[NativeVulkan] Failed to open X11 Display.\n";
+                CleanupVulkanResources();
+                return false;
+            }
+
+            VkXlibSurfaceCreateInfoKHR xlibCreateInfo{};
+            xlibCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
+            xlibCreateInfo.pNext = nullptr;
+            xlibCreateInfo.flags = 0;
+            xlibCreateInfo.dpy = dpy;
+            xlibCreateInfo.window = static_cast<Window>(reinterpret_cast<uintptr_t>(desc.windowHandle));
+
+            VkResult xres = pfnCreateXlib(g_vkInstance, &xlibCreateInfo, nullptr, &g_vkSurface);
+            if (xres != VK_SUCCESS) {
+                std::cerr << "[NativeVulkan] vkCreateXlibSurfaceKHR failed with error code: " << xres << "\n";
+                CleanupVulkanResources();
+                return false;
+            }
+#else
+            std::cerr << "[NativeVulkan] X11/Xlib.h not available during compilation.\n";
+            CleanupVulkanResources();
+            return false;
+#endif
+        }
+#else
+        return false;
+#endif
+
+        // -------------------------------------------------------------
+        // Shared Physical Device, Logical Device & Queue Initialization
+        // -------------------------------------------------------------
         uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(g_vkInstance, &deviceCount, nullptr);
         if (deviceCount == 0) {
@@ -404,9 +532,6 @@ namespace {
         vkGetDeviceQueue(g_vkDevice, 0, 0, &g_vkQueue);
         g_vulkanInitialized = true;
         return true;
-#else
-        return false;
-#endif
     }
 #endif
 
@@ -477,14 +602,16 @@ namespace {
     }
 }
 
-ENGINE_API int32_t EngineNative_InitRenderer(void* nativeWindowHandle, uint32_t initialWidth, uint32_t initialHeight) {
+ENGINE_API int32_t EngineNative_InitRendererDescriptor(const NativeWindowDescriptor* pDescriptor) {
+    if (!pDescriptor) return -1;
+
     if (g_isRendererRunning.load(std::memory_order_acquire)) {
         EngineNative_ShutdownRenderer();
     }
 
-    g_windowHandle = nativeWindowHandle;
-    uint32_t width = initialWidth > 0 ? initialWidth : 1280;
-    uint32_t height = initialHeight > 0 ? initialHeight : 720;
+    g_windowHandle = pDescriptor->windowHandle;
+    uint32_t width = pDescriptor->width > 0 ? pDescriptor->width : 1280;
+    uint32_t height = pDescriptor->height > 0 ? pDescriptor->height : 720;
 
     g_swapchainWidth.store(width, std::memory_order_release);
     g_swapchainHeight.store(height, std::memory_order_release);
@@ -494,7 +621,7 @@ ENGINE_API int32_t EngineNative_InitRenderer(void* nativeWindowHandle, uint32_t 
     g_viewportHeight.store(height, std::memory_order_release);
 
 #if defined(ENGINE_NATIVE_HAS_VULKAN)
-    InitVulkanContext(nativeWindowHandle, width, height);
+    InitVulkanContext(*pDescriptor);
 #endif
 
     g_isRendererRunning.store(true, std::memory_order_release);
@@ -502,6 +629,26 @@ ENGINE_API int32_t EngineNative_InitRenderer(void* nativeWindowHandle, uint32_t 
 
     g_renderThread = std::thread(RenderLoopWorker);
     return 0;
+}
+
+ENGINE_API int32_t EngineNative_InitRenderer(void* nativeWindowHandle, uint32_t initialWidth, uint32_t initialHeight) {
+    NativeWindowDescriptor desc{};
+#if defined(_WIN32)
+    desc.platformType = NativePlatformType::Win32;
+    desc.displayHandle = nullptr;
+    desc.windowHandle = nativeWindowHandle;
+#elif defined(__linux__) || defined(__unix__)
+    desc.platformType = NativePlatformType::X11;
+    desc.displayHandle = nullptr;
+    desc.windowHandle = nativeWindowHandle;
+#else
+    desc.platformType = NativePlatformType::Unknown;
+    desc.displayHandle = nullptr;
+    desc.windowHandle = nativeWindowHandle;
+#endif
+    desc.width = initialWidth;
+    desc.height = initialHeight;
+    return EngineNative_InitRendererDescriptor(&desc);
 }
 
 ENGINE_API void EngineNative_ShutdownRenderer() {

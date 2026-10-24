@@ -1583,7 +1583,7 @@ public static class AutomatedTests
             failed++;
         }
 
-        // Test 29: Native Vulkan Window Interop & Isolated Render Thread
+        // Test 29: Native Vulkan Window Interop & Isolated Render Thread (Cross-Platform Win32/X11/Wayland)
         try
         {
             Console.Write("Test 29: Native Vulkan Window Interop & Isolated Render Thread... ");
@@ -1591,7 +1591,23 @@ public static class AutomatedTests
             // 1. Initially renderer should not be running
             bool initNotRunning = EngineNativeBindings.IsRendererRunning() == 0;
 
-            // 2. Initialize renderer with test window handle
+            // 2. Test Cross-Platform Descriptor Initialization:
+            // 2a. Win32 Descriptor
+            var win32Desc = new NativeWindowDescriptor(NativePlatformType.Win32, IntPtr.Zero, (IntPtr)0x1000, 1920, 1080);
+            int win32Init = EngineNativeBindings.InitRendererDescriptor(ref win32Desc);
+            bool win32Running = EngineNativeBindings.IsRendererRunning() == 1;
+
+            // 2b. X11 Descriptor
+            var x11Desc = new NativeWindowDescriptor(NativePlatformType.X11, (IntPtr)0x2000, (IntPtr)0x3000, 1280, 720);
+            int x11Init = EngineNativeBindings.InitRendererDescriptor(ref x11Desc);
+            bool x11Running = EngineNativeBindings.IsRendererRunning() == 1;
+
+            // 2c. Wayland Descriptor
+            var wlDesc = new NativeWindowDescriptor(NativePlatformType.Wayland, (IntPtr)0x4000, (IntPtr)0x5000, 1600, 900);
+            int wlInit = EngineNativeBindings.InitRendererDescriptor(ref wlDesc);
+            bool wlRunning = EngineNativeBindings.IsRendererRunning() == 1;
+
+            // 2d. Legacy entry point compatibility
             int initResult = EngineNativeBindings.InitRenderer((IntPtr)0x1000, 1920, 1080);
             bool isRunning = EngineNativeBindings.IsRendererRunning() == 1;
 
@@ -1630,7 +1646,7 @@ public static class AutomatedTests
             EngineNativeBindings.SetRendererPaused(1);
             EngineNativeBindings.SetRendererPaused(0);
 
-            // 7. Test service layer abstraction
+            // 7. Test service layer abstraction & Linux descriptor helper
             var service = new NativeVulkanViewportService();
             service.SetViewportBounds(100, 50, 1200, 800);
             var serviceStats = service.GetStats();
@@ -1639,18 +1655,23 @@ public static class AutomatedTests
                              serviceStats.ViewportWidth == 1200 &&
                              serviceStats.ViewportHeight == 800;
 
+            var extractedLinuxDesc = LinuxWindowHelper.ExtractDescriptor((IntPtr)0x1234, 1920, 1080);
+            bool helperOk = extractedLinuxDesc.Width == 1920 && extractedLinuxDesc.Height == 1080;
+
             // 8. Graceful shutdown
             service.Shutdown();
             bool shutDownOk = EngineNativeBindings.IsRendererRunning() == 0;
 
-            if (initNotRunning && initResult == 0 && isRunning && boundsOk && resizeOk && serviceOk && shutDownOk)
+            bool descInitOk = win32Init == 0 && win32Running && x11Init == 0 && x11Running && wlInit == 0 && wlRunning;
+
+            if (initNotRunning && initResult == 0 && isRunning && descInitOk && helperOk && boundsOk && resizeOk && serviceOk && shutDownOk)
             {
-                Console.WriteLine($"PASSED (Swapchain: {stats.SwapchainWidth}x{stats.SwapchainHeight}, Viewport: {serviceStats.ViewportWidth}x{serviceStats.ViewportHeight}, Isolated Thread Stopped: {shutDownOk})");
+                Console.WriteLine($"PASSED (Win32/X11/Wayland descriptors, Swapchain: {stats.SwapchainWidth}x{stats.SwapchainHeight}, Viewport: {serviceStats.ViewportWidth}x{serviceStats.ViewportHeight}, Isolated Thread Stopped: {shutDownOk})");
                 passed++;
             }
             else
             {
-                Console.WriteLine($"FAILED (initNotRunning:{initNotRunning}, isRunning:{isRunning}, boundsOk:{boundsOk}, resizeOk:{resizeOk}, serviceOk:{serviceOk}, shutDownOk:{shutDownOk})");
+                Console.WriteLine($"FAILED (initNotRunning:{initNotRunning}, isRunning:{isRunning}, descInit:{descInitOk}, helper:{helperOk}, boundsOk:{boundsOk}, resizeOk:{resizeOk}, serviceOk:{serviceOk}, shutDownOk:{shutDownOk})");
                 failed++;
             }
         }

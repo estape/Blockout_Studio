@@ -150,6 +150,32 @@ struct NativeViewportBounds {
 };
 
 /**
+ * @brief Platform identifier for cross-platform window handle binding.
+ */
+enum class NativePlatformType : uint32_t {
+    Unknown = 0,
+    Win32   = 1,
+    X11     = 2,
+    Wayland = 3,
+    macOS   = 4,
+};
+
+/**
+ * @brief Unified cross-platform window descriptor struct passed across the C-ABI.
+ * Exactly 32 bytes with 64-bit natural alignment.
+ */
+#pragma pack(push, 8)
+struct NativeWindowDescriptor {
+    NativePlatformType platformType;
+    uint32_t           padding;        ///< Explicit 32-bit padding for clean 8-byte alignment
+    void*              displayHandle;  ///< Win32: nullptr | X11: Display* | Wayland: wl_display*
+    void*              windowHandle;   ///< Win32: HWND | X11: Window XID | Wayland: wl_surface*
+    uint32_t           width;
+    uint32_t           height;
+};
+#pragma pack(pop)
+
+/**
  * @brief Real-time performance metrics and swapchain/scissor state.
  */
 struct NativeRendererStats {
@@ -165,7 +191,15 @@ struct NativeRendererStats {
 #pragma pack(pop)
 
 /**
+ * @brief Initializes the Vulkan swapchain and spawns an isolated rendering thread using a cross-platform descriptor.
+ * @param pDescriptor Pointer to NativeWindowDescriptor with platform, display, and window handles.
+ * @return 0 on success, or non-zero error code.
+ */
+ENGINE_API int32_t EngineNative_InitRendererDescriptor(const NativeWindowDescriptor* pDescriptor);
+
+/**
  * @brief Initializes the Vulkan swapchain and spawns an isolated rendering thread.
+ * Backward-compatible entry point forwarding to EngineNative_InitRendererDescriptor.
  * @param nativeWindowHandle Native OS window handle (HWND on Win32, X11 Window on Linux).
  * @param initialWidth Initial swapchain width in pixels.
  * @param initialHeight Initial swapchain height in pixels.

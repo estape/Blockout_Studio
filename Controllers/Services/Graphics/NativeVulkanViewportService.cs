@@ -30,18 +30,32 @@ public class NativeVulkanViewportService : INativeVulkanViewportService
         _window = window;
         _isAttached = true;
 
-        // 1. Capture native HWND safely when window is created
+        // 1. Capture native window and display handles safely across platforms when window is created
         window.RegisterWindowCreatedHandler((sender, args) =>
         {
             try
             {
-                IntPtr hwnd = window.WindowHandle;
+                IntPtr rawHandle = window.WindowHandle;
                 Size size = window.Size;
                 uint w = (uint)Math.Max(1, size.Width);
                 uint h = (uint)Math.Max(1, size.Height);
 
-                _logCallback?.Invoke($"[NativeVulkan] Captured WindowHandle 0x{hwnd:X}, Initializing renderer {w}x{h}...");
-                EngineNativeBindings.InitRenderer(hwnd, w, h);
+                NativeWindowDescriptor desc;
+                if (OperatingSystem.IsWindows())
+                {
+                    desc = new NativeWindowDescriptor(NativePlatformType.Win32, IntPtr.Zero, rawHandle, w, h);
+                }
+                else if (OperatingSystem.IsLinux())
+                {
+                    desc = LinuxWindowHelper.ExtractDescriptor(rawHandle, w, h);
+                }
+                else
+                {
+                    desc = new NativeWindowDescriptor(NativePlatformType.Unknown, IntPtr.Zero, rawHandle, w, h);
+                }
+
+                _logCallback?.Invoke($"[NativeVulkan] Captured WindowHandle 0x{rawHandle:X} (Platform: {desc.PlatformType}), Initializing renderer {w}x{h}...");
+                EngineNativeBindings.InitRendererDescriptor(ref desc);
             }
             catch (Exception ex)
             {

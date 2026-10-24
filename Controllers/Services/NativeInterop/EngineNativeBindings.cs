@@ -92,7 +92,15 @@ public static unsafe partial class EngineNativeBindings
     }
 
     /// <summary>
+    /// Initializes the native Vulkan swapchain and isolated rendering thread using a cross-platform window descriptor.
+    /// Supports Win32 (HWND), Linux X11 (Display* + Window), and Linux Wayland (wl_display* + wl_surface*).
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "EngineNative_InitRendererDescriptor")]
+    public static partial int InitRendererDescriptor(ref NativeWindowDescriptor descriptor);
+
+    /// <summary>
     /// Initializes the native Vulkan swapchain and isolated rendering thread for the specified window handle.
+    /// Backward-compatible entry point forwarding to EngineNative_InitRendererDescriptor.
     /// </summary>
     [LibraryImport(LibraryName, EntryPoint = "EngineNative_InitRenderer")]
     public static partial int InitRenderer(IntPtr nativeWindowHandle, uint initialWidth, uint initialHeight);
