@@ -79,105 +79,181 @@ export class BlueprintContextMenu {
     setTimeout(() => document.addEventListener('pointerdown', dismissHandler), 10);
   }
 
-  populateList(listEl, filter, variables) {
-    listEl.innerHTML = '';
+  /**
+   * Filters available blueprint catalog nodes matching query against displayName, category, and methodName (case-insensitive).
+   * @param {string} filter Search query string
+   * @param {Array<Object>} variables Current graph variables
+   * @returns {Array<Object>} List of matching action objects
+   */
+  filterActions(filter = '', variables = []) {
+    const q = (filter || '').trim().toLowerCase();
+    const results = [];
+    const seen = new Set();
 
-    const categories = {
-      'Events': [],
-      'Flow Control': [],
-      'Actor Operations': [],
-      'Math & Logic': []
-    };
-    const seenItems = new Set();
+    // 1. Inspect window.nodeCatalog if available (dynamically ingested from C#)
+    if (typeof window !== 'undefined' && Array.isArray(window.nodeCatalog)) {
+      for (const node of window.nodeCatalog) {
+        if (!node || !node.id) continue;
+        const displayName = String(node.title || node.nodeType || node.id).trim();
+        const category = String(node.category || 'General').trim();
+        const methodName = String(node.methodName || node.nodeType || '').trim();
 
-    // Populate registry nodes
+        if (q) {
+          const qNoSpace = q.replace(/\s+/g, '');
+          const catNoSpace = category.replace(/\s+/g, '').toLowerCase();
+          const matchDisplay = displayName.toLowerCase().includes(q);
+          const matchCategory = category.toLowerCase().includes(q) || catNoSpace.includes(qNoSpace);
+          const matchMethod = methodName.toLowerCase().includes(q);
+          const matchId = node.id.toLowerCase().includes(q);
+          if (!matchDisplay && !matchCategory && !matchMethod && !matchId) continue;
+        }
+
+        const dedupeKey = `${category}::${displayName}`;
+        if (!seen.has(dedupeKey)) {
+          seen.add(dedupeKey);
+          results.push({
+            type: node.id,
+            title: displayName,
+            displayName,
+            category,
+            methodName,
+            props: node.properties || {}
+          });
+        }
+      }
+    }
+
+    // 2. Inspect NodeRegistry (built-in and statically registered nodes)
     for (const [key, def] of Object.entries(NodeRegistry)) {
       if (key === 'GetVariable' || key === 'SetVariable') continue;
 
-      if (filter && !def.title.toLowerCase().includes(filter) && !key.toLowerCase().includes(filter)) {
-        continue;
+      const displayName = String(def.displayName || def.title || key).trim();
+      const category = String(def.category || 'General').trim();
+      const methodName = String(def.methodName || def.type || key).trim();
+
+      if (q) {
+        const qNoSpace = q.replace(/\s+/g, '');
+        const catNoSpace = category.replace(/\s+/g, '').toLowerCase();
+        const matchDisplay = displayName.toLowerCase().includes(q);
+        const matchCategory = category.toLowerCase().includes(q) || catNoSpace.includes(qNoSpace);
+        const matchMethod = methodName.toLowerCase().includes(q);
+        const matchKey = key.toLowerCase().includes(q);
+        if (!matchDisplay && !matchCategory && !matchMethod && !matchKey) continue;
       }
 
-      // Avoid duplicating aliases with same title and category
-      const dedupeKey = `${def.category || 'General'}::${def.title}`;
-      if (seenItems.has(dedupeKey)) continue;
-      seenItems.add(dedupeKey);
-
-      const rawCat = def.category || 'General';
-      const catName = rawCat === 'Event' ? 'Events'
-        : rawCat === 'FlowControl' ? 'Flow Control'
-        : rawCat === 'Actor' ? 'Actor Operations'
-        : rawCat === 'Math' ? 'Math & Logic'
-        : rawCat;
-
-      if (!categories[catName]) {
-        categories[catName] = [];
+      const dedupeKey = `${category}::${displayName}`;
+      if (!seen.has(dedupeKey)) {
+        seen.add(dedupeKey);
+        results.push({
+          type: key,
+          title: displayName,
+          displayName,
+          category,
+          methodName,
+          props: def.properties || {}
+        });
       }
-
-      categories[catName].push({
-        type: key,
-        title: def.title,
-        props: {}
-      });
     }
 
-    // Populate Variables
-    for (const v of variables) {
-      if (!filter || `get ${v.name}`.toLowerCase().includes(filter)) {
-        categories['Variables'].push({
+    // 3. Inspect Variables
+    for (const v of (variables || [])) {
+      if (!v || !v.name) continue;
+      if (!q || `get ${v.name}`.toLowerCase().includes(q) || 'variables'.includes(q) || 'get'.includes(q)) {
+        results.push({
           type: 'GetVariable',
           title: `Get ${v.name}`,
+          displayName: `Get ${v.name}`,
+          category: 'Variables',
+          methodName: `Get${v.name}`,
           props: { VariableName: v.name }
         });
       }
-      if (!filter || `set ${v.name}`.toLowerCase().includes(filter)) {
-        categories['Variables'].push({
+      if (!q || `set ${v.name}`.toLowerCase().includes(q) || 'variables'.includes(q) || 'set'.includes(q)) {
+        results.push({
           type: 'SetVariable',
           title: `Set ${v.name}`,
+          displayName: `Set ${v.name}`,
+          category: 'Variables',
+          methodName: `Set${v.name}`,
           props: { VariableName: v.name }
         });
       }
     }
 
-    let hasAny = false;
-    for (const [cat, items] of Object.entries(categories)) {
-      if (items.length === 0) continue;
-      hasAny = true;
+    return results;
+  }
 
-      const catHeader = document.createElement('div');
-      catHeader.className = 'bp-context-cat';
-      catHeader.textContent = cat;
-      listEl.appendChild(catHeader);
+  populateList(listEl, filter, variables) {
+    listEl.innerHTML = '';
 
-      for (const item of items) {
-        const itemEl = document.createElement('div');
-        itemEl.className = 'bp-context-item';
-        itemEl.tabIndex = 0;
-        itemEl.innerHTML = `<span>${item.title}</span>`;
-
-        itemEl.addEventListener('click', () => {
-          this.onSelectNode(item.type, this.targetWorldPos, item.props, this.draggedSourcePin);
-          this.close();
-        });
-
-        itemEl.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            this.onSelectNode(item.type, this.targetWorldPos, item.props, this.draggedSourcePin);
-            this.close();
-          }
-        });
-
-        listEl.appendChild(itemEl);
-      }
-    }
-
-    if (!hasAny) {
+    const items = this.filterActions(filter, variables);
+    if (!items || items.length === 0) {
       const emptyEl = document.createElement('div');
       emptyEl.style.padding = '12px';
       emptyEl.style.color = '#64748b';
       emptyEl.style.textAlign = 'center';
       emptyEl.textContent = 'No matching actions found.';
       listEl.appendChild(emptyEl);
+      return;
+    }
+
+    // Group items by category
+    const categories = {
+      'Events': [],
+      'Flow Control': [],
+      'Actor Operations': [],
+      'Math & Logic': [],
+      'Variables': []
+    };
+
+    for (const item of items) {
+      const rawCat = item.category || 'General';
+      const catName = rawCat === 'Event' ? 'Events'
+        : (rawCat === 'FlowControl' || rawCat === 'Flow Control') ? 'Flow Control'
+        : rawCat === 'Actor' ? 'Actor Operations'
+        : (rawCat === 'Math' || rawCat === 'Math & Logic') ? 'Math & Logic'
+        : rawCat;
+
+      if (!categories[catName]) {
+        categories[catName] = [];
+      }
+      categories[catName].push(item);
+    }
+
+    for (const [cat, catItems] of Object.entries(categories)) {
+      if (!catItems || catItems.length === 0) continue;
+
+      const catHeader = document.createElement('div');
+      catHeader.className = 'bp-context-cat';
+      catHeader.textContent = cat;
+      listEl.appendChild(catHeader);
+
+      for (const item of catItems) {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'bp-context-item';
+        itemEl.tabIndex = 0;
+        itemEl.setAttribute('role', 'button');
+        itemEl.dataset.nodeType = item.type;
+        itemEl.innerHTML = `<span>${item.title || item.displayName}</span>`;
+
+        const chooseItem = (e) => {
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          this.onSelectNode(item.type, this.targetWorldPos, item.props, this.draggedSourcePin);
+          this.close();
+        };
+
+        itemEl.addEventListener('click', chooseItem);
+        itemEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            chooseItem(e);
+          }
+        });
+
+        listEl.appendChild(itemEl);
+      }
     }
   }
 

@@ -1450,4 +1450,19 @@ button.danger-btn:hover { background: var(--danger); border-color: #ff6b6b; colo
   padding-top: 14px;
 }
 
+/* Play-In-Editor (PIE) UI Locking & Visual Dimming */
+body.pie-mode-active #left-sidebar,
+body.pie-mode-active #sidebar {
+  pointer-events: none !important;
+  opacity: 0.45;
+  filter: grayscale(0.35);
+  user-select: none !important;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+body.pie-mode-active #outliner .outliner-item {
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
 

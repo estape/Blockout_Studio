@@ -27,7 +27,8 @@ export const NodeCategories = {
   EVENT: 'Event',
   ACTOR: 'Actor',
   MATH: 'Math',
-  FLOW_CONTROL: 'FlowControl',
+  FLOW_CONTROL: 'Flow Control',
+  FLOWCONTROL: 'Flow Control',
   VARIABLE: 'Variable'
 };
 
@@ -89,10 +90,12 @@ export const NodeRegistry = {
   // --- FLOW CONTROL ---
   Branch: {
     type: 'Branch',
-    title: 'Branch (If)',
+    title: 'Branch',
+    displayName: 'Branch',
+    methodName: 'Branch',
     category: NodeCategories.FLOW_CONTROL,
     inputs: [
-      { name: 'Exec', type: PinTypes.EXEC },
+      { name: 'ExecIn', type: PinTypes.EXEC },
       { name: 'Condition', type: PinTypes.BOOLEAN, defaultValue: 'false' }
     ],
     outputs: [
@@ -103,21 +106,71 @@ export const NodeRegistry = {
   Sequence: {
     type: 'Sequence',
     title: 'Sequence',
+    displayName: 'Sequence',
+    methodName: 'Sequence',
     category: NodeCategories.FLOW_CONTROL,
     inputs: [
-      { name: 'Exec', type: PinTypes.EXEC }
+      { name: 'ExecIn', type: PinTypes.EXEC }
     ],
     outputs: [
       { name: 'Then 0', type: PinTypes.EXEC },
       { name: 'Then 1', type: PinTypes.EXEC }
     ]
   },
+  ForEachLoop: {
+    type: 'ForEachLoop',
+    title: 'For Each Loop',
+    displayName: 'For Each Loop',
+    methodName: 'ForEachLoop',
+    category: NodeCategories.FLOW_CONTROL,
+    inputs: [
+      { name: 'ExecIn', type: PinTypes.EXEC },
+      { name: 'Array', type: PinTypes.ACTOR_REF }
+    ],
+    outputs: [
+      { name: 'LoopBody', type: PinTypes.EXEC },
+      { name: 'ArrayElement', type: PinTypes.ACTOR_REF },
+      { name: 'ArrayIndex', type: PinTypes.INTEGER },
+      { name: 'Completed', type: PinTypes.EXEC }
+    ]
+  },
+  Delay: {
+    type: 'Delay',
+    title: 'Delay',
+    displayName: 'Delay',
+    methodName: 'Delay',
+    category: NodeCategories.FLOW_CONTROL,
+    inputs: [
+      { name: 'ExecIn', type: PinTypes.EXEC },
+      { name: 'Duration', type: PinTypes.FLOAT, defaultValue: '0.2' }
+    ],
+    outputs: [
+      { name: 'Completed', type: PinTypes.EXEC }
+    ]
+  },
+  DoOnce: {
+    type: 'DoOnce',
+    title: 'Do Once',
+    displayName: 'Do Once',
+    methodName: 'DoOnce',
+    category: NodeCategories.FLOW_CONTROL,
+    inputs: [
+      { name: 'ExecIn', type: PinTypes.EXEC },
+      { name: 'Reset', type: PinTypes.EXEC },
+      { name: 'StartClosed', type: PinTypes.BOOLEAN, defaultValue: 'false' }
+    ],
+    outputs: [
+      { name: 'Completed', type: PinTypes.EXEC }
+    ]
+  },
   ForLoop: {
     type: 'ForLoop',
     title: 'For Loop',
+    displayName: 'For Loop',
+    methodName: 'ForLoop',
     category: NodeCategories.FLOW_CONTROL,
     inputs: [
-      { name: 'Exec', type: PinTypes.EXEC },
+      { name: 'ExecIn', type: PinTypes.EXEC },
       { name: 'FirstIndex', type: PinTypes.INTEGER, defaultValue: '0' },
       { name: 'LastIndex', type: PinTypes.INTEGER, defaultValue: '10' }
     ],
@@ -446,7 +499,17 @@ export const NodeRegistry = {
  * @returns {Object} Node instance
  */
 export function createNodeInstance(nodeType, posX = 0, posY = 0, customProps = {}) {
-  const def = NodeRegistry[nodeType] || NodeRegistry['EventBeginPlay'];
+  let def = NodeRegistry[nodeType];
+  if (!def && typeof window !== 'undefined' && window.nodeCatalog && Array.isArray(window.nodeCatalog)) {
+    const found = window.nodeCatalog.find(n => n.id === nodeType || n.nodeType === nodeType || n.methodName === nodeType || n.title === nodeType);
+    if (found) {
+      registerDynamicNodes([found]);
+      def = NodeRegistry[nodeType] || NodeRegistry[found.id];
+    }
+  }
+  if (!def) {
+    def = NodeRegistry['EventBeginPlay'];
+  }
   const nodeId = 'node_' + Math.random().toString(36).substring(2, 9);
 
   const inputs = (def.inputs || []).map(p => ({
@@ -542,19 +605,23 @@ export function registerDynamicNodes(discoveredNodes) {
     NodeRegistry[node.id] = {
       type: node.id,
       title: node.title || node.nodeType,
+      displayName: node.title || node.nodeType,
       category: category,
       isPure: node.isPure || false,
       declaringType: node.declaringType,
-      methodName: node.methodName,
+      methodName: node.methodName || node.nodeType,
       isStatic: node.isStatic,
       inputs,
       outputs,
       properties: node.properties || {}
     };
 
-    // Also register under nodeType if not already claimed
+    // Also register under nodeType and methodName if not already claimed
     if (!NodeRegistry[node.nodeType]) {
       NodeRegistry[node.nodeType] = NodeRegistry[node.id];
+    }
+    if (node.methodName && !NodeRegistry[node.methodName]) {
+      NodeRegistry[node.methodName] = NodeRegistry[node.id];
     }
   }
 }

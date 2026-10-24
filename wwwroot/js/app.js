@@ -57,6 +57,7 @@ let currentTool = 'select';
  * @param {string} tool Target tool identifier.
  */
 export function setTool(tool) {
+  if (isPieActive()) return;
   currentTool = tool;
 
   ['select', 'rotate', 'draw-rect', 'draw-circle', 'pushpull', 'hole'].forEach((t) => {
@@ -90,6 +91,15 @@ export function setTool(tool) {
 
 // Global Pointer Event Listeners
 renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (isPieActive()) {
+    if (isPiePlaying() && document.pointerLockElement !== renderer.domElement) {
+      if (renderer.domElement.requestPointerLock) {
+        renderer.domElement.requestPointerLock();
+      }
+    }
+    return;
+  }
+
   // Alt + Pointer Drag is dedicated to laptop trackpad Orbit / Pan
   if (e.altKey) {
     return;
@@ -121,6 +131,7 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
 });
 
 renderer.domElement.addEventListener('pointermove', (e) => {
+  if (isPieActive()) return;
   getMouseRay(e);
 
   if (currentTool === 'draw-rect') {
@@ -133,6 +144,7 @@ renderer.domElement.addEventListener('pointermove', (e) => {
 });
 
 window.addEventListener('pointerup', (e) => {
+  if (isPieActive()) return;
   if (currentTool === 'draw-rect') {
     handleRectPointerUp(e);
   } else if (currentTool === 'draw-circle') {
@@ -153,6 +165,14 @@ function raycasterHits() {
 // Keyboard Shortcuts
 window.addEventListener('keydown', (e) => {
   if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') return;
+
+  // ESC exits PIE simulation
+  if (e.key === 'Escape' && isPieActive()) {
+    stopPie();
+    return;
+  }
+
+  if (isPieActive()) return;
 
   // Toggle Content Drawer: Ctrl + Space
   if ((e.ctrlKey || e.metaKey) && (e.code === 'Space' || e.key === ' ')) {

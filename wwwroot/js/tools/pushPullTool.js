@@ -12,6 +12,7 @@ import { selectedBlock, selectBlock, rebuildBlockMesh, syncInspectorFromSelected
 import { snapSize, transformControl } from '../transformGizmo.js';
 import { recordState } from '../historyManager.js';
 import { showToast } from '../ipcBridge.js';
+import { syncActorColliderFromGeometry } from '../ecs/entity.js';
 
 /**
  * @typedef {Object} FaceData
@@ -605,6 +606,7 @@ function processGizmoDrag(e) {
 
   // Rebuild mesh BufferGeometry and sync details panel
   rebuildBlockMesh(mesh);
+  syncActorColliderFromGeometry(mesh);
   syncInspectorFromSelected();
 
   // Face center in world space moves strictly along the face normal by deltaClamped (zero lag)
@@ -640,6 +642,7 @@ export function handlePushPullPointerUp() {
       const changed = (u.sizeX !== dragStartSizes.x || u.sizeY !== dragStartSizes.y || u.sizeZ !== dragStartSizes.z);
 
       if (changed) {
+        syncActorColliderFromGeometry(mesh);
         recordState(`Push/Pull ${u.name} ${selectedFaceData.faceDesc}`);
       }
 

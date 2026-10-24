@@ -69,11 +69,13 @@ export class PhysicsSystem {
       entity.position.y += rb.velocityY * dt;
       entity.position.z += rb.velocityZ * dt;
 
-      // Ground plane check (y = 0 in Three.js represents floor level)
-      const halfH = (collider.sizeZ || 100) / 2;
-      if (entity.position.y < halfH) {
-        entity.position.y = halfH;
-        if (rb.velocityY < 0) rb.velocityY = 0;
+      // KillZ boundary check (Z < -2000 cm in engine coordinates, pos.y < -2000 in Three.js)
+      if (entity.position.y < -2000) {
+        const spawnPos = entity.userData.spawnPosition || { x: entity.position.x, y: 50, z: entity.position.z };
+        entity.position.set(spawnPos.x, spawnPos.y, spawnPos.z);
+        rb.velocityX = 0;
+        rb.velocityY = 0;
+        rb.velocityZ = 0;
       }
 
       // Resolve vs all other colliders
@@ -139,15 +141,31 @@ export class PhysicsSystem {
     const hBy = (colB.sizeZ || 100) / 2;
     const hBz = (colB.sizeY || 100) / 2;
 
-    const dx = posA.x - posB.x;
+    const offAx = colA.centerOffsetX || 0;
+    const offAy = colA.centerOffsetZ !== undefined ? colA.centerOffsetZ : hAy;
+    const offAz = colA.centerOffsetY || 0;
+
+    const offBx = colB.centerOffsetX || 0;
+    const offBy = colB.centerOffsetZ !== undefined ? colB.centerOffsetZ : hBy;
+    const offBz = colB.centerOffsetY || 0;
+
+    const centerAx = posA.x + offAx;
+    const centerAy = posA.y + offAy;
+    const centerAz = posA.z + offAz;
+
+    const centerBx = posB.x + offBx;
+    const centerBy = posB.y + offBy;
+    const centerBz = posB.z + offBz;
+
+    const dx = centerAx - centerBx;
     const px = (hAx + hBx) - Math.abs(dx);
     if (px <= 0) return { collided: false };
 
-    const dy = posA.y - posB.y;
+    const dy = centerAy - centerBy;
     const py = (hAy + hBy) - Math.abs(dy);
     if (py <= 0) return { collided: false };
 
-    const dz = posA.z - posB.z;
+    const dz = centerAz - centerBz;
     const pz = (hAz + hBz) - Math.abs(dz);
     if (pz <= 0) return { collided: false };
 

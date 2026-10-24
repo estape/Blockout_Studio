@@ -522,3 +522,14 @@
   background: #2563eb;
   color: #fff;
 }
+
+.bp-context-item-cat {
+  font-size: 9px;
+  color: #94a3b8;
+  opacity: 0.8;
+  margin-left: 8px;
+}
+
+.bp-context-item:hover .bp-context-item-cat {
+  color: #dbeafe;
+}

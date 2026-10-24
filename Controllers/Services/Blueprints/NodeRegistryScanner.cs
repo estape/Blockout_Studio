@@ -91,8 +91,155 @@ public partial class NodeRegistryScanner : INodeRegistryScanner
                 }
             }
 
+            // Inject built-in execution flow nodes (Branch, Sequence, ForEachLoop, Delay, DoOnce)
+            InjectBuiltInFlowControlNodes(catalog);
+
             _cachedCatalog = catalog;
             return catalog;
+        }
+    }
+
+    private static void InjectBuiltInFlowControlNodes(NodeCatalog catalog)
+    {
+        const string category = "Flow Control";
+        if (!catalog.Categories.TryGetValue(category, out var flowList))
+        {
+            flowList = [];
+            catalog.Categories[category] = flowList;
+        }
+
+        var flowNodes = new List<DiscoveredNodeDefinition>
+        {
+            // Branch
+            new()
+            {
+                Id = "FlowControl.Branch",
+                NodeType = "Branch",
+                Title = "Branch",
+                Category = category,
+                IsPure = false,
+                DeclaringType = "Engine.FlowControl",
+                MethodName = "Branch",
+                Signature = "Branch(bool Condition)",
+                IsStatic = true,
+                Inputs =
+                [
+                    new DiscoveredNodePin("ExecIn", "Exec", "Input", "#ffffff"),
+                    new DiscoveredNodePin("Condition", "Boolean", "Input", "#dc2626", "false")
+                ],
+                Outputs =
+                [
+                    new DiscoveredNodePin("True", "Exec", "Output", "#ffffff"),
+                    new DiscoveredNodePin("False", "Exec", "Output", "#ffffff")
+                ],
+                Properties = new() { ["DeclaringTypeShort"] = "FlowControl", ["IsStatic"] = "true" }
+            },
+
+            // Sequence
+            new()
+            {
+                Id = "FlowControl.Sequence",
+                NodeType = "Sequence",
+                Title = "Sequence",
+                Category = category,
+                IsPure = false,
+                DeclaringType = "Engine.FlowControl",
+                MethodName = "Sequence",
+                Signature = "Sequence()",
+                IsStatic = true,
+                Inputs =
+                [
+                    new DiscoveredNodePin("ExecIn", "Exec", "Input", "#ffffff")
+                ],
+                Outputs =
+                [
+                    new DiscoveredNodePin("Then 0", "Exec", "Output", "#ffffff"),
+                    new DiscoveredNodePin("Then 1", "Exec", "Output", "#ffffff")
+                ],
+                Properties = new() { ["DeclaringTypeShort"] = "FlowControl", ["IsStatic"] = "true" }
+            },
+
+            // ForEachLoop
+            new()
+            {
+                Id = "FlowControl.ForEachLoop",
+                NodeType = "ForEachLoop",
+                Title = "For Each Loop",
+                Category = category,
+                IsPure = false,
+                DeclaringType = "Engine.FlowControl",
+                MethodName = "ForEachLoop",
+                Signature = "ForEachLoop(object Array)",
+                IsStatic = true,
+                Inputs =
+                [
+                    new DiscoveredNodePin("ExecIn", "Exec", "Input", "#ffffff"),
+                    new DiscoveredNodePin("Array", "ActorRef", "Input", "#3b82f6")
+                ],
+                Outputs =
+                [
+                    new DiscoveredNodePin("LoopBody", "Exec", "Output", "#ffffff"),
+                    new DiscoveredNodePin("ArrayElement", "ActorRef", "Output", "#3b82f6"),
+                    new DiscoveredNodePin("ArrayIndex", "Integer", "Output", "#06b6d4", "0"),
+                    new DiscoveredNodePin("Completed", "Exec", "Output", "#ffffff")
+                ],
+                Properties = new() { ["DeclaringTypeShort"] = "FlowControl", ["IsStatic"] = "true" }
+            },
+
+            // Delay
+            new()
+            {
+                Id = "FlowControl.Delay",
+                NodeType = "Delay",
+                Title = "Delay",
+                Category = category,
+                IsPure = false,
+                DeclaringType = "Engine.FlowControl",
+                MethodName = "Delay",
+                Signature = "Delay(float Duration)",
+                IsStatic = true,
+                Inputs =
+                [
+                    new DiscoveredNodePin("ExecIn", "Exec", "Input", "#ffffff"),
+                    new DiscoveredNodePin("Duration", "Float", "Input", "#22c55e", "0.2")
+                ],
+                Outputs =
+                [
+                    new DiscoveredNodePin("Completed", "Exec", "Output", "#ffffff")
+                ],
+                Properties = new() { ["DeclaringTypeShort"] = "FlowControl", ["IsStatic"] = "true" }
+            },
+
+            // DoOnce
+            new()
+            {
+                Id = "FlowControl.DoOnce",
+                NodeType = "DoOnce",
+                Title = "Do Once",
+                Category = category,
+                IsPure = false,
+                DeclaringType = "Engine.FlowControl",
+                MethodName = "DoOnce",
+                Signature = "DoOnce(bool StartClosed)",
+                IsStatic = true,
+                Inputs =
+                [
+                    new DiscoveredNodePin("ExecIn", "Exec", "Input", "#ffffff"),
+                    new DiscoveredNodePin("Reset", "Exec", "Input", "#ffffff"),
+                    new DiscoveredNodePin("StartClosed", "Boolean", "Input", "#dc2626", "false")
+                ],
+                Outputs =
+                [
+                    new DiscoveredNodePin("Completed", "Exec", "Output", "#ffffff")
+                ],
+                Properties = new() { ["DeclaringTypeShort"] = "FlowControl", ["IsStatic"] = "true" }
+            }
+        };
+
+        foreach (var fn in flowNodes)
+        {
+            catalog.Nodes.Add(fn);
+            flowList.Add(fn.Id);
         }
     }
 

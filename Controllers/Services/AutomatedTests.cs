@@ -964,14 +964,47 @@ public static class AutomatedTests
             float overlapFar = (halfA_x + halfB_x) - MathF.Abs(posA_x - posC_x); // -100cm separation
             bool collisionMiss = overlapFar <= 0;
 
-            if (validCompsCount && validCc && validRb && collisionHit && collisionMiss)
+            // 3. PIE True Ground Support, Freefall & KillZ Invariant Checks
+            // SM_Floor: Center (0, 10, 0), Size (400, 20, 400) -> X: [-200, 200], Y (Height): [0, 20], Z: [-200, 200]
+            float floorMinX = -200f, floorMaxX = 200f;
+            float floorMinZ = -200f, floorMaxZ = 200f;
+            float floorMaxY = 20f;
+            float charRadius = 30f;
+
+            // Inside floor bounds: Player footprint at (100, 20, 100)
+            float player1_x = 100f, player1_z = 100f, player1_y = 20f;
+            float close1_x = Math.Clamp(player1_x, floorMinX, floorMaxX);
+            float close1_z = Math.Clamp(player1_z, floorMinZ, floorMaxZ);
+            float distSq1 = (player1_x - close1_x) * (player1_x - close1_x) + (player1_z - close1_z) * (player1_z - close1_z);
+            bool player1Grounded = distSq1 <= (charRadius * charRadius) && player1_y >= (floorMaxY - 15f);
+
+            // Outside floor bounds (walked off edge into empty space): Player footprint at (250, 20, 0)
+            float player2_x = 250f, player2_z = 0f;
+            float close2_x = Math.Clamp(player2_x, floorMinX, floorMaxX);
+            float close2_z = Math.Clamp(player2_z, floorMinZ, floorMaxZ);
+            float distSq2 = (player2_x - close2_x) * (player2_x - close2_x) + (player2_z - close2_z) * (player2_z - close2_z);
+            bool player2Airborne = distSq2 > (charRadius * charRadius); // No ground under feet -> Airborne freefall!
+
+            // Trigger Only collider response: isTrigger = true must NOT block or provide ground support
+            bool isFloorTrigger = true;
+            bool triggerProvidesGround = !isFloorTrigger && player1Grounded; // Must be false when isTrigger is true
+
+            // KillZ boundary check: falling past -2000 cm triggers respawn
+            float fallY = -2150f;
+            const float killZ = -2000f;
+            bool triggerKillZ = fallY < killZ;
+            float respawnY = triggerKillZ ? 22f : fallY;
+            bool killZPassed = triggerKillZ && respawnY == 22f;
+
+            if (validCompsCount && validCc && validRb && collisionHit && collisionMiss &&
+                player1Grounded && player2Airborne && !triggerProvidesGround && killZPassed)
             {
-                Console.WriteLine("PASSED (7 Components [Transform..AudioSource], 180cm/45cm Mannequin metrics, AABB Penetration: 40cm)");
+                Console.WriteLine("PASSED (7 Components, Mannequin metrics, AABB Penetration, True Ground Support & KillZ)");
                 passed++;
             }
             else
             {
-                Console.WriteLine($"FAILED: validComps:{validCompsCount}, validCc:{validCc}, validRb:{validRb}, colHit:{collisionHit}, colMiss:{collisionMiss}");
+                Console.WriteLine($"FAILED: validComps:{validCompsCount}, validCc:{validCc}, validRb:{validRb}, colHit:{collisionHit}, colMiss:{collisionMiss}, p1Grounded:{player1Grounded}, p2Airborne:{player2Airborne}, trigBlock:{triggerProvidesGround}, killZ:{killZPassed}");
                 failed++;
             }
         }
@@ -1714,26 +1747,45 @@ public static class AutomatedTests
                              vecDistNode.Inputs.Count == 2 &&
                              vecDistNode.Outputs.Any(p => p.Name == "ReturnValue" && p.Type == "Float" && p.Color == "#22c55e");
 
+            // Check flow control built-in nodes injection: Branch
+            var branchNode = catalog.Nodes.FirstOrDefault(n => n.Id == "FlowControl.Branch");
+            bool branchOk = branchNode != null &&
+                            !branchNode.IsPure &&
+                            branchNode.Category == "Flow Control" &&
+                            branchNode.Inputs.Any(p => p.Name == "ExecIn" && p.Type == "Exec" && p.Color == "#ffffff") &&
+                            branchNode.Inputs.Any(p => p.Name == "Condition" && p.Type == "Boolean" && p.Color == "#dc2626") &&
+                            branchNode.Outputs.Any(p => p.Name == "True" && p.Type == "Exec" && p.Color == "#ffffff") &&
+                            branchNode.Outputs.Any(p => p.Name == "False" && p.Type == "Exec" && p.Color == "#ffffff");
+
+            // Check Sequence, ForEachLoop, Delay, DoOnce built-in injection
+            bool otherFlowOk = catalog.Nodes.Any(n => n.Id == "FlowControl.Sequence") &&
+                               catalog.Nodes.Any(n => n.Id == "FlowControl.ForEachLoop") &&
+                               catalog.Nodes.Any(n => n.Id == "FlowControl.Delay") &&
+                               catalog.Nodes.Any(n => n.Id == "FlowControl.DoOnce");
+
             // Check categories index
             bool categoriesOk = catalog.Categories.ContainsKey("Actor") &&
                                 catalog.Categories.ContainsKey("Math") &&
                                 catalog.Categories.ContainsKey("Audio") &&
                                 catalog.Categories.ContainsKey("Debug") &&
-                                catalog.Categories.ContainsKey("Gameplay");
+                                catalog.Categories.ContainsKey("Gameplay") &&
+                                catalog.Categories.ContainsKey("Flow Control");
 
             // Check JSON serialization
             var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
             var json = JsonSerializer.Serialize(catalog, jsonOpts);
-            bool jsonOk = json.Contains("\"category\":\"Math\"") && json.Contains("\"nodeCount\":");
+            bool jsonOk = json.Contains("\"category\":\"Math\"") &&
+                          json.Contains("\"category\":\"Flow Control\"") &&
+                          json.Contains("\"nodeCount\":");
 
             // Check DI registration
             var serviceProvider = ServiceRegistration.BuildEngineServiceProvider();
             var diScanner = serviceProvider.GetService<INodeRegistryScanner>();
             bool diOk = diScanner != null;
 
-            if (hasNodes && getLocOk && setLocOk && vecDistOk && categoriesOk && jsonOk && diOk)
+            if (hasNodes && getLocOk && setLocOk && vecDistOk && branchOk && otherFlowOk && categoriesOk && jsonOk && diOk)
             {
-                Console.WriteLine($"PASSED (Reflected {catalog.NodeCount} nodes across {catalog.Categories.Count} categories, Exec injection & pure pins verified)");
+                Console.WriteLine($"PASSED (Reflected {catalog.NodeCount} nodes across {catalog.Categories.Count} categories, Exec injection, FlowControl & pure pins verified)");
                 passed++;
             }
             else

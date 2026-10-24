@@ -38,3 +38,4 @@ fi
 if [ -d "../../bin/Release/net10.0" ]; then
     cp -f libEngineNative.so "../../bin/Release/net10.0/"
 fi
+

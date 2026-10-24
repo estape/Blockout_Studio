@@ -77,6 +77,39 @@ export class BlueprintCanvas {
     };
   }
 
+  /**
+   * Filters available blueprint catalog nodes matching query against displayName, category, and methodName (case-insensitive).
+   * @param {string} query Search filter string
+   * @returns {Array<Object>} List of matching node definitions
+   */
+  filterActions(query = '') {
+    return this.contextMenu.filterActions(query, this.manager.currentGraph?.variables || []);
+  }
+
+  /**
+   * Opens the node action context menu at client screen coordinates.
+   * @param {number} clientX
+   * @param {number} clientY
+   * @param {Object|null} [sourcePin=null]
+   */
+  openContextMenu(clientX, clientY, sourcePin = null) {
+    const worldPos = this.screenToWorld(clientX, clientY);
+    this.contextMenu.open(clientX, clientY, worldPos, this.manager.currentGraph?.variables || [], sourcePin);
+  }
+
+  /**
+   * Spawns a node of specified type at given world coordinates with typed pins.
+   * @param {string} nodeType
+   * @param {number} worldX
+   * @param {number} worldY
+   * @param {Object} [props={}]
+   * @param {Object|null} [sourcePin=null]
+   * @returns {Object} Instantiated GraphNode
+   */
+  spawnNodeAt(nodeType, worldX, worldY, props = {}, sourcePin = null) {
+    return this.manager.spawnNode(nodeType, worldX, worldY, props, sourcePin);
+  }
+
   bindEvents() {
     // Pan & Zoom
     this.container.addEventListener('pointerdown', (e) => {
@@ -201,8 +234,7 @@ export class BlueprintCanvas {
     this.container.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       if (!this.draggedNode && !this.draggedPin) {
-        const worldPos = this.screenToWorld(e.clientX, e.clientY);
-        this.contextMenu.open(e.clientX, e.clientY, worldPos, this.manager.currentGraph.variables);
+        this.openContextMenu(e.clientX, e.clientY);
       }
     });
 

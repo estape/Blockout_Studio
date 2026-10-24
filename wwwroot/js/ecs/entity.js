@@ -47,9 +47,15 @@ export function ensureEntityComponents(object) {
         sizeX: object.userData.sizeX || 100,
         sizeY: object.userData.sizeY || 100,
         sizeZ: object.userData.sizeZ || 100,
+        centerOffsetX: 0,
+        centerOffsetY: 0,
+        centerOffsetZ: (object.userData.sizeZ || 100) / 2,
         radius: (object.userData.sizeX || 100) / 2
       });
       object.userData.components.push(colliderComp);
+      if (object.geometry) {
+        syncActorColliderFromGeometry(object);
+      }
     }
   }
 
@@ -148,3 +154,51 @@ export function deserializeEntityComponents(object, rawComponents) {
     ensureEntityComponents(object);
   }
 }
+
+/**
+ * Recomputes the local bounding box from the vertex buffer and updates attached Collider,
+ * Mesh, and Transform components to match modified geometry.
+ * @param {THREE.Object3D} object - Target scene object with geometry.
+ */
+export function syncActorColliderFromGeometry(object) {
+  if (!object || !object.geometry) return;
+  object.geometry.computeBoundingBox();
+  const bbox = object.geometry.boundingBox;
+  if (!bbox) return;
+
+  const extentX = Math.max(1, bbox.max.x - bbox.min.x);
+  const extentY = Math.max(1, bbox.max.y - bbox.min.y); // Height in Three.js (sizeZ in engine)
+  const extentZ = Math.max(1, bbox.max.z - bbox.min.z); // Depth in Three.js (sizeY in engine)
+
+  const centerX = (bbox.min.x + bbox.max.x) / 2;
+  const centerY = (bbox.min.y + bbox.max.y) / 2; // Height offset
+  const centerZ = (bbox.min.z + bbox.max.z) / 2; // Depth offset
+
+  const col = getComponent(object, 'Collider');
+  if (col) {
+    col.sizeX = Math.round(extentX);
+    col.sizeY = Math.round(extentZ);
+    col.sizeZ = Math.round(extentY);
+    col.centerOffsetX = Math.round(centerX * 100) / 100;
+    col.centerOffsetY = Math.round(centerZ * 100) / 100;
+    col.centerOffsetZ = Math.round(centerY * 100) / 100;
+    if (col.colliderType === 'sphere') {
+      col.radius = Math.round(extentX / 2);
+    }
+  }
+
+  const meshComp = getComponent(object, 'Mesh');
+  if (meshComp) {
+    meshComp.sizeX = Math.round(extentX);
+    meshComp.sizeY = Math.round(extentZ);
+    meshComp.sizeZ = Math.round(extentY);
+  }
+
+  const transformComp = getComponent(object, 'Transform');
+  if (transformComp) {
+    transformComp.posX = Math.round(object.position.x);
+    transformComp.posY = Math.round(object.position.z);
+    transformComp.posZ = Math.round(object.position.y);
+  }
+}
+

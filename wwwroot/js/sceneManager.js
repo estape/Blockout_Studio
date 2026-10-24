@@ -13,7 +13,7 @@ import { recordState } from './historyManager.js';
 import { applyCsgGeometry } from './tools/holeTool.js';
 import {
   ensureEntityComponents, getComponent, addComponent, removeComponent,
-  deserializeEntityComponents
+  deserializeEntityComponents, syncActorColliderFromGeometry
 } from './ecs/entity.js';
 import { createComponentByType } from './ecs/components.js';
 
@@ -28,6 +28,38 @@ export const blocks = [];
  * @brief Currently selected block mesh or actor group in the scene.
  */
 export let selectedBlock = null;
+
+/**
+ * @type {boolean}
+ * @brief Flag indicating if Play-In-Editor (PIE) mode is currently active.
+ */
+let isPlayMode = false;
+
+/**
+ * @brief Sets whether Play-In-Editor (PIE) mode is active and clears selection if enabled.
+ * @param {boolean} active Active flag.
+ */
+export function setPlayModeActive(active) {
+  isPlayMode = active;
+  if (active) {
+    deselectAll();
+  }
+}
+
+/**
+ * @brief Checks if Play-In-Editor (PIE) mode is currently active.
+ * @returns {boolean} True if in play mode.
+ */
+export function isPlayModeActive() {
+  return isPlayMode;
+}
+
+/**
+ * @brief Clears active editor selection and detaches transform controls.
+ */
+export function deselectAll() {
+  selectBlock(null);
+}
 
 /**
  * @type {number}
@@ -144,7 +176,9 @@ export function createBlock(name, shapeType, sizeX, sizeY, sizeZ, posX = 0, posY
 
   scene.add(mesh);
   blocks.push(mesh);
-  selectBlock(mesh);
+  if (!isPlayMode) {
+    selectBlock(mesh);
+  }
   refreshOutliner();
   if (shouldRecord) {
     recordState('Create ' + mesh.userData.name);
@@ -256,6 +290,7 @@ export function rebuildBlockMesh(mesh) {
     mesh.children[0].geometry.dispose();
     mesh.children[0].geometry = new THREE.EdgesGeometry(mesh.geometry, 25);
   }
+  syncActorColliderFromGeometry(mesh);
 }
 
 /**
@@ -264,6 +299,20 @@ export function rebuildBlockMesh(mesh) {
  * @param {boolean|null} [attachTransform=null] Explicit override to attach or prevent attaching the transform gizmo.
  */
 export function selectBlock(mesh, attachTransform = null) {
+  if (isPlayMode && mesh !== null) {
+    if (selectedBlock) {
+      if (selectedBlock !== mannequinGroup && selectedBlock.children[0] && selectedBlock.children[0].isLineSegments) {
+        selectedBlock.children[0].material.color.setHex(0x181a20);
+        if (selectedBlock.material && selectedBlock.material.emissive) {
+          selectedBlock.material.emissive.setHex(0x000000);
+        }
+      }
+      selectedBlock = null;
+      transformControl.detach();
+    }
+    return;
+  }
+
   if (selectedBlock && selectedBlock !== mannequinGroup && selectedBlock.children[0] && selectedBlock.children[0].isLineSegments) {
     selectedBlock.children[0].material.color.setHex(0x181a20);
     if (selectedBlock.material && selectedBlock.material.emissive) {
@@ -380,6 +429,14 @@ export function renderComponentStack(entity) {
             <input type="checkbox" ${comp.isTrigger ? 'checked' : ''} onchange="updateComponentField('Collider', 'isTrigger', this.checked)">
             Trigger Only
           </label>
+        </div>
+        <div class="comp-row" style="margin-top:4px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.06); font-size:10px; color:#94a3b8;">
+          <span class="comp-lbl">Bounds</span>
+          <span style="font-family:monospace; color:#38bdf8;">${Math.round(comp.sizeX || 100)}&times;${Math.round(comp.sizeY || 100)}&times;${Math.round(comp.sizeZ || 100)} cm</span>
+        </div>
+        <div class="comp-row" style="font-size:10px; color:#94a3b8;">
+          <span class="comp-lbl">Center</span>
+          <span style="font-family:monospace; color:#cbd5e1;">(${Math.round(comp.centerOffsetX || 0)}, ${Math.round(comp.centerOffsetY || 0)}, ${Math.round(comp.centerOffsetZ || 0)})</span>
         </div>
       `;
     } else if (comp.type === 'Rigidbody') {
@@ -512,7 +569,7 @@ export function renderComponentStack(entity) {
  * @param {string} type Component type identifier ('Collider', 'Rigidbody', 'Script', etc.).
  */
 export function addComponentToSelected(type) {
-  if (!selectedBlock) return;
+  if (isPlayMode || !selectedBlock) return;
   const comp = createComponentByType(type);
   if (comp) {
     addComponent(selectedBlock, comp);
@@ -526,7 +583,7 @@ export function addComponentToSelected(type) {
  * @param {string} type Component type identifier to remove.
  */
 export function removeComponentFromSelected(type) {
-  if (!selectedBlock) return;
+  if (isPlayMode || !selectedBlock) return;
   if (removeComponent(selectedBlock, type)) {
     syncInspectorFromSelected();
     recordState(`Remove ${type} from ${selectedBlock.userData.name}`);
@@ -540,7 +597,7 @@ export function removeComponentFromSelected(type) {
  * @param {*} value New field value.
  */
 export function updateComponentField(type, field, value) {
-  if (!selectedBlock) return;
+  if (isPlayMode || !selectedBlock) return;
   const comp = getComponent(selectedBlock, type);
   if (comp) {
     comp[field] = value;
@@ -554,7 +611,7 @@ export function updateComponentField(type, field, value) {
  * @param {*} value New property value.
  */
 export function updateScriptProp(propName, value) {
-  if (!selectedBlock) return;
+  if (isPlayMode || !selectedBlock) return;
   const comp = getComponent(selectedBlock, 'Script');
   if (comp) {
     if (!comp.properties) comp.properties = {};
@@ -567,7 +624,7 @@ export function updateScriptProp(propName, value) {
  * @brief Applies dimension and name updates entered into the inspector inputs to the selected block.
  */
 export function applyInspectorChanges() {
-  if (!selectedBlock) return;
+  if (isPlayMode || !selectedBlock) return;
   const el = (id) => document.getElementById(id);
   selectedBlock.userData.name = el('prop-name').value || 'SM_Block';
   selectedBlock.userData.sizeX = Math.max(1, parseFloat(el('dim-x').value) || 100);
@@ -582,7 +639,7 @@ export function applyInspectorChanges() {
  * @brief Applies position and rotation coordinate updates from the inspector to the selected block.
  */
 export function applyPositionChanges() {
-  if (!selectedBlock) return;
+  if (isPlayMode || !selectedBlock) return;
   const el = (id) => document.getElementById(id);
   selectedBlock.position.x = parseFloat(el('pos-x').value) || 0;
   selectedBlock.position.z = parseFloat(el('pos-y').value) || 0;
@@ -598,7 +655,7 @@ export function applyPositionChanges() {
  * @brief Clones the currently selected block, offsetting its position by the current snap size.
  */
 export function duplicateSelected() {
-  if (!selectedBlock || selectedBlock === mannequinGroup) return;
+  if (isPlayMode || !selectedBlock || selectedBlock === mannequinGroup) return;
   const u = selectedBlock.userData;
   const copy = createBlock(
     u.name.replace(/_\d+$/, ''),
@@ -618,7 +675,7 @@ export function duplicateSelected() {
  * @brief Deletes the currently selected block actor or hides the reference dummy from the scene.
  */
 export function deleteSelected() {
-  if (!selectedBlock) return;
+  if (isPlayMode || !selectedBlock) return;
   if (selectedBlock === mannequinGroup) {
     toggleMannequin();
     selectBlock(null);
@@ -644,28 +701,36 @@ export function refreshOutliner() {
   container.innerHTML = '';
   const countEl = document.getElementById('block-count');
   const dummyCount = (mannequinGroup && mannequinGroup.visible) ? 1 : 0;
-  if (countEl) countEl.textContent = `${blocks.length + dummyCount} item(s)`;
+  const displayBlocks = blocks.filter((b) => !(b.userData && b.userData.isTransientPiePlayer));
+  if (countEl) countEl.textContent = `${displayBlocks.length + dummyCount} item(s)`;
 
   if (mannequinGroup && mannequinGroup.visible) {
     const dummyDiv = document.createElement('div');
     dummyDiv.className = 'outliner-item' + (selectedBlock === mannequinGroup ? ' selected' : '');
     dummyDiv.innerHTML = `<span>🧍 180cm Dummy</span><span style="opacity:0.75; font-size:10px;">60&times;30&times;180</span>`;
-    dummyDiv.onclick = () => selectBlock(mannequinGroup);
+    dummyDiv.onclick = () => {
+      if (isPlayMode) return;
+      selectBlock(mannequinGroup);
+    };
     container.appendChild(dummyDiv);
   }
 
-  blocks.forEach((b) => {
+  displayBlocks.forEach((b) => {
     const div = document.createElement('div');
     div.className = 'outliner-item' + (b === selectedBlock ? ' selected' : '');
     const isLight = b.userData.shapeType && b.userData.shapeType.includes('light');
     const icon = isLight ? '💡' : '📦';
     div.innerHTML = `<span>${icon} ${b.userData.name}</span><span style="opacity:0.75; font-size:10px;">${b.userData.sizeX}&times;${b.userData.sizeY}&times;${b.userData.sizeZ}</span>`;
-    div.onclick = () => selectBlock(b);
+    div.onclick = () => {
+      if (isPlayMode) return;
+      selectBlock(b);
+    };
     container.appendChild(div);
   });
 }
 
 window.resetDummyTransform = () => {
+  if (isPlayMode) return;
   resetDummyTransform();
   syncInspectorFromSelected();
 };
@@ -675,6 +740,7 @@ window.resetDummyTransform = () => {
  * @param {string} type Preset name ('wall', 'floor', 'pillar', 'crate', 'platform', 'ramp', 'cylinder', or 'sphere').
  */
 export function spawnPreset(type) {
+  if (isPlayMode) return;
   if (type === 'wall') createBlock('SM_Wall', 'box', 400, 20, 300, 0, 0, 0);
   if (type === 'floor') createBlock('SM_Floor', 'box', 400, 400, 20, 0, 0, 0);
   if (type === 'pillar') createBlock('SM_Pillar', 'box', 50, 50, 300, 0, 0, 0);

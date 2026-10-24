@@ -7,9 +7,9 @@
 // PLAY-IN-EDITOR (PIE) LIFECYCLE MANAGER
 // ============================================================================
 
-import { scene, camera, renderer, orbit, subGrid, majorGrid } from './engine.js';
-import { blocks, selectBlock, createBlock } from './sceneManager.js';
-import { transformControl } from './transformGizmo.js';
+import { scene, camera, renderer, orbit, subGrid, majorGrid, mannequinGroup } from './engine.js';
+import { blocks, selectBlock, createBlock, deselectAll, setPlayModeActive, refreshOutliner, syncInspectorFromSelected } from './sceneManager.js';
+import { transformControl, setTransformGizmoEnabled } from './transformGizmo.js';
 import { serializeScene, deserializeScene } from './historyManager.js';
 import { showToast, sendToBackend, registerHandler } from './ipcBridge.js';
 import { ensureEntityComponents, getComponent, addComponent } from './ecs/entity.js';
@@ -66,6 +66,35 @@ let savedCameraRot = new THREE.Euler();
 let savedOrbitTarget = new THREE.Vector3();
 
 /**
+ * @type {boolean}
+ * @brief Cached 180cm reference dummy visibility prior to entering PIE mode.
+ */
+let savedMannequinVisible = true;
+
+/**
+ * @brief Locks or unlocks editor sidebars, tools, forms, outliner, and inspector during active gameplay.
+ * @param {boolean} locked Whether editor UI panels should be locked.
+ */
+export function setEditorUiLocked(locked) {
+  if (locked) {
+    document.body.classList.add('pie-mode-active');
+  } else {
+    document.body.classList.remove('pie-mode-active');
+  }
+
+  const inputs = document.querySelectorAll('#left-sidebar button, #left-sidebar select, #left-sidebar input, #sidebar button, #sidebar select, #sidebar input');
+  inputs.forEach((el) => {
+    if (locked) {
+      el.setAttribute('data-pie-disabled', 'true');
+      el.disabled = true;
+    } else if (el.hasAttribute('data-pie-disabled')) {
+      el.removeAttribute('data-pie-disabled');
+      el.disabled = false;
+    }
+  });
+}
+
+/**
  * @brief Checks if Play-In-Editor simulation is active (either playing or paused).
  * @returns {boolean} True if PIE is currently active; otherwise false.
  */
@@ -93,14 +122,39 @@ export function startPie() {
   savedCameraRot.copy(camera.rotation);
   savedOrbitTarget.copy(orbit.target);
 
-  // 2. Hide Editor Gizmos & Helpers
+  // 2. Activate PIE State Early & Isolate Editor
+  currentPieState = PieState.PLAYING;
+  setPlayModeActive(true);
+
+  // 3. Clear Active Selection, Hide 3D Transform Gizmo & Badges
+  deselectAll();
+  setTransformGizmoEnabled(false);
   transformControl.detach();
+  transformControl.visible = false;
   orbit.enabled = false;
+
+  const badge = document.getElementById('gizmo-measure-badge');
+  if (badge) badge.style.display = 'none';
+  const liveMeasure = document.getElementById('live-measure');
+  if (liveMeasure) liveMeasure.style.display = 'none';
+
+  // 4. Hide Editor Helpers (Grids, 180cm Dummy, Light Attenuation Wireframes)
   if (subGrid) subGrid.visible = false;
   if (majorGrid) majorGrid.visible = false;
-  selectBlock(null);
+  savedMannequinVisible = mannequinGroup ? mannequinGroup.visible : true;
+  if (mannequinGroup) mannequinGroup.visible = false;
 
-  // 3. Find or Spawn Possessable Character Controller
+  for (const b of blocks) {
+    if (b.userData && (b.userData.shapeType === 'point_light' || b.userData.shapeType === 'spot_light')) {
+      for (const child of b.children) {
+        if (!child.isLight) {
+          child.visible = false;
+        }
+      }
+    }
+  }
+
+  // 5. Find or Spawn Possessable Character Controller
   possessedEntity = null;
   for (const b of blocks) {
     if (getComponent(b, 'CharacterController')) {
@@ -110,8 +164,10 @@ export function startPie() {
   }
 
   if (!possessedEntity) {
-    // Spawn default 180cm Dummy player actor
-    const playerBlock = createBlock('BP_Player_Dummy', 'cylinder', 60, 60, 180, 0, 0, 0, false);
+    // Spawn transient 180cm Dummy player actor above floor level
+    const playerBlock = createBlock('BP_Player_Dummy', 'cylinder', 60, 60, 180, 0, 0, 22, false);
+    playerBlock.userData.isTransientPiePlayer = true;
+    playerBlock.visible = false; // Hide mesh in first-person camera
     ensureEntityComponents(playerBlock);
     addComponent(playerBlock, new CharacterControllerComponent({
       height: 180,
@@ -126,23 +182,33 @@ export function startPie() {
       height: 180,
       radius: 30
     }));
+    playerBlock.userData.spawnPosition = playerBlock.position.clone();
+    characterControllerSystem.spawnPosition = { x: playerBlock.position.x, y: playerBlock.position.y, z: playerBlock.position.z };
     possessedEntity = playerBlock;
+  } else {
+    possessedEntity.visible = false;
+    possessedEntity.userData.spawnPosition = possessedEntity.position.clone();
+    characterControllerSystem.spawnPosition = { x: possessedEntity.position.x, y: possessedEntity.position.y, z: possessedEntity.position.z };
   }
 
-  // 4. Request Pointer Lock on Viewport Canvas
+  // 6. Lock Editor UI Panels (Outliner, Tools, Forms, Dimensions)
+  setEditorUiLocked(true);
+  refreshOutliner();
+
+  // 7. Request Pointer Lock on Viewport Canvas
   const canvas = renderer.domElement;
   if (canvas.requestPointerLock) {
     canvas.requestPointerLock();
   }
 
-  // 5. Initialize ECS Systems
+  // 8. Initialize ECS Systems
   characterControllerSystem.attachInputListeners();
   characterControllerSystem.isPointerLocked = true;
   scriptSystem.start(blocks);
   audioSystem.ensureContext();
   audioSystem.playSound('chime');
 
-  // 5b. Start C# Blueprint Simulation for Actors with BlueprintComponent
+  // 8b. Start C# Blueprint Simulation for Actors with BlueprintComponent
   const bpActors = [];
   for (const b of blocks) {
     const bpComp = getComponent(b, 'Blueprint');
@@ -167,8 +233,7 @@ export function startPie() {
     sendToBackend({ action: 'pie_blueprint_start', actors: bpActors });
   }
 
-  // 6. Update State & UI Controls
-  currentPieState = PieState.PLAYING;
+  // 9. Update State & UI Controls
   updatePieUi();
 
   const pieHud = document.getElementById('pie-hud');
@@ -229,16 +294,32 @@ export function stopPie() {
   orbit.target.copy(savedOrbitTarget);
   orbit.update();
 
-  // 5. Re-enable Editor Helpers
+  // 5. Re-enable Editor Helpers & Light Wireframes
   if (subGrid) subGrid.visible = true;
   if (majorGrid) majorGrid.visible = true;
+  if (mannequinGroup) mannequinGroup.visible = savedMannequinVisible;
 
-  // 6. Update State & UI
+  for (const b of blocks) {
+    if (b.userData && (b.userData.shapeType === 'point_light' || b.userData.shapeType === 'spot_light')) {
+      for (const child of b.children) {
+        child.visible = true;
+      }
+    }
+  }
+
+  // 6. Restore Editor UI & Gizmo State
   currentPieState = PieState.STOPPED;
+  setPlayModeActive(false);
+  setEditorUiLocked(false);
+  transformControl.visible = true;
+  setTransformGizmoEnabled(true);
   updatePieUi();
 
   const pieHud = document.getElementById('pie-hud');
   if (pieHud) pieHud.style.display = 'none';
+
+  refreshOutliner();
+  syncInspectorFromSelected();
 
   showToast('Play In Editor Stopped (Scene Restored)');
 }

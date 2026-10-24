@@ -49,3 +49,4 @@ public struct NativeWindowDescriptor
         Height = height;
     }
 }
+

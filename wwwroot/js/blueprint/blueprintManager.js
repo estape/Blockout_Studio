@@ -7,6 +7,10 @@ import { sendToBackend, registerHandler } from '../ipcBridge.js';
 import { createNodeInstance, arePinsCompatible, PinTypes, registerDynamicNodes } from './blueprintNodes.js';
 import { BlueprintCanvas } from './blueprintCanvas.js';
 
+if (typeof window !== 'undefined') {
+  window.nodeCatalog = window.nodeCatalog || [];
+}
+
 export class BlueprintManager {
   constructor() {
     this.currentGraph = this.createEmptyGraph('BP_NewActor');
@@ -75,6 +79,7 @@ export class BlueprintManager {
   registerIpcHandlers() {
     registerHandler('get_node_registry_response', (data) => {
       if (data && data.success && data.catalog && Array.isArray(data.catalog.nodes)) {
+        window.nodeCatalog = data.catalog.nodes;
         registerDynamicNodes(data.catalog.nodes);
         console.log(`[BlueprintManager] Ingested ${data.catalog.nodeCount || data.catalog.nodes.length} dynamic nodes via C# reflection.`);
       }
@@ -431,7 +436,7 @@ export class BlueprintManager {
       subAction: 'graph_add_node',
       id: node.id,
       targetMethodIdentifier: node.nodeType || nodeType,
-      nodeType: node.category === 'Event' ? 'Event' : (node.category === 'Math' ? 'PureFunction' : 'ImpureFunction'),
+      nodeType: (node.nodeType === 'Branch' || nodeType === 'Branch') ? 'Branch' : (node.category === 'Event' ? 'Event' : (node.category === 'Math' ? 'PureFunction' : 'ImpureFunction')),
       x: worldX,
       y: worldY,
       pins: allPins
